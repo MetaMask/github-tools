@@ -3,6 +3,10 @@ import { DateTime } from 'luxon';
 
 const octokit = new Octokit();
 
+const TEAM_NAME = 'Extension Platform Team';
+const INTERNAL_DESCRIPTOR = `PRs opened by members of the ${TEAM_NAME}`;
+const EXTERNAL_DESCRIPTOR = `PRs opened by authors not on the ${TEAM_NAME}`;
+
 const TEAM = [
   'PeterYinusa',
   'brad-decker',
@@ -25,14 +29,16 @@ const pullRequests: {
 } = {};
 
 /**
+ * Get all review comments for the repository specified.
  *
- * @param page
+ * @param page - The page number of results to fetch.
  */
 async function getAllComments(page = 1) {
   const { data } = await octokit.rest.pulls.listReviewCommentsForRepo({
     owner: 'MetaMask',
     repo: 'metamask-extension',
     since: DateTime.now().minus({ days: 14 }).toISODate() as string,
+    // eslint-disable-next-line
     per_page: 100,
     page,
   });
@@ -48,7 +54,7 @@ async function getAllComments(page = 1) {
 }
 
 /**
- *
+ * Main executable method for the script.
  */
 async function execute(): Promise<void> {
   let page = 1;
@@ -88,12 +94,18 @@ async function execute(): Promise<void> {
         pullRequests[pull]?.reviewComments?.length ?? 0;
     }
   });
-  console.log('INTERNAL');
-  console.log('Pull Requests: ', internalPulls);
-  console.log('Pull Request Review Comments: ', internalPullReviewComments);
-  console.log('External');
-  console.log('Pull Requests: ', externalPulls);
-  console.log('Pull Request Review Comments: ', externalPullReviewComments);
+  console.log('Category:', INTERNAL_DESCRIPTOR);
+  console.log('# of total Pull Requests for category:', internalPulls);
+  console.log(
+    '# of total review comments for category:',
+    internalPullReviewComments,
+  );
+  console.log('Category:', EXTERNAL_DESCRIPTOR);
+  console.log('# of total Pull Requests for category:', externalPulls);
+  console.log(
+    '# of total review comments for category: ',
+    externalPullReviewComments,
+  );
 }
 
 execute()
