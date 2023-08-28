@@ -1,10 +1,13 @@
 # GitHub Tools
 
-A place for internal GitHub tools to exist and be used. This currently only hosts a single script for getting the PR review load of the extension platform team but can be modified to include new tools or work with other teams.
+A place for internal GitHub tools to exist and be used.
 
 ## Usage
 
-This isn't a module, but the module template has the best setup. It cannot be installed and should not be published. Just clone this repo and run the script `yarn get-review-metrics`
+This repository holds a collection of scripts which are intended to be run locally:
+
+- `yarn get-review-metrics`: Gets the PR load of the extension platform team.
+- `GITHUB_AUTH_TOKEN="<your GitHub token>" yarn count-references-to-contributor-docs`: Counts the number of references to the `contributor-docs` repo in pull request comments.
 
 ## Contributing
 

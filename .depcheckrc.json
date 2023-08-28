@@ -4,6 +4,8 @@
     "@lavamoat/preinstall-always-fail",
     "@types/*",
     "prettier-plugin-packagejson",
+    "@swc/cli",
+    "@swc/core",
     "ts-node",
     "typedoc"
   ]
