@@ -7,7 +7,42 @@ A place for internal GitHub tools to exist and be used.
 This repository holds a collection of scripts which are intended to be run locally:
 
 - `yarn get-review-metrics`: Gets the PR load of the extension platform team.
-- `GITHUB_AUTH_TOKEN="<your GitHub token>" yarn count-references-to-contributor-docs`: Counts the number of references to the `contributor-docs` repo in pull request comments.
+- `yarn count-references-to-contributor-docs`: Counts the number of references to the `contributor-docs` repo in pull request comments.
+
+### Authentication
+
+Some scripts require a GitHub token in order to run fully.
+
+For best results, create a [classic personal token](https://github.com/settings/tokens) and ensure that it has the following scopes:
+
+- `read:org`
+- `public_repo`
+
+To use the token, you need to set the `GITHUB_AUTH_TOKEN` environment variable:
+
+```
+GITHUB_AUTH_TOKEN="<your GitHub token>" <command>
+```
+
+It's recommended to use your machine's local keychain to store the token and retrieve it from there. For example, under macOS, you can use the following command to store the token:
+
+```
+security add-generic-password -a $USER -s 'GitHub auth token' -w "<your GitHub token>"
+```
+
+Now you can use the token like this:
+
+```
+GITHUB_NPM_TOKEN="$(security find-generic-password a $USER -s 'GitHub auth token' -w)" <command>
+```
+
+### Logging
+
+Some scripts print additional information that may be useful for debugging. To see it, set the `DEBUG` environment variable as follows:
+
+```
+DEBUG="metamask:*" <command>
+```
 
 ## Contributing
 
