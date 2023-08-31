@@ -154,8 +154,8 @@ function selectCommentsFromMetaMaskEngineers(
  * `contributor-docs` repo. At the moment, we discern this by looking for
  * hyperlinks to the repo itself.
  *
- * @param comments - TODO.
- * @returns TODO.
+ * @param comments - A list of comments retrieved via the GitHub API.
+ * @returns Only the comments that reference the `contributor-docs` repo.
  */
 function selectCommentsWithReferencesToContributorDocs(
   comments: GitHubComment[],
