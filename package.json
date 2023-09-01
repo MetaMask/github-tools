@@ -23,8 +23,7 @@
     "@octokit/rest": "^19.0.13",
     "@types/luxon": "^3.3.0",
     "luxon": "^3.3.0",
-    "ora": "^5.4.1",
-    "pony-cause": "^2.1.10"
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",

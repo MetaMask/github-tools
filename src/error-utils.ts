@@ -1,5 +1,4 @@
 import { isObject } from '@metamask/utils';
-import { ErrorWithCause } from 'pony-cause';
 
 /**
  * Type guard for determining whether the given value is an instance of Error.
@@ -44,9 +43,11 @@ export function isErrorWithCode(error: unknown): error is { code: string } {
  */
 export function wrapError(message: string, originalError: unknown) {
   if (isError(originalError)) {
-    const error: any = new ErrorWithCause(message, { cause: originalError });
+    const error = new Error(message, { cause: originalError });
 
     if (isErrorWithCode(originalError)) {
+      // @ts-expect-error `code` is not a property on Error, even though Node
+      // uses it.
       error.code = originalError.code;
     }
 

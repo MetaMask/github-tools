@@ -1006,7 +1006,6 @@ __metadata:
     jest-it-up: ^2.0.2
     luxon: ^3.3.0
     ora: ^5.4.1
-    pony-cause: ^2.1.10
     prettier: ^2.7.1
     prettier-plugin-packagejson: ^2.3.0
     ts-jest: ^28.0.7
@@ -6141,13 +6140,6 @@ __metadata:
   dependencies:
     semver-compare: ^1.0.0
   checksum: d87c41581a2a022fbe25965a97006238cd9b8cbbf49b39f78d262548149a9d30bd2bdf35fec3d810e0001e630cd46ef13c7e19c389dea8de7e64db271a2381bb
-  languageName: node
-  linkType: hard
-
-"pony-cause@npm:^2.1.10":
-  version: 2.1.10
-  resolution: "pony-cause@npm:2.1.10"
-  checksum: 8b61378f213e61056312dc274a1c79980154e9d864f6ad86e0c8b91a50d3ce900d430995ee24147c9f3caa440dfe7d51c274b488d7f033b65b206522536d7217
   languageName: node
   linkType: hard
 
