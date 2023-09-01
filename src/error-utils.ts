@@ -43,17 +43,16 @@ export function isErrorWithCode(error: unknown): error is { code: string } {
  */
 export function wrapError(message: string, originalError: unknown) {
   if (isError(originalError)) {
-    const error = new Error(message, { cause: originalError });
+    const error: Error & { code?: string } = new Error(message, {
+      cause: originalError,
+    });
 
     if (isErrorWithCode(originalError)) {
-      // @ts-expect-error `code` is not a property on Error, even though Node
-      // uses it.
       error.code = originalError.code;
     }
 
     return error;
   }
 
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-  return new Error(`${message}: ${originalError}`);
+  return new Error(`${message}: ${String(originalError)}`);
 }
