@@ -1,22 +1,34 @@
 import ora from 'ora';
 
-import { countCommentsWithReferencesToContributorDocs } from './utils';
+import { tallyCommentsWithReferencesToContributorDocsByQuarter } from './utils';
+import type { TalliedQuarter } from './utils';
+import { log } from '../../logging-utils';
 
-const INTERESTING_REPOSITORY_NAMES = [
+/**
+ * The repositories we want to scan.
+ */
+const REPOSITORY_NAMES = [
   'core',
   'design-tokens',
   'metamask-extension',
   'metamask-mobile',
   'snaps',
-];
+] as const;
 
-const MAX_NUMBER_OF_COMMENTS_PER_REPO = 5000;
+type RepositoryName = typeof REPOSITORY_NAMES[number];
+
+/**
+ * It is not necessary for us to query all of the pull requests or pull requests
+ * comments for all time; we only need those since at least Q2 2023, which is
+ * when the Shared Libraries decided to start working on the contributor docs.
+ */
+const START_DATE = new Date(Date.UTC(2023, 3, 1));
 
 main().catch(console.error);
 
 /**
  * This script counts the number of references to the `contributor-docs` repo
- * across the primary repositories used by the MetaMask Core lane.
+ * across a selection of MetaMask repositories.
  */
 async function main() {
   const spinner = ora();
@@ -25,15 +37,22 @@ async function main() {
     'About to retrieve data. Please be patient, this could take a while:\n',
   );
 
-  let total = 0;
-  // Can't do this in parallel or else we get rate limits
-  for (const repositoryName of INTERESTING_REPOSITORY_NAMES) {
-    spinner.start(`Retrieving data for ${repositoryName}`);
+  const quartersByRepositoryName: Partial<
+    Record<RepositoryName, TalliedQuarter[]>
+  > = {};
+  // NOTE: We can't do this in parallel or else we'll get rate limits.
+  for (const repositoryName of REPOSITORY_NAMES) {
+    spinner.start(
+      `Retrieving data for ${repositoryName} since ${START_DATE.toISOString()}`,
+    );
+    log('');
     try {
-      total += await countCommentsWithReferencesToContributorDocs({
-        repositoryName,
-        sampleSize: MAX_NUMBER_OF_COMMENTS_PER_REPO,
-      });
+      const quarters =
+        await tallyCommentsWithReferencesToContributorDocsByQuarter({
+          repositoryName,
+          since: START_DATE,
+        });
+      quartersByRepositoryName[repositoryName] = quarters;
       spinner.succeed();
     } catch (error) {
       spinner.fail();
@@ -41,7 +60,23 @@ async function main() {
     }
   }
 
-  console.log(
-    `\nNumber of comments with references to contributor documentation: ${total}`,
+  const grandTotal = Object.values(quartersByRepositoryName).reduce(
+    (sum1, quarters) => {
+      return sum1 + quarters.reduce((sum2, quarter) => sum2 + quarter.total, 0);
+    },
+    0,
   );
+
+  console.log('\n----------------------\n');
+  console.log('Number of references to contributor-docs by repository:\n');
+  for (const [repositoryName, quarters] of Object.entries(
+    quartersByRepositoryName,
+  )) {
+    console.log(`- ${repositoryName}`);
+
+    for (const quarter of quarters) {
+      console.log(`  - ${quarter.name}: ${quarter.total}`);
+    }
+  }
+  console.log(`\nTotal number of references: ${grandTotal}`);
 }
