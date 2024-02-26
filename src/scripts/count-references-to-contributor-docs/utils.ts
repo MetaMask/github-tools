@@ -60,14 +60,6 @@ export async function tallyCommentsWithReferencesToContributorDocsByQuarter({
     (map, comment) => {
       const createdDate = DateTime.fromISO(comment.createdAt, { zone: 'utc' });
       const quarterNumber = Math.floor((createdDate.month - 1) / 3) + 1;
-      if (createdDate.month === 12 && createdDate.year === 2023) {
-        console.log(
-          'createdDate',
-          createdDate.toISO(),
-          'quarterNumber',
-          quarterNumber,
-        );
-      }
       const sortKey = parseInt(`${createdDate.year}0${quarterNumber}`, 10);
       const quarter: TalliedQuarter = map.get(sortKey) ?? {
         number: quarterNumber,
