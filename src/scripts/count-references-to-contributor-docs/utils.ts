@@ -10,8 +10,6 @@ import type {
 import { makeGitHubPullRequestCommentsQuery } from '../../github/pull-request-comments-query';
 import { log } from '../../logging-utils';
 
-const CONTRIBUTOR_DOCS_REPO_NAME = 'contributor-docs';
-
 export type TalliedQuarter = {
   number: number;
   year: number;
@@ -178,19 +176,13 @@ function isFromMetaMaskEngineer(comment: GitHubComment): boolean {
 }
 
 /**
- * We are only interested in comments that refer to the contributor-docs repo.
- * There are many ways to do this, but at the moment, we look for a
- * hyperlink to the repo itself.
+ * We are only interested in comments that refer to the contributor docs.
+ * There are many ways to do this, but here we simply look for the string
+ * "contributor-docs" or "contributor docs" to show up.
  *
  * @param comment - A comment retrieved via the GitHub API.
- * @returns True if the comment contains a link to the `contributor-docs` repo,
- * false otherwise.
+ * @returns True if the comment contains a reference to contributor docs.
  */
 function hasReferenceToContributorDocs(comment: GitHubComment): boolean {
-  return (
-    comment.body
-      .toLowerCase()
-      .includes(`github.com/metamask/${CONTRIBUTOR_DOCS_REPO_NAME}`) ||
-    comment.body.toLowerCase().includes('contributor docs')
-  );
+  return /\bcontributor-?docs\b/iu.test(comment.body);
 }
