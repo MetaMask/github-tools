@@ -19,15 +19,26 @@ export type GitHubComment = {
     };
   };
   body: string;
+  createdAt: string;
   updatedAt: string;
 };
 
-type GitHubPullRequest = {
+type GitHubReview = {
+  id: string;
+  comments: {
+    nodes: GitHubComment[];
+  };
+};
+
+export type GitHubPullRequest = {
   number: number;
   comments: {
     nodes: GitHubComment[];
-    pageInfo: GitHubPageInfo;
   };
+  reviews: {
+    nodes: GitHubReview[];
+  };
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -63,6 +74,8 @@ const QUERY = `
       pullRequests(first: 100, orderBy: { field: UPDATED_AT, direction: DESC }, after: $after) {
         nodes {
           number
+          createdAt
+          updatedAt
           comments(first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
             nodes {
               author {
@@ -75,10 +88,31 @@ const QUERY = `
                 }
               }
               body
+              createdAt
               updatedAt
             }
           }
-          updatedAt
+          reviews(first: 40) {
+            nodes {
+              id
+              comments(first: 100) {
+                nodes {
+                  author {
+                    __typename
+                    login
+                    ...on User {
+                      metamaskOrganization: organization(login: "MetaMask") {
+                        login
+                      }
+                    }
+                  }
+                  body
+                  createdAt
+                  updatedAt
+                }
+              }
+            }
+          }
         }
         pageInfo {
           endCursor
@@ -96,10 +130,10 @@ const QUERY = `
 `;
 
 /**
- * When requesting a collection of resources, the GitHub API returns a maximum
- * of 100 at a time. This function is used to retrieve a "page" of the most
- * recent comments made on pull requests submitted for the given MetaMask
- * repository.
+ * Executes a GraphQL query to retrieve the most recent comments posted on pull
+ * requests submitted for the given MetaMask repository, ordered from latest to
+ * earliest. A cursor may be provided to retrieve a particular "page" of pull
+ * requests.
  *
  * @param args - The arguments.
  * @param args.repositoryName - The name of the repository.
@@ -114,7 +148,7 @@ export async function makeGitHubPullRequestCommentsQuery({
   after: string | undefined;
 }): Promise<GitHubPullRequestCommentsQueryResponse> {
   log(
-    `Fetching pull requests for ${repositoryName}${
+    `Executing GraphQL query to fetch pull requests for ${repositoryName}${
       after ? ` (after: ${after})` : ''
     }`,
   );
