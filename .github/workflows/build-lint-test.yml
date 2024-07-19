@@ -9,12 +9,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment
 
       - run: yarn lint
-      
+
       - name: Require clean working directory
         shell: bash
         run: |
@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment
 
