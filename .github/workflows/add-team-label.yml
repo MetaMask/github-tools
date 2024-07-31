@@ -11,7 +11,7 @@ jobs:
         id: teams
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORGANIZATION: ${{ github.event.repository.owner.name }}
+          ORGANIZATION: ${{ github.repository_owner }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
           teams="$(gh api graphql -F organization=$ORGANIZATION -F user=$USER -f query='
