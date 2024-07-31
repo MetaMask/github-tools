@@ -1,0 +1,7 @@
+name: Add team label test
+
+on: push
+
+jobs:
+  add-team-label:
+    uses: ./.github/workflows/add-team-label.yml

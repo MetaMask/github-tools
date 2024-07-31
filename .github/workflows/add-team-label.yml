@@ -2,21 +2,33 @@ name: Add team label
 
 on:
   workflow_call:
-    secrets:
-      PERSONAL_ACCESS_TOKEN:
-        required: true
 
 jobs:
   add-team-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup environment
-        uses: metamask/github-tools/.github/actions/setup-environment@main
-
-      - name: Add team label
+      - name: Get teams
+        id: teams
+        uses: octokit/graphql-action@v2.x
         env:
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: yarn run add-team-label
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          query: |
+            query teams($organization:String!,$user:String!) {
+              organization(login: $organization) {
+                teams(first: 100, userLogins: [$user]) {
+                  edges {
+                    node {
+                      name
+                      description
+                      slug
+                    }
+                  }
+                }
+              }
+            }
+          variables: |
+            organization: ${{ github.event.repository.owner.name }}
+            user: ${{ github.event.pull_request.user.login }}
+
+      - run: "echo '${{ steps.teams.outputs.data }}'"
