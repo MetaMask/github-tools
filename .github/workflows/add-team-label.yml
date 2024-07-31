@@ -5,6 +5,7 @@ on:
 
 jobs:
   add-team-label:
+    permissions: read-all
     runs-on: ubuntu-latest
     steps:
       - name: Get teams
