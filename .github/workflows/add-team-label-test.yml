@@ -9,4 +9,5 @@ on:
 
 jobs:
   add-team-label:
+    permissions: read-all
     uses: ./.github/workflows/add-team-label.yml
