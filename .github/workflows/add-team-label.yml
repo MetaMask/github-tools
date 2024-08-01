@@ -7,28 +7,12 @@ jobs:
   add-team-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Get teams
-        id: teams
+      - name: Get team label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORGANIZATION: ${{ github.repository_owner }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
-          teams="$(gh api graphql -F organization=$ORGANIZATION -F user=$USER -f query='
-            query($organization: String!, $user: String!) {
-              organization(login: $organization) {
-                teams(first: 100, userLogins: [$user]) {
-                  edges {
-                    node {
-                      name
-                      description
-                      slug
-                    }
-                  }
-                }
-              }
-            }
-          ' --jq '.')"
-          echo 'TEAMS='$teams >> $GITHUB_ENV
+          team_label="$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq '.$USER')"
+          echo 'TEAM_LABEL='$team_label >> $GITHUB_ENV
 
-      - run: 'echo $TEAMS'
+      - run: 'echo $TEAM_LABEL'
