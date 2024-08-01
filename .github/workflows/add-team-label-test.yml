@@ -1,0 +1,12 @@
+name: Add team label test
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  add-team-label:
+    uses: ./.github/workflows/add-team-label.yml
