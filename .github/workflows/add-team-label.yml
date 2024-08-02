@@ -2,18 +2,18 @@ name: Add team label
 
 on:
   workflow_call:
+    secrets:
+      PERSONAL_ACCESS_TOKEN:
+        required: true
 
 jobs:
   add-team-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Test label token
-        run: echo "${{ secrets.LABEL_TOKEN }}"
-
       - name: Get team label
         id: get-team-label
         env:
-          GH_TOKEN: ${{ secrets.LABEL_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
           team_label="$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq '.$USER')"
@@ -25,9 +25,8 @@ jobs:
 
       - name: Add team label
         env:
-          GH_TOKEN: ${{ secrets.LABEL_TOKEN }}
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           PULL_REQUEST_NUMBER: ${{ github.event.number }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
           gh pr edit $PULL_REQUEST_NUMBER --add-label $TEAM_LABEL
-          echo "Why is this not working?"

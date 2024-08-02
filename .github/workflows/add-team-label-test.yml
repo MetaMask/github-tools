@@ -10,3 +10,5 @@ on:
 jobs:
   add-team-label:
     uses: ./.github/workflows/add-team-label.yml
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.LABEL_TOKEN }}
