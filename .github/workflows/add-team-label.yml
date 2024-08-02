@@ -10,7 +10,7 @@ jobs:
       - name: Get team label
         id: get-team-label
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.LABEL_TOKEN }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
           team_label="$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq '.$USER')"
@@ -22,7 +22,7 @@ jobs:
 
       - name: Add team label
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.LABEL_TOKEN }}
           PULL_REQUEST_NUMBER: ${{ github.event.number }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
