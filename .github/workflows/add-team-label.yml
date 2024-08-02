@@ -7,6 +7,9 @@ jobs:
   add-team-label:
     runs-on: ubuntu-latest
     steps:
+      - name: Test label token
+        run: echo "${{ secrets.LABEL_TOKEN }}"
+
       - name: Get team label
         id: get-team-label
         env:
