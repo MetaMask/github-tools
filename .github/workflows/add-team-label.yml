@@ -27,3 +27,4 @@ jobs:
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
           gh pr edit $PULL_REQUEST_NUMBER --add-label $TEAM_LABEL
+          echo "Why is this not working?"
