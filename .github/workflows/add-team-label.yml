@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get team label
+        id: get-team-label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USER: ${{ github.event.pull_request.user.login }}
@@ -17,6 +18,12 @@ jobs:
             echo "::error file=teams.json::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update teams.json at https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json"
             exit 1
           fi
-          echo 'TEAM_LABEL='$team_label >> $GITHUB_ENV
+          echo 'TEAM_LABEL='$team_label >> $GITHUB_OUTPUT
 
-      - run: 'echo $TEAM_LABEL'
+      - name: Add team label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_NUMBER: ${{ github.event.number }}
+          TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
+        run: |
+          gh pr edit $PULL_REQUEST_NUMBER --add-label $TEAM_LABEL
