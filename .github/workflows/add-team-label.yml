@@ -21,7 +21,7 @@ jobs:
             echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update teams.json at https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json"
             exit 1
           fi
-          echo 'TEAM_LABEL="$team_label"' >> "$GITHUB_OUTPUT"
+          echo 'TEAM_LABEL='"$team_label" >> "$GITHUB_OUTPUT"
 
       - name: Add team label
         env:
