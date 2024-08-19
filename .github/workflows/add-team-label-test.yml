@@ -1,4 +1,4 @@
-name: Add team label test
+name: Add team label
 
 on:
   pull_request:
@@ -10,5 +10,7 @@ on:
 jobs:
   add-team-label:
     uses: ./.github/workflows/add-team-label.yml
+    permissions:
+      pull-requests: write
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.LABEL_TOKEN }}
