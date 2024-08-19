@@ -25,7 +25,7 @@ jobs:
 
       - name: Add team label
         env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
