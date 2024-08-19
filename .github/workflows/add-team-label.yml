@@ -26,7 +26,7 @@ jobs:
       - name: Add team label
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          PULL_REQUEST_NUMBER: ${{ github.event.number }}
+          PULL_REQUEST_URL: ${{ github.event.pull_request.url }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
-          gh pr edit $PULL_REQUEST_NUMBER --add-label $TEAM_LABEL
+          gh pr edit $PULL_REQUEST_URL --add-label $TEAM_LABEL
