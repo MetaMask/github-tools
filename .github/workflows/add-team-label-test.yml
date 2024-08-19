@@ -9,7 +9,6 @@ on:
 
 permissions:
   pull-requests: write
-  repository-projects: read
 
 jobs:
   add-team-label:
