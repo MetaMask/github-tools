@@ -26,7 +26,7 @@ jobs:
       - name: Add team label
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          OWNER: ${{ github.event.repository.owner }}
+          OWNER: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.event.repository.name }}
           PULL_REQUEST_NUMBER: ${{ github.event.number }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
