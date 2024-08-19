@@ -6,6 +6,9 @@ on:
       PERSONAL_ACCESS_TOKEN:
         required: true
 
+permissions:
+  pull-requests: write
+
 jobs:
   add-team-label:
     runs-on: ubuntu-latest

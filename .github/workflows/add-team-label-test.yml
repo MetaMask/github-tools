@@ -7,9 +7,6 @@ on:
       - reopened
       - synchronize
 
-permissions:
-  pull-requests: write
-
 jobs:
   add-team-label:
     uses: ./.github/workflows/add-team-label.yml
