@@ -16,12 +16,12 @@ jobs:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
-          team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq .$USER)
+          team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq ".\"$USER\"")
           if [ -z "$team_label" ]; then
             echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update teams.json at https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json"
             exit 1
           fi
-          echo 'TEAM_LABEL='$team_label >> $GITHUB_OUTPUT
+          echo 'TEAM_LABEL="$team_label"' >> "$GITHUB_OUTPUT"
 
       - name: Add team label
         env:
