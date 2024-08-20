@@ -10,13 +10,23 @@ jobs:
   add-team-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup environment
-        uses: metamask/github-tools/.github/actions/setup-environment@main
+      - name: Get team label
+        id: get-team-label
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          USER: ${{ github.event.pull_request.user.login }}
+        run: |
+          team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/teams.json' --jq ".\"$USER\"")
+          if [ -z "$team_label" ]; then
+            echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update teams.json at https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json"
+            exit 1
+          fi
+          echo 'TEAM_LABEL='"$team_label" >> "$GITHUB_OUTPUT"
 
       - name: Add team label
         env:
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: yarn run add-team-label
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}
+          TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
+        run: |
+          gh pr edit "$PULL_REQUEST_URL" --add-label "$TEAM_LABEL"
