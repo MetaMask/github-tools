@@ -31,4 +31,4 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
         run: |
-          gh api --method POST --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" /repos/$OWNER/$REPO/issues/$PR_NUMBER/labels -f "labels[]=$TEAM_LABEL"
+          gh api --method POST --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" "/repos/$OWNER/$REPO/issues/$PR_NUMBER/labels" -f "labels[]=$TEAM_LABEL"
