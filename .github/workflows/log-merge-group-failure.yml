@@ -1,0 +1,49 @@
+name: Log merge group failure
+
+on:
+  workflow_call:
+    secrets:
+      GOOGLE_APPLICATION_CREDENTIALS:
+        required: true
+      GOOGLE_SERVICE_ACCOUNT:
+        required: true
+      SPREADSHEET_ID:
+        required: true
+      SHEET_NAME:
+        required: true
+  workflow_dispatch:
+
+jobs:
+  log-merge-group-failure:
+    name: Log merge group failure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download oauth2l
+        run: |
+          curl --silent https://storage.googleapis.com/oauth2l/latest/linux_amd64.tgz --output linux_amd64.tgz
+          tar -xzf linux_amd64.tgz
+          echo "$PWD/linux_amd64" >> $GITHUB_PATH
+
+      - name: Create service_account.json
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        run: |
+          echo $GOOGLE_SERVICE_ACCOUNT > $GOOGLE_APPLICATION_CREDENTIALS
+
+      - name: Write data to google sheets
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          SHEET_NAME: ${{ secrets.SHEET_NAME }}
+        run: |
+          current_date=$(date +%Y-%m-%d)
+          token=$(oauth2l fetch --scope https://www.googleapis.com/auth/spreadsheets)
+          spreadsheet_data=$(curl --silent --header "Authorization: Bearer $token" https://sheets.googleapis.com/v4/spreadsheets/$SPREADSHEET_ID/values/$SHEET_NAME!A:B)
+          current_date_index=$(echo $spreadsheet_data | jq --arg current_date $current_date '(.values | map(.[0])) | (index($current_date) | if . == null then null else . + 1 end)')
+          current_number_of_prs=$(echo $spreadsheet_data | jq --arg current_date $current_date '(.values[] | select(.[0] == $current_date) | .[1] | tonumber) // null')
+          if [ "$current_date_index" == "null" ]; then
+            curl --silent --header "Authorization: Bearer $token" --header "Content-Type: application/json" --request POST --data "{\"values\":[[\"$current_date\", 1]]}" https://sheets.googleapis.com/v4/spreadsheets/$SPREADSHEET_ID/values/$SHEET_NAME!A:A:append?valueInputOption=USER_ENTERED
+          else
+            curl --silent --header "Authorization: Bearer $token" --header "Content-Type: application/json" --request PUT --data "{\"values\":[[\"$current_date\", $(($current_number_of_prs + 1))]]}" https://sheets.googleapis.com/v4/spreadsheets/$SPREADSHEET_ID/values/$SHEET_NAME!A$current_date_index:B$current_date_index?valueInputOption=USER_ENTERED
+          fi
