@@ -1,24 +1,28 @@
 name: Create Release Pull Request
 
 on:
-  workflow_dispatch:
+  workflow_call:  # Makes the workflow reusable
     inputs:
       base-branch:
+        required: true
+        type: string
         description: 'The base branch, tag, or SHA for git operations and the pull request.'
-        required: true
       semver-version:
+        required: true
+        type: string
         description: 'A semantic version. eg: x.x.x'
-        required: true
       mobile-build-version:
-        description: 'The build version for the mobile platform.'
         required: false
+        type: string
+        description: 'The build version for the mobile platform.'
       previous-version-tag:
+        required: true
+        type: string
         description: 'Previous release version tag. eg: v7.7.0'
+      platform:
         required: true
-      platform: # mobile or extension
+        type: string
         description: 'The platform for which the release PR is being created.'
-        required: true
-
 
 jobs:
   create-release-pr:
@@ -30,15 +34,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # This is to guarantee that the most recent tag is fetched.
-          # This can be configured to a more reasonable value by consumers.
           fetch-depth: 0
-          # We check out the specified branch, which will be used as the base
-          # branch for all git operations and the release PR.
-          ref: ${{ github.event.inputs.base-branch }}
-          token: ${{ secrets.BUG_REPORT_TOKEN }}
+          ref: ${{ inputs.base-branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-
-  
       - name: Setup environment
         uses: ./.github/actions/setup-environment
 
@@ -47,6 +46,6 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_BRANCH: ${{ github.event.inputs.base-branch }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
         run: |
-          ./.github/scripts/create-release-pr.sh ${{ github.event.inputs.platform}} ${{ github.event.inputs.previous-version-tag }} ${{ github.event.inputs.semver-version }} ${{ needs.generate-build-version.outputs.build-version }}
+          ./.github/scripts/create-platform-release-pr.sh ${{ inputs.platform }} ${{ inputs.previous-version-tag }} ${{ inputs.semver-version }} ${{ inputs.mobile-build-version }}
