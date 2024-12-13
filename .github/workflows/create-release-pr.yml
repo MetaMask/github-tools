@@ -31,21 +31,38 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
+      - name: Checkout invoking repository
+        uses: actions/checkout@v4
         with:
-          # This is to guarantee that the most recent tag is fetched.
           fetch-depth: 0
           ref: ${{ inputs.base-branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup environment
-        uses: MetaMask/github-tools/.github/actions/setup-environment@platform-shared-workflows
+      # Step 2: Checkout github-tools repository
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: platform-shared-workflows
+          path: github-tools
 
+      # Step 3: Setup environment from github-tools
+      - name: Setup environment
+        uses: ./github-tools/.github/actions/setup-environment@platform-shared-workflows
+
+      # Step 4: Execute the script with access to both repositories
       - name: Create Release & Changelog PR
         id: create-release-changelog-pr
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: ${{ inputs.base-branch }}
+        working-directory: ${{ github.workspace }}
         run: |
-          ./.github/scripts/create-platform-release-pr.sh ${{ inputs.platform }} ${{ inputs.previous-version-tag }} ${{ inputs.semver-version }} ${{ inputs.mobile-build-version }}
+          # Execute the script from github-tools
+          ./github-tools/.github/scripts/create-platform-release-pr.sh \
+            ${{ inputs.platform }} \
+            ${{ inputs.previous-version-tag }} \
+            ${{ inputs.semver-version }} \
+            ${{ inputs.mobile-build-version }}
