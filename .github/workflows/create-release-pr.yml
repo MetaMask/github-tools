@@ -39,7 +39,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup environment
-        uses: ./.github/actions/setup-environment
+        uses: MetaMask/github-tools/.github/actions/setup-environment@platform-shared-workflows
 
       - name: Create Release & Changelog PR
         id: create-release-changelog-pr
