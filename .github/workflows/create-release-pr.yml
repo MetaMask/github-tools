@@ -9,6 +9,9 @@ on:
       semver-version:
         description: 'A semantic version. eg: x.x.x'
         required: true
+      mobile-build-version:
+        description: 'The build version for the mobile platform.'
+        required: false
       previous-version-tag:
         description: 'Previous release version tag. eg: v7.7.0'
         required: true
@@ -18,28 +21,8 @@ on:
 
 
 jobs:
-  #Verify Inputs
-  validate-platform:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate platform
-        id: validate-platform
-        run: |
-          if [[ "${{ github.event.inputs.platform }}" != "mobile" && "${{ github.event.inputs.platform }}" != "extension" ]]; then
-            echo "Invalid platform. Please provide either 'mobile' or 'extension'."
-            exit 1
-          fi
-
-  generate-build-version:
-    needs: validate-platform
-    if: ${{ needs.validate-platform.outputs.valid-platform == 'true' }}
-    uses: MetaMask/metamask-mobile-build-version/.github/workflows/metamask-mobile-build-version.yml@v0.2.0
-    permissions:
-      id-token: write
-
   create-release-pr:
     runs-on: ubuntu-latest
-    needs: generate-build-version
     permissions:
       contents: write
       pull-requests: write

@@ -21,6 +21,12 @@ if [[ -z $NEW_VERSION ]]; then
   exit 1
 fi
 
+if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
+  echo "Error: No new version number specified for mobile platform."
+  exit 1
+fi
+
+
 RELEASE_BRANCH_NAME="${RELEASE_BRANCH_PREFIX}${NEW_VERSION}"
 CHANGELOG_BRANCH_NAME="chore/${NEW_VERSION}-Changelog"
 
