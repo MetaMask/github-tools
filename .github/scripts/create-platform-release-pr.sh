@@ -73,9 +73,6 @@ get_release_branch_name() {
 }
 
 
-
-
-
 RELEASE_BRANCH_NAME=$(get_release_branch_name $PLATFORM $NEW_VERSION)
 CHANGELOG_BRANCH_NAME="chore/${NEW_VERSION}-Changelog"
 
@@ -105,6 +102,9 @@ git config user.email metamaskbot@users.noreply.github.com
 
 echo "Fetching from remote..."
 git fetch
+
+# TODO Remove
+git status
 
 # Check out the existing release branch from the remote
 echo "Checking out the release branch: ${RELEASE_BRANCH_NAME}"
