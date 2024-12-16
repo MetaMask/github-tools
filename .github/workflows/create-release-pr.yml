@@ -41,7 +41,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.base-branch }}
-          token: ${{ inputs.github-token }}
+          token: ${{ secrets.github-token }}
 
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
@@ -60,7 +60,7 @@ jobs:
         id: create-release-pr
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github-token }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
           BASE_BRANCH: ${{ inputs.base-branch }}
         working-directory: ${{ github.workspace }}
         run: |
