@@ -23,6 +23,10 @@ on:
         required: true
         type: string
         description: 'The platform for which the release PR is being created.'
+      github-token:
+       required: true
+       type: string
+       description: 'GitHub token used for authentication.'
 
 jobs:
   create-release-pr:
@@ -37,7 +41,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.base-branch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ inputs.github-token }}
 
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
@@ -52,11 +56,11 @@ jobs:
         uses: ./github-tools/.github/actions/setup-environment
 
       # Step 4: Execute the script with access to both repositories
-      - name: Create Release & Changelog PR
-        id: create-release-changelog-pr
+      - name: Create Release
+        id: create-release-pr
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ inputs.github-token }}
           BASE_BRANCH: ${{ inputs.base-branch }}
         working-directory: ${{ github.workspace }}
         run: |
