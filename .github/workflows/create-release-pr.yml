@@ -23,9 +23,9 @@ on:
         required: true
         type: string
         description: 'The platform for which the release PR is being created.'
+    secrets:
       github-token:
        required: true
-       type: string
        description: 'GitHub token used for authentication.'
 
 jobs:
