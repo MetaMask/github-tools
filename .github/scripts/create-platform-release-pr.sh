@@ -26,6 +26,23 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
+get_expected_changed_files() {
+
+  local platform="$1"
+  local expected_changed_files=""
+
+  if [[ "$platform" == "mobile" ]]; then
+    expected_changed_files="package.json android/app/build.gradle ios/MetaMask.xcodeproj/project.pbxproj bitrise.yml"
+  elif [[ "$platform" == "extension" ]]; then
+    expected_changed_files="package.json"
+  else
+    echo "Error: Unknown platform '$platform'. Must be 'mobile' or 'extension'."
+    exit 1
+  fi
+
+  echo "$expected_changed_files"
+}
+
 # Returns the release branch name to use for the given platform
 get_release_branch_name() {
     # Input arguments
@@ -100,10 +117,18 @@ echo "Running version update scripts.."
 ./scripts/set-semvar-version.sh "${NEW_VERSION}"
 ./scripts/set-build-version.sh "${NEW_VERSION_NUMBER}"
 
-echo "Adding and committing changes.."
-# Track our changes
-git add package.json android/app/build.gradle ios/MetaMask.xcodeproj/project.pbxproj bitrise.yml
 
+changed_files=$(get_expected_changed_files "$platform")
+
+# Echo the files to be added
+echo "Files to be staged for commit: $changed_files"
+
+echo "Adding and committing changes.."
+
+# Track our changes
+git add $changed_files
+
+# TODO Any requires on commit message format?
 # Generate a commit
 git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
 
