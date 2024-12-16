@@ -44,16 +44,15 @@ get_release_branch_name() {
         RELEASE_BRANCH_NAME="release/99.99.99-test"
     elif [[ "$platform" == "extension" ]]; then
         RELEASE_BRANCH_NAME="${EXT_RELEASE_BRANCH_PREFIX}${new_version}"
-
         # TODO Do we need the commit msg logic? Doesn't seem to align with how we do release PRs on mobile side
     else
-        # Invalid platform
+        # Invalid platform: Print error message and terminate the script
         printf "Error: Unknown platform '%s'. Must be 'mobile' or 'extension'.\n" "$platform" >&2
-        return 1
+        exit 1  # Exit the script with an error code
     fi
 
     # Output the release branch name
-    echo "Release branch name: ${RELEASE_BRANCH_NAME}"
+    echo "${RELEASE_BRANCH_NAME}"
 }
 
 
