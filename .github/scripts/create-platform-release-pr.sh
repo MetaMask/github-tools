@@ -41,7 +41,7 @@ get_release_branch_name() {
         # Mobile logic: RELEASE_BRANCH_NAME is straightforward
         #RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
         # TODO REMOVE THIS LINE AFTER TESTING
-        RELEASE_BRANCH_NAME="release/99.99.99-test'
+        RELEASE_BRANCH_NAME="release/99.99.99-test"
     elif [[ "$platform" == "extension" ]]; then
         RELEASE_BRANCH_NAME="${EXT_RELEASE_BRANCH_PREFIX}${new_version}"
 
