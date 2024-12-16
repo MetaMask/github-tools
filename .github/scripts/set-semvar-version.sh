@@ -11,6 +11,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 SEMVER_VERSION=$1
+PLATFORM=$2
 
 NAT='0|[1-9][0-9]*'
 ALPHANUM='[0-9]*[A-Za-z-][0-9A-Za-z-]*'
@@ -120,5 +121,9 @@ update_package_json
 
 if [[ $PLATFORM == "mobile" ]]; then
   update_mobile_files
+fi
+
+if [[ $PLATFORM == "extension" ]]; then
+  echo "No extension specific files to update."
 fi
 

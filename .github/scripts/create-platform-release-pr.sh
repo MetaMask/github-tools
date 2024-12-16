@@ -26,8 +26,39 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
+# Returns the release branch name to use for the given platform
+get_release_branch_name() {
+    # Input arguments
+    local platform="$1"       # Platform can be 'mobile' or 'extension'
+    local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-RELEASE_BRANCH_NAME="${RELEASE_BRANCH_PREFIX}${NEW_VERSION}"
+    local MOBILE_RELEASE_BRANCH_PREFIX="release/"
+    # Common prefix for release branch
+    local EXT_RELEASE_BRANCH_PREFIX="Version-v"
+
+    # Logic for determining the release branch name
+    if [[ "$platform" == "mobile" ]]; then
+        # Mobile logic: RELEASE_BRANCH_NAME is straightforward
+        RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
+    elif [[ "$platform" == "extension" ]]; then
+        RELEASE_BRANCH_NAME="${EXT_RELEASE_BRANCH_PREFIX}${new_version}"
+
+        # TODO Do we need the commit msg logic? Doesn't seem to align with how we do release PRs on mobile side
+    else
+        # Invalid platform
+        printf "Error: Unknown platform '%s'. Must be 'mobile' or 'extension'.\n" "$platform" >&2
+        return 1
+    fi
+
+    # Output the release branch name
+    echo "Release branch name: ${RELEASE_BRANCH_NAME}"
+}
+
+
+
+
+
+RELEASE_BRANCH_NAME=$(get_release_branch_name $PLATFORM $NEW_VERSION)
 CHANGELOG_BRANCH_NAME="chore/${NEW_VERSION}-Changelog"
 
 # TODO DO WE HAVE A DIFFERENT RELEASE BODY FOR EXTENSION ?
