@@ -118,7 +118,7 @@ echo "Running version update scripts.."
 ./scripts/set-build-version.sh "${NEW_VERSION_NUMBER}"
 
 
-changed_files=$(get_expected_changed_files "$platform")
+changed_files=$(get_expected_changed_files "$PLATFORM")
 
 # Echo the files to be added
 echo "Files to be staged for commit: $changed_files"
