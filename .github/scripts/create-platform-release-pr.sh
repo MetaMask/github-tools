@@ -151,7 +151,7 @@ git checkout -b "${CHANGELOG_BRANCH_NAME}"
 echo "Changelog Branch Created"
 
 # Update changelog
-npx @metamask/auto-changelog@2.1.0 update
+npx @metamask/auto-changelog@2.1.0 update --repo "${GITHUB_REPOSITORY_URL}"
 
 #Generate changelog and test plan csv
 echo "Generating changelog and test plan csv.."
@@ -168,7 +168,7 @@ then
     exit 1
 fi
 
-PR_BODY="This PR updates the change log for ${NEW_VERSION} and generates the test plan here [commit.csv](https://github.com/MetaMask/metamask-mobile/blob/${RELEASE_BRANCH_NAME}/commits.csv)"
+PR_BODY="This PR updates the change log for ${NEW_VERSION} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${RELEASE_BRANCH_NAME}/commits.csv)"
 
 echo "Pushing changes to the remote.."
 git push --set-upstream origin "${CHANGELOG_BRANCH_NAME}"
