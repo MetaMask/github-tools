@@ -156,7 +156,8 @@ npx @metamask/auto-changelog@2.1.0 update
 #Generate changelog and test plan csv
 echo "Generating changelog and test plan csv.."
 node ./scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
-./scripts/changelog-csv.sh  "${RELEASE_BRANCH_NAME}" 
+# TODO CONFIRM WE DON'T INVOKE THIS ANYMORE
+# ./scripts/changelog-csv.sh  "${RELEASE_BRANCH_NAME}" 
 
 echo "Adding and committing changes.."
 git add ./commits.csv

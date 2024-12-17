@@ -15,29 +15,38 @@ if (!githubToken) {
 // Initialize Octokit with your GitHub token
 const octokit = new Octokit({ auth: githubToken});
 
-async function getPRLabels(repository, prNumber) {
+// https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json lookup from here
+async function getTeam(repository, prNumber) {
   try {
-    const { data } = await octokit.pulls.get({
+    const { data: prData } = await octokit.pulls.get({
       owner: 'MetaMask',
       repo: repository,
       pull_number: prNumber[1],
     });
 
-    const labels = data.labels.map(label => label.name);
+    const author = prData.user.login; // PR author's GitHub username
 
-    // Check if any label name contains "team"
-    let teamArray = labels.filter(label => label.toLowerCase().startsWith('team-'));
+    // Step 2: Fetch teams.json file from the MetaMask-planning repository
+    const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/main/teams.json';
+    const response = await axios.get(teamsJsonUrl);
 
-    // TODO How should we handle this for extension ??
-    
-    if(teamArray.length > 1 && teamArray.includes('team-mobile-platform'))
-      teamArray = teamArray.filter(item => item !== 'team-mobile-platform');
+    // Check if the response is successful and contains data
+    if (response.status !== 200 || !response.data ) {
+      console.error(`Invalid response when fetching teams.json: ${response.status}`);
+      return ['Unknown'];
+    }
 
-    return teamArray || ['Unknown'];
+    const teamsJson = response.data;
 
+    // Step 3: Match the PR author's username to a team
+    const team = teamsJson[author];
+
+
+    // Step 4: Return the team name or 'Unknown' if not found
+    return team || 'Unknown';
   } catch (error) {
-    console.error(`Error fetching labels for PR #${prNumber}:`, error);
-    return ['Unknown'];
+    console.error(`Error fetching team for PR #${prNumber}:`, error.message || error);
+    return 'Unknown';
   }
 }
 
@@ -87,14 +96,14 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
       const prMatch = message.match(/\(#(\d{4,5})\)$/u);
       if(prMatch){
         const prLink = prMatch ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}` : '';
-        const teams = await getPRLabels(repository, prMatch);
+        const team = await getTeam(repository, prMatch);
 
         // Initialize the team's commits array if it doesn't exist
-        if (!commitsByTeam[teams]) {
-          commitsByTeam[teams] = [];
+        if (!commitsByTeam[team]) {
+          commitsByTeam[team] = [];
         }
 
-        commitsByTeam[teams].push({
+        commitsByTeam[team].push({
           message,
           author,
           hash: hash.substring(0, 7),
