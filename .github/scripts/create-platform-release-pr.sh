@@ -155,7 +155,7 @@ git checkout -b "${CHANGELOG_BRANCH_NAME}"
 echo "Changelog Branch Created"
 
 # TODO Remove
-cat CHANGELOG.md
+# cat CHANGELOG.md
 
 echo "Generating changelog via auto-changelog.."
 
