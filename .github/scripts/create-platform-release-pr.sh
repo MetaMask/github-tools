@@ -145,8 +145,6 @@ gh pr create \
 
 echo "Release PR Created"
 
-git show-ref --head
-git rev-parse HEAD
 git status
 
 
@@ -156,6 +154,9 @@ echo "Changelog Branch Created"
 
 # TODO Remove
 head -n 20 CHANGELOG.md
+
+echo -e "\nLast 20 lines of CHANGELOG.md:"
+tail -n 20 CHANGELOG.md
 
 
 echo "Generating changelog via auto-changelog.."
