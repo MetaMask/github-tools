@@ -150,11 +150,15 @@ echo "Checking out ${CHANGELOG_BRANCH_NAME}"
 git checkout -b "${CHANGELOG_BRANCH_NAME}"
 echo "Changelog Branch Created"
 
-# Update changelog
-npx @metamask/auto-changelog@2.1.0 update --repo "${GITHUB_REPOSITORY_URL}"
+# TODO Remove
+cat CHANGELOG.md
 
-#Generate changelog and test plan csv
-echo "Generating changelog and test plan csv.."
+echo "Generating changelog via auto-changelog.."
+
+# Update changelog
+npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}"
+
+echo "Generating test plan csv.."
 node ./scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
 # TODO CONFIRM WE DON'T INVOKE THIS ANYMORE
 # ./scripts/changelog-csv.sh  "${RELEASE_BRANCH_NAME}" 
