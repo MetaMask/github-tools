@@ -145,6 +145,10 @@ gh pr create \
 
 echo "Release PR Created"
 
+git show-ref --head
+git rev-parse HEAD
+git status
+
 
 echo "Checking out ${CHANGELOG_BRANCH_NAME}"
 git checkout -b "${CHANGELOG_BRANCH_NAME}"
