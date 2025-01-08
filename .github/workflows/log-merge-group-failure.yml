@@ -18,12 +18,45 @@ jobs:
     name: Log merge group failure
     runs-on: ubuntu-latest
     steps:
+      # This is needed to handle the case when a PR is manually removed from the merge queue.
+      # GitHub Actions continue running even after the PR has already been removed.
+      # This step checks if the head commit hash is in the merge queue, and skips logging if it is not.
+      - name: Check commit hash in the merge queue
+        id: check-commit-hash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.event.repository.name }}
+          HEAD_COMMIT_HASH: ${{ github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          commit_is_in_the_merge_queue=$(gh api graphql --field owner="$OWNER" --field repository="$REPOSITORY" --field query="
+            query ($owner: String!, $repository: String!) {
+              repository(owner: $owner, name: $repository) {
+                mergeQueue {
+                  entries(first: 10) {
+                    nodes {
+                      pullRequest {
+                        headRefOid
+                      }
+                    }
+                  }
+                }
+              }
+            }" | jq --arg head_commit_hash "$HEAD_COMMIT_HASH" '[.data.repository.mergeQueue.entries.nodes[]?.pullRequest?.headRefOid | select(. == $head_commit_hash)] | any'
+          )
+          if [[ $commit_is_in_the_merge_queue != 'true' ]]; then
+            echo "Head commit hash cannot be found in the merge queue, logging will be skipped."
+          fi
+          echo 'COMMIT_IS_IN_THE_MERGE_QUEUE='"$commit_is_in_the_merge_queue" >> "$GITHUB_OUTPUT"
+
       - name: Download oauth2l
+        if: ${{ steps.check-commit-hash.outputs.COMMIT_IS_IN_THE_MERGE_QUEUE == 'true' }}
         run: |
           curl --silent https://storage.googleapis.com/oauth2l/1.3.2/linux_amd64.tgz | tar xz
           echo "$PWD/linux_amd64" >> "$GITHUB_PATH"
 
       - name: Create service_account.json
+        if: ${{ steps.check-commit-hash.outputs.COMMIT_IS_IN_THE_MERGE_QUEUE == 'true' }}
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
@@ -31,6 +64,7 @@ jobs:
           echo "$GOOGLE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Write data to google sheets
+        if: ${{ steps.check-commit-hash.outputs.COMMIT_IS_IN_THE_MERGE_QUEUE == 'true' }}
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
