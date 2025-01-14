@@ -26,5 +26,10 @@ runs:
         role-to-assume: ${{ inputs.role-to-assume }}
 
     - name: Upload to S3
-      run: aws s3 cp ${{ inputs.path }} s3://${{ inputs.s3-bucket }} --recursive
+      run: |
+        if [ -d ${{ inputs.path }} ]; then
+          aws s3 cp ${{ inputs.path }} s3://${{ inputs.s3-bucket }} --recursive
+        else
+          aws s3 cp ${{ inputs.path }} s3://${{ inputs.s3-bucket }}
+        fi
       shell: bash
