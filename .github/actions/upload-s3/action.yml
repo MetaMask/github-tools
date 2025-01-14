@@ -9,10 +9,10 @@ inputs:
   role-to-assume:
     required: true
     type: string
-  path:
+  s3-bucket:
     required: true
     type: string
-  s3-bucket:
+  path:
     required: true
     type: string
 
