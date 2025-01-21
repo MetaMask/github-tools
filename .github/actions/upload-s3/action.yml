@@ -27,9 +27,9 @@ runs:
 
     - name: Upload to S3
       run: |
-        if [ -d ${{ inputs.path }} ]; then
-          aws s3 cp ${{ inputs.path }} s3://${{ inputs.s3-bucket }} --recursive
+        if [ -d "${{ inputs.path }}" ]; then
+          aws s3 cp "${{ inputs.path }}" "s3://${{ inputs.s3-bucket }}" --recursive
         else
-          aws s3 cp ${{ inputs.path }} s3://${{ inputs.s3-bucket }}
+          aws s3 cp "${{ inputs.path }}" "s3://${{ inputs.s3-bucket }}"
         fi
       shell: bash
