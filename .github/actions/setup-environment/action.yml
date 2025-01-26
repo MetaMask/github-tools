@@ -1,17 +1,63 @@
 name: Setup environment
 description: Setup environment
+inputs:
+  should-cache-restore:
+    required: false
+    default: 'false'
+  should-cache-save:
+    required: false
+    default: 'false'
+  no-cache-for-release:
+    required: false
+    default: 'false'
+  fetch-depth:
+    required: false
+    default: 1
 runs:
   using: composite
   steps:
-    - run: corepack enable
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    # actions/cache/restore will not work in a container unless zstd is installed
+    - name: Install zstd
+      if: ${{ job.container && inputs.should-cache-restore == 'true' }}
+      run: sudo apt-get update && sudo apt-get install zstd
+      shell: bash
+
+    - name: Download workspace
+      if: ${{ inputs.should-cache-restore == 'true' }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ./node_modules
+        key: workspace-${{ github.sha }}
+
+      # If it's in a container, `corepack enable` will only run with `sudo`
+      # (This uses the documented way to write a ternary operator in GHA:
+      #  https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#example)
+    - run: ${{ job.container && 'sudo' || '' }} corepack enable
       shell: bash
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
-        cache: yarn
+        # If we are not restoring from workspace cache, use setup-node cache
+        # Note: if this is always set to 'yarn', self-hosted runners will fail to find this cache, and then fail on the "Post Setup environment" step
+        # (This uses the documented way to write a ternary operator in GHA:
+        #  https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#example)
+        cache: ${{ (inputs.should-cache-restore == 'false' && inputs.no-cache-for-release == 'false' ) && 'yarn' || '' }}
 
     - name: Install dependencies
+      if: ${{ inputs.should-cache-restore == 'false' }}
       run: yarn --immutable
       shell: bash
+
+    - name: Cache workspace
+      if: ${{ inputs.should-cache-save == 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ./node_modules
+        key: workspace-${{ github.sha }}
