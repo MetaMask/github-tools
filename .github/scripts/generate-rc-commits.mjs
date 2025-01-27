@@ -162,14 +162,16 @@ async function main() {
   const args = process.argv.slice(3);
   const fileTitle = 'commits.csv';
 
-  if (args.length !== 2) {
-    console.error('Usage: node generate-rc-commits.mjs branchA branchB');
+  if (args.length !== 3) {
+    console.error('Usage: node generate-rc-commits.mjs platform branchA branchB');
     process.exit(1);
   }
 
   const platform = args[0];
   const branchA = args[1];
   const branchB = args[2];
+
+  console.log(`Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`);
 
   const commitsByTeam = await filterCommitsByTeam(platform, branchA, branchB);
 
