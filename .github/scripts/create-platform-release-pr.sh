@@ -101,10 +101,10 @@ echo "Release Branch Checked Out"
 
 echo "Running version update scripts.."
 # Bump versions for the release
-./scripts/set-semvar-version.sh "${NEW_VERSION}"
+./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}"
 
 if [[ "$PLATFORM" == "mobile" ]]; then
-  ./scripts/set-mobile-build-version.sh "${NEW_VERSION_NUMBER}"
+  ./github-tools/.github/scripts/set-mobile-build-version.sh "${NEW_VERSION_NUMBER}"
 fi
 
 
@@ -148,9 +148,7 @@ echo "Generating changelog via auto-changelog.."
 npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}"
 
 echo "Generating test plan csv.."
-node ./scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
-# TODO CONFIRM WE DON'T INVOKE THIS ANYMORE
-# ./scripts/changelog-csv.sh  "${RELEASE_BRANCH_NAME}" 
+node ./github-tools/.github/scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
 
 echo "Adding and committing changes.."
 git add ./commits.csv
