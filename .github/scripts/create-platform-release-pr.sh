@@ -49,24 +49,11 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    local MOBILE_RELEASE_BRANCH_PREFIX="release/"
-    # Common prefix for release branch
-    local EXT_RELEASE_BRANCH_PREFIX="Version-v"
+    # TODO CONFIRM RELEASE BRANCH LOGIC ALIGNMENT WITH MOBILE
+    local RELEASE_BRANCH_PREFIX="release/"
 
-    # Logic for determining the release branch name
-    if [[ "$platform" == "mobile" ]]; then
-        # Mobile logic: RELEASE_BRANCH_NAME is straightforward
-        #RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
-        # TODO REMOVE THIS LINE AFTER TESTING
-        RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
-    elif [[ "$platform" == "extension" ]]; then
-        RELEASE_BRANCH_NAME="${EXT_RELEASE_BRANCH_PREFIX}${new_version}"
-        # TODO Do we need the commit msg logic? Doesn't seem to align with how we do release PRs on mobile side
-    else
-        # Invalid platform: Print error message and terminate the script
-        printf "Error: Unknown platform '%s'. Must be 'mobile' or 'extension'.\n" "$platform" >&2
-        exit 1  # Exit the script with an error code
-    fi
+    #RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
+    RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
 
     # Output the release branch name
     echo "${RELEASE_BRANCH_NAME}"
