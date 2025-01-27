@@ -1,7 +1,7 @@
 name: Create Release Pull Request
 
 on:
-  workflow_call:  # Makes the workflow reusable
+  workflow_call: # Makes the workflow reusable
     inputs:
       base-branch:
         required: true
@@ -25,8 +25,8 @@ on:
         description: 'The platform for which the release PR is being created.'
     secrets:
       github-token:
-       required: true
-       description: 'GitHub token used for authentication.'
+        required: true
+        description: 'GitHub token used for authentication.'
 
 jobs:
   create-release-pr:
@@ -62,7 +62,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           BASE_BRANCH: ${{ inputs.base-branch }}
-          GITHUB_REPOSITORY_URL: "${{ github.server_url }}/${{ github.repository }}"
+          GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
