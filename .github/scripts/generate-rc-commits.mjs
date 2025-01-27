@@ -29,10 +29,16 @@ async function getTeam(repository, prNumber) {
     const author = prData.user.login; // PR author's GitHub username
 
 // Step 2: Fetch teams.json file from the MetaMask-planning repository
+//APPROACH 1 
 const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
 const githubToken = process.env.GITHUB_TOKEN; 
 
-const response = await axios.get(`${teamsJsonUrl}?token=${githubToken}`);
+//const response = await axios.get(`${teamsJsonUrl}?token=${githubToken}`);
+
+const response = await axios.get(teamsJsonUrl, {
+  headers: { 'Authorization': `token ${githubToken}` }
+});
+
 
 
     // Check if the response is successful and contains data
