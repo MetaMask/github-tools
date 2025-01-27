@@ -159,7 +159,7 @@ function assignChangeType(field) {
 }
 
 async function main() {
-  const args = process.argv.slice(3);
+  const args = process.argv.slice(2);
   const fileTitle = 'commits.csv';
 
   if (args.length !== 3) {
