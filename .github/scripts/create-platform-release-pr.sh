@@ -7,7 +7,7 @@ set -o pipefail
 PLATFORM="${1}"
 PREVIOUS_VERSION="${2}"
 NEW_VERSION="${3}"
-NEW_VERSION_NUMBER="${4}"
+NEW_VERSION_NUMBER="${4:-}"
 RELEASE_BRANCH_PREFIX="release/"
 
 
@@ -161,8 +161,8 @@ tail -n 20 CHANGELOG.md
 
 echo "Generating changelog via auto-changelog.."
 
-# Update changelog
-npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}"
+# Update changelog to reflect for our new version
+npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}"
 
 echo "Generating test plan csv.."
 node ./scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
