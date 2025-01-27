@@ -147,8 +147,7 @@ echo "Changelog Branch Created"
 
 echo "Generating changelog via auto-changelog.."
 
-# Update changelog to reflect for our new version to 4.1.0 once tag is complete
-npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}"
+npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}" --autoCategorize
 
 echo "Generating test plan csv.."
 node ./github-tools/.github/scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
