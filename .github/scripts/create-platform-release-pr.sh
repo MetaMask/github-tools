@@ -102,7 +102,10 @@ echo "Release Branch Checked Out"
 echo "Running version update scripts.."
 # Bump versions for the release
 ./scripts/set-semvar-version.sh "${NEW_VERSION}"
-./scripts/set-build-version.sh "${NEW_VERSION_NUMBER}"
+
+if [[ "$PLATFORM" == "mobile" ]]; then
+  ./scripts/set-mobile-build-version.sh "${NEW_VERSION_NUMBER}"
+fi
 
 
 changed_files=$(get_expected_changed_files "$PLATFORM")
@@ -139,16 +142,9 @@ echo "Checking out ${CHANGELOG_BRANCH_NAME}"
 git checkout -b "${CHANGELOG_BRANCH_NAME}"
 echo "Changelog Branch Created"
 
-# TODO Remove
-head -n 20 CHANGELOG.md
-
-echo -e "\nLast 20 lines of CHANGELOG.md:"
-tail -n 20 CHANGELOG.md
-
-
 echo "Generating changelog via auto-changelog.."
 
-# Update changelog to reflect for our new version
+# Update changelog to reflect for our new version to 4.1.0 once tag is complete
 npx @metamask/auto-changelog@2.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}"
 
 echo "Generating test plan csv.."
