@@ -101,7 +101,7 @@ echo "Release Branch Checked Out"
 
 echo "Running version update scripts.."
 # Bump versions for the release
-./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}"
+./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}" ${PLATFORM}
 
 if [[ "$PLATFORM" == "mobile" ]]; then
   ./github-tools/.github/scripts/set-mobile-build-version.sh "${NEW_VERSION_NUMBER}"
