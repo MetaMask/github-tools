@@ -96,11 +96,6 @@ update_mobile_files () {
   echo "SEMVER version: $SEMVER_VERSION"
 }
 
-
-
-# get current numbers
-CURRENT_SEMVER=$(awk '/^\s+VERSION_NAME: /{print $2}' $BITRISE_YML_FILE);
-
 # abort if values are empty
 if [[ -z $SEMVER_VERSION ]]; then
   log_and_exit "SEMVER_VERSION not specified, aborting!"
@@ -117,7 +112,7 @@ echo "Updating files:"
 
 
 # Update the version in the package.json file
-update_package_json
+package_json
 
 if [[ $PLATFORM == "mobile" ]]; then
   update_mobile_files
