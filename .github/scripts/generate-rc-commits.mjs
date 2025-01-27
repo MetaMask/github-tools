@@ -164,6 +164,7 @@ async function main() {
 
   if (args.length !== 3) {
     console.error('Usage: node generate-rc-commits.mjs platform branchA branchB');
+    console.error('Received:', args, ' with length:', args.length);
     process.exit(1);
   }
 
