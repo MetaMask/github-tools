@@ -5,6 +5,8 @@ import simpleGit from 'simple-git';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { Octokit } from '@octokit/rest';
 
+import axios from 'axios';
+
 // "GITHUB_TOKEN" is an automatically generated, repository-specific access token provided by GitHub Actions.
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) {
@@ -26,9 +28,12 @@ async function getTeam(repository, prNumber) {
 
     const author = prData.user.login; // PR author's GitHub username
 
-    // Step 2: Fetch teams.json file from the MetaMask-planning repository
-    const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/main/teams.json';
-    const response = await axios.get(teamsJsonUrl);
+// Step 2: Fetch teams.json file from the MetaMask-planning repository
+const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
+const githubToken = process.env.GITHUB_TOKEN; 
+
+const response = await axios.get(`${teamsJsonUrl}?token=${githubToken}`);
+
 
     // Check if the response is successful and contains data
     if (response.status !== 200 || !response.data ) {
