@@ -150,7 +150,7 @@ echo "Generating changelog via auto-changelog.."
 npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}" --autoCategorize
 
 echo "Generating test plan csv.."
-node ./github-tools/.github/scripts/generate-rc-commits.mjs "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
+node ./github-tools/.github/scripts/generate-rc-commits.mjs "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
 
 echo "Adding and committing changes.."
 git add ./commits.csv
