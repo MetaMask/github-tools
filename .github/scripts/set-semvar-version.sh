@@ -4,8 +4,8 @@ set -e
 set -u
 set -o pipefail
 
-# Check if exactly one arguments are provided
-if [[ $# -ne 1 ]]; then
+# Check if exactly 2 arguments are provided
+if [[ $# -ne 2 ]]; then
     echo "Usage: $0 <new_semvar_version>"
     exit 1
 fi

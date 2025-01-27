@@ -99,6 +99,9 @@ git checkout "${RELEASE_BRANCH_NAME}"
 
 echo "Release Branch Checked Out"
 
+echo "version : ${NEW_VERSION}"
+echo "platform : ${PLATFORM}"
+
 echo "Running version update scripts.."
 # Bump versions for the release
 ./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}" ${PLATFORM}
