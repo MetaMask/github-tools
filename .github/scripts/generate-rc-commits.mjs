@@ -33,19 +33,16 @@ async function getTeam(repository, prNumber) {
 const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
 const githubToken = process.env.GITHUB_TOKEN; 
 
-//const response = await axios.get(`${teamsJsonUrl}?token=${githubToken}`);
-
 const response = await axios.get(teamsJsonUrl, {
   headers: { 'Authorization': `token ${githubToken}` }
 });
 
 
-
-    // Check if the response is successful and contains data
-    if (response.status !== 200 || !response.data ) {
-      console.error(`Invalid response when fetching teams.json: ${response.status}`);
-      return ['Unknown'];
-    }
+// Check if the response is successful and contains data
+if (response.status !== 200 || !response.data ) {
+    console.error(`Invalid response when fetching teams.json: ${response.status}`);
+    return ['Unknown'];
+  }
 
     const teamsJson = response.data;
 
