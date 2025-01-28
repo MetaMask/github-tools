@@ -63,7 +63,6 @@ get_release_branch_name() {
 RELEASE_BRANCH_NAME=$(get_release_branch_name $PLATFORM $NEW_VERSION)
 CHANGELOG_BRANCH_NAME="chore/${NEW_VERSION}-Changelog"
 
-# TODO DO WE HAVE A DIFFERENT RELEASE BODY FOR EXTENSION ?
 RELEASE_BODY="This is the release candidate for version ${NEW_VERSION}. The changelog will be found in another PR ${CHANGELOG_BRANCH_NAME}.
 
   # Team sign-off checklist
@@ -89,9 +88,6 @@ git config user.email metamaskbot@users.noreply.github.com
 
 echo "Fetching from remote..."
 git fetch
-
-# TODO Remove
-git status
 
 # Check out the existing release branch from the remote
 echo "Checking out the release branch: ${RELEASE_BRANCH_NAME}"
@@ -122,8 +118,14 @@ echo "Adding and committing changes.."
 git add $changed_files
 
 # TODO Any requires on commit message format?
-# Generate a commit
-git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
+
+# Generate a commit based on PLATFORM
+if [ "$PLATFORM" = "mobile" ]; then
+    git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
+elif [ "$PLATFORM" = "extension" ]; then
+    git commit -m "bump semvar version to ${NEW_VERSION}"
+fi
+
 
 echo "Pushing changes to the remote.."
 git push --set-upstream origin "${RELEASE_BRANCH_NAME}"
