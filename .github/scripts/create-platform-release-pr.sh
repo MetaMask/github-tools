@@ -141,8 +141,13 @@ echo "Generating changelog via auto-changelog.."
 
 npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}" --autoCategorize
 
+# Need to run from .github-tools context to inherit it's dependencies/environment
+cd .github-tools
+# This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
+yarn install --immutable
 echo "Generating test plan csv.."
-node ./github-tools/.github/scripts/generate-rc-commits.mjs "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
+yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
+cd ../
 
 echo "Adding and committing changes.."
 git add ./commits.csv

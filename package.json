@@ -14,7 +14,8 @@
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "lint:tsc": "tsc",
     "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "gen:commits": "node .github/scripts/generate-rc-commits.mjs"
   },
   "dependencies": {
     "@metamask/utils": "^7.1.0",
@@ -22,8 +23,10 @@
     "@octokit/request": "^8.1.1",
     "@octokit/rest": "^19.0.13",
     "@types/luxon": "^3.3.0",
+    "axios": "^0.24.0",
     "luxon": "^3.3.0",
-    "ora": "^5.4.1"
+    "ora": "^5.4.1",
+    "simple-git": "3.27.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
