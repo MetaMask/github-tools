@@ -155,7 +155,7 @@ then
     exit 1
 fi
 
-PR_BODY="This PR updates the change log for ${NEW_VERSION} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${RELEASE_BRANCH_NAME}/commits.csv)"
+PR_BODY="This PR updates the change log for ${NEW_VERSION} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${CHANGELOG_BRANCH_NAME}/commits.csv)"
 
 echo "Pushing changes to the remote.."
 git push --set-upstream origin "${CHANGELOG_BRANCH_NAME}"
