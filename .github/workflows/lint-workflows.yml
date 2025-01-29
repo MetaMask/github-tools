@@ -17,5 +17,6 @@ jobs:
         shell: bash
 
       - name: Lint workflow files
-        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        # The ignore is necessary because `gha-mm-scale-set-ubuntu-22.04-amd64-med` is unknown
+        run: ${{ steps.download-actionlint.outputs.executable }} -color -ignore 'label ".+" is unknown'
         shell: bash

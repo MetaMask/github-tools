@@ -3,7 +3,10 @@ description: Setup environment
 runs:
   using: composite
   steps:
-    - run: corepack enable
+    # If it's in a container, `corepack enable` will only run with `sudo`
+    # (This uses the documented way to write a ternary operator in GHA:
+    #  https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#example)
+    - run: ${{ job.container && 'sudo' || '' }} corepack enable
       shell: bash
 
     - name: Set up Node.js
