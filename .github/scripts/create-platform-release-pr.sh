@@ -47,10 +47,8 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    local RELEASE_BRANCH_PREFIX="release/"
-
-    RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
-    #RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
+    #RELEASE_BRANCH_NAME="release/${new_version}"
+    RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
 
     # Output the release branch name
     echo "${RELEASE_BRANCH_NAME}"
