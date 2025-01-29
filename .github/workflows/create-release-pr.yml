@@ -56,9 +56,6 @@ jobs:
       - name: Setup environment
         uses: ./github-tools/.github/actions/setup-environment
 
-      - name: Install specific dependencies for runtime scripts
-        run: yarn global add simple-git @octokit/rest axios
-
       # Step 4: Execute the script with access to both repositories
       - name: Create Release
         id: create-release-pr
