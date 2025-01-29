@@ -8,8 +8,6 @@ PLATFORM="${1}"
 PREVIOUS_VERSION="${2}"
 NEW_VERSION="${3}"
 NEW_VERSION_NUMBER="${4:-}"
-RELEASE_BRANCH_PREFIX="release/"
-
 
 if [[ -z $PLATFORM ]]; then
   echo "Error: No platform specified."
@@ -49,11 +47,10 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    # TODO CONFIRM RELEASE BRANCH LOGIC ALIGNMENT WITH MOBILE
     local RELEASE_BRANCH_PREFIX="release/"
 
-    #RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
-    RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
+    RELEASE_BRANCH_NAME="${MOBILE_RELEASE_BRANCH_PREFIX}/${new_version}"
+    #RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
 
     # Output the release branch name
     echo "${RELEASE_BRANCH_NAME}"
@@ -117,8 +114,6 @@ echo "Adding and committing changes.."
 # Track our changes
 git add $changed_files
 
-# TODO Any requires on commit message format?
-
 # Generate a commit based on PLATFORM
 if [ "$PLATFORM" = "mobile" ]; then
     git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
@@ -139,9 +134,6 @@ gh pr create \
   --head "${RELEASE_BRANCH_NAME}";
 
 echo "Release PR Created"
-
-git status
-
 
 echo "Checking out ${CHANGELOG_BRANCH_NAME}"
 git checkout -b "${CHANGELOG_BRANCH_NAME}"

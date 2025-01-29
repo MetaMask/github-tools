@@ -19,6 +19,7 @@ on:
         required: true
         type: string
         description: 'Previous release version tag. eg: v7.7.0'
+      # possible values are [ mobile, extension ]
       platform:
         required: true
         type: string
