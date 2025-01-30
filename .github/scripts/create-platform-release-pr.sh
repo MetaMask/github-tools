@@ -143,6 +143,7 @@ npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}"
 
 # Need to run from .github-tools context to inherit it's dependencies/environment
 echo "Current Directory: $(pwd)"
+PROJECT_GIT_DIR=$(pwd)
 ls -ltra
 cd ./github-tools/
 ls -ltra
@@ -150,7 +151,7 @@ corepack prepare yarn@4.5.1 --activate
 # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
 yarn --cwd install
 echo "Generating test plan csv.."
-yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
+yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
 cd ../
 
 echo "Adding and committing changes.."

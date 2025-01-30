@@ -59,6 +59,8 @@ if (response.status !== 200 || !response.data ) {
 // Function to filter commits based on unique commit messages and group by teams
 async function filterCommitsByTeam(platform, branchA, branchB) {
 
+  console.log('Filtering commits by team...');
+
   var repository = '';
 
   switch (platform) {
@@ -168,7 +170,7 @@ async function main() {
   const args = process.argv.slice(2);
   const fileTitle = 'commits.csv';
 
-  if (args.length !== 3) {
+  if (args.length !== 4) {
     console.error('Usage: node generate-rc-commits.mjs platform branchA branchB');
     console.error('Received:', args, ' with length:', args.length);
     process.exit(1);
@@ -177,6 +179,11 @@ async function main() {
   const platform = args[0];
   const branchA = args[1];
   const branchB = args[2];
+  const gitDir = args[3];
+
+  // Change the working directory to the git repository path
+  // Since this is invoked by a shared workflow, the working directory is not guaranteed to be the repository root
+  process.chdir(gitDir);
 
   console.log(`Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`);
 
