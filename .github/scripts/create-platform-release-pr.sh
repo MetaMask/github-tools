@@ -146,7 +146,7 @@ echo "Current Directory: $(pwd)"
 ls -ltra
 cd ./github-tools/
 ls -ltra
-corepack prepare yarn@3.2.1 --activate
+corepack prepare yarn@4.5.1 --activate
 # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
 yarn --cwd install
 echo "Generating test plan csv.."
