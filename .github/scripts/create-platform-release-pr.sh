@@ -148,7 +148,7 @@ cd ./github-tools/
 ls -ltra
 corepack prepare yarn@3.2.1 --activate
 # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
-yarn install --immutable
+yarn install --skip-cache
 echo "Generating test plan csv.."
 yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" 
 cd ../
