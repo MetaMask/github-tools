@@ -1,0 +1,74 @@
+name: Create Release Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        required: true
+        type: string
+        description: 'The base branch, tag, or SHA for git operations and the pull request.'
+      semver-version:
+        required: true
+        type: string
+        description: 'A semantic version. eg: x.x.x'
+      mobile-build-version:
+        required: false
+        type: string
+        description: 'The build version for the mobile platform.'
+      previous-version-tag:
+        required: true
+        type: string
+        description: 'Previous release version tag. eg: v7.7.0'
+      # possible values are [ mobile, extension ]
+      platform:
+        required: true
+        type: string
+        description: 'The platform for which the release PR is being created.'
+    secrets:
+      github-token:
+        required: true
+        description: 'GitHub token used for authentication.'
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
+      - name: Checkout invoking repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.base-branch }}
+          token: ${{ secrets.github-token }}
+
+      # Step 2: Checkout github-tools repository
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: platform-shared-workflows
+          path: github-tools
+
+      # Step 3: Setup environment from github-tools
+      - name: Setup environment
+        uses: ./github-tools/.github/actions/setup-environment
+
+      # Step 4: Execute the script with access to both repositories
+      - name: Create Release
+        id: create-release-pr
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
+        working-directory: ${{ github.workspace }}
+        run: |
+          # Execute the script from github-tools
+          ./github-tools/.github/scripts/create-platform-release-pr.sh \
+            ${{ inputs.platform }} \
+            ${{ inputs.previous-version-tag }} \
+            ${{ inputs.semver-version }} \
+            ${{ inputs.mobile-build-version }}
