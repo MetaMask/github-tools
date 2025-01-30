@@ -1,7 +1,7 @@
 name: Create Release Pull Request
 
 on:
-  workflow_call: # Makes the workflow reusable
+  workflow_call:
     inputs:
       base-branch:
         required: true
