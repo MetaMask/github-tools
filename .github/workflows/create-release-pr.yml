@@ -64,7 +64,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           BASE_BRANCH: ${{ inputs.base-branch }}
           GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
-          SCRIPTS_PATH: ./github-tools/.github/scripts
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
