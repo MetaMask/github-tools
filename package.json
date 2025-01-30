@@ -5,6 +5,7 @@
   "description": "Tools for interacting with the GitHub API to do metrics gathering",
   "scripts": {
     "count-references-to-contributor-docs": "ts-node --swc src/scripts/count-references-to-contributor-docs/cli.ts",
+    "gen:commits": "node .github/scripts/generate-rc-commits.mjs",
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
     "lint": "yarn lint:tsc && yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check",
     "lint:constraints": "yarn constraints",
@@ -14,8 +15,7 @@
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "lint:tsc": "tsc",
     "test": "jest && jest-it-up",
-    "test:watch": "jest --watch",
-    "gen:commits": "node .github/scripts/generate-rc-commits.mjs"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/utils": "^7.1.0",
