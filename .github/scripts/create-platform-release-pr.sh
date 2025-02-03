@@ -47,11 +47,16 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    #RELEASE_BRANCH_NAME="release/${new_version}"
-    RELEASE_BRANCH_NAME="release-testing/rls-mgmt"
-
-    # Output the release branch name
-    echo "${RELEASE_BRANCH_NAME}"
+    if platform == "mobile"; then
+      RELEASE_BRANCH_NAME="release/${new_version}"
+      echo "${RELEASE_BRANCH_NAME}"
+    elif platform == "extension"; then
+      RELEASE_BRANCH_NAME="Version-v${new_version}"
+      echo "${RELEASE_BRANCH_NAME}"
+    else
+      echo "Error: Unknown platform '$platform'. Must be 'mobile' or 'extension'."
+      exit 1
+    fi
 }
 
 
