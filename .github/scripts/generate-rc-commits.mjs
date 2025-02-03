@@ -1,8 +1,5 @@
-// eslint-disable-next-line import/no-nodejs-modules
 import fs from 'fs';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import simpleGit from 'simple-git';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { Octokit } from '@octokit/rest';
 
 import axios from 'axios';
@@ -15,7 +12,7 @@ if (!githubToken) {
 }
 
 // Initialize Octokit with your GitHub token
-const octokit = new Octokit({ auth: githubToken});
+const octokit = new Octokit({ auth: githubToken });
 
 // https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json lookup from here
 async function getTeam(repository, prNumber) {
@@ -28,37 +25,40 @@ async function getTeam(repository, prNumber) {
 
     const author = prData.user.login; // PR author's GitHub username
 
-const teamsJsonUrl = 'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
-const githubToken = process.env.GITHUB_TOKEN; 
+    const teamsJsonUrl =
+      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
+    const githubToken = process.env.GITHUB_TOKEN;
 
-const response = await axios.get(teamsJsonUrl, {
-  headers: { 'Authorization': `token ${githubToken}` }
-});
+    const response = await axios.get(teamsJsonUrl, {
+      headers: { Authorization: `token ${githubToken}` },
+    });
 
-
-// Check if the response is successful and contains data
-if (response.status !== 200 || !response.data ) {
-    console.error(`Invalid response when fetching teams.json: ${response.status}`);
-    return ['Unknown'];
-  }
+    // Check if the response is successful and contains data
+    if (response.status !== 200 || !response.data) {
+      console.error(
+        `Invalid response when fetching teams.json: ${response.status}`,
+      );
+      return ['Unknown'];
+    }
 
     const teamsJson = response.data;
 
     // Step 3: Match the PR author's username to a team
     const team = teamsJson[author];
 
-
     // Step 4: Return the team name or 'Unknown' if not found
     return team || 'Unknown';
   } catch (error) {
-    console.error(`Error fetching team for PR #${prNumber}:`, error.message || error);
+    console.error(
+      `Error fetching team for PR #${prNumber}:`,
+      error.message || error,
+    );
     return 'Unknown';
   }
 }
 
 // Function to filter commits based on unique commit messages and group by teams
 async function filterCommitsByTeam(platform, branchA, branchB) {
-
   console.log('Filtering commits by team...');
 
   var repository = '';
@@ -95,15 +95,16 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
     for (const commit of log.all) {
       const { author, message, hash } = commit;
       if (Object.keys(commitsByTeam).length >= MAX_COMMITS) {
-        console.error('Too many commits for script to work')
+        console.error('Too many commits for script to work');
         break;
       }
 
-
       // Extract PR number from the commit message using regex
       const prMatch = message.match(/\(#(\d{4,5})\)$/u);
-      if(prMatch){
-        const prLink = prMatch ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}` : '';
+      if (prMatch) {
+        const prLink = prMatch
+          ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}`
+          : '';
         const team = await getTeam(repository, prMatch);
 
         // Initialize the team's commits array if it doesn't exist
@@ -135,7 +136,7 @@ function formatAsCSV(commitsByTeam) {
         escapeCSV(commit.author),
         commit.prLink,
         escapeCSV(team),
-        assignChangeType(commit.message)
+        assignChangeType(commit.message),
       ];
       csvContent.push(row.join(','));
     });
@@ -154,14 +155,17 @@ function escapeCSV(field) {
 }
 // Helper function to create change type
 function assignChangeType(field) {
-  if (field.includes('feat'))
-    return 'Added';
-  else if (field.includes('cherry') || field.includes('bump'))
-    return 'Ops';
-  else if (field.includes('chore') || field.includes('test') || field.includes('ci')  || field.includes('docs') || field.includes('refactor'))
+  if (field.includes('feat')) return 'Added';
+  else if (field.includes('cherry') || field.includes('bump')) return 'Ops';
+  else if (
+    field.includes('chore') ||
+    field.includes('test') ||
+    field.includes('ci') ||
+    field.includes('docs') ||
+    field.includes('refactor')
+  )
     return 'Changed';
-  else if (field.includes('fix'))
-    return 'Fixed';
+  else if (field.includes('fix')) return 'Fixed';
 
   return 'Unknown';
 }
@@ -171,7 +175,9 @@ async function main() {
   const fileTitle = 'commits.csv';
 
   if (args.length !== 4) {
-    console.error('Usage: node generate-rc-commits.mjs platform branchA branchB');
+    console.error(
+      'Usage: node generate-rc-commits.mjs platform branchA branchB',
+    );
     console.error('Received:', args, ' with length:', args.length);
     process.exit(1);
   }
@@ -185,7 +191,9 @@ async function main() {
   // Since this is invoked by a shared workflow, the working directory is not guaranteed to be the repository root
   process.chdir(gitDir);
 
-  console.log(`Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`);
+  console.log(
+    `Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`,
+  );
 
   const commitsByTeam = await filterCommitsByTeam(platform, branchA, branchB);
 
@@ -194,7 +202,7 @@ async function main() {
   } else {
     const csvContent = formatAsCSV(commitsByTeam);
     fs.writeFileSync(fileTitle, csvContent.join('\n'));
-    console.log('CSV file ', fileTitle,  ' created successfully.');
+    console.log('CSV file ', fileTitle, ' created successfully.');
   }
 }
 
