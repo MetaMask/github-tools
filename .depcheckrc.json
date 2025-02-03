@@ -1,4 +1,8 @@
 {
+  "parsers": {
+    "**/*.mjs": "es6",
+    "**/*.ts": "typescript"
+  },
   "ignores": [
     "@lavamoat/allow-scripts",
     "@lavamoat/preinstall-always-fail",
