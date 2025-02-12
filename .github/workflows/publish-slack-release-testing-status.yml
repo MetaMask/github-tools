@@ -65,6 +65,7 @@ jobs:
           GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           TEST_ONLY: ${{inputs.test-only}}
+          PLATFORM: ${{inputs.platform}}
         working-directory: ./github-tools
         run: |
           yarn run slack:release-testing

@@ -391,6 +391,11 @@ async function main() {
 
     const platform = process.env.PLATFORM;
 
+    if (!platform) {
+        console.error("Platform is not set. Please set the PLATFORM environment variable.");
+        return;
+    }
+
     await initializeSlackTeams();
 
     const activeReleases = await GetActiveReleases(documentId);
