@@ -9,7 +9,6 @@ on:
       google-document-id:
         required: true
         type: string
-        default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
       # Controls whether to actually publish to production slack channels, true will publish to prod slack channels
       test-only:
         required: false
