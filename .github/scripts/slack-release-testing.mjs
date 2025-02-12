@@ -333,7 +333,6 @@ async function publishReleaseTestingStatus(release) {
 
     for (const team of teamResults) {
         let slackHandlePart = await fmtSlackHandle(team);
-        console.log(`Team: ${team.team}, Slack Handle Part: ${slackHandlePart}`);
         const releaseBlockers = await getReleaseBlockers(release, team.team);
         //Accumulate the release blocker count
         releaseBlockerCount += releaseBlockers.count;
@@ -352,7 +351,6 @@ async function publishReleaseTestingStatus(release) {
 
 
     try {
-        // Use the `chat.postMessage` method to send a message to the channel
         const response = await slackClient.chat.postMessage({
           channel: channel,
           text: slackMessage,
@@ -361,6 +359,7 @@ async function publishReleaseTestingStatus(release) {
         });
     
         console.log(`Message successfully sent to channel ${channel} for release ${release.SemanticVersion} on platform ${release.Platform}.`);
+        
       } catch (error) {
         console.error('API error:', error);
         throw error;
@@ -381,8 +380,8 @@ async function publishReleasesTestingStatus(activeReleases) {
 }
 
 async function main() {
-    //REAL SHEET
-    const documentId = process.env.GOOG_DOCUMENT_ID; // Use the environment variable
+
+    const documentId = process.env.GOOG_DOCUMENT_ID; 
 
     if (!documentId) {
         console.error("Document ID is not set. Please set the GOOG_DOCUMENT_ID environment variable.");
