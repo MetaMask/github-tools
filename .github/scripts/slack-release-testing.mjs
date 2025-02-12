@@ -152,6 +152,20 @@ async function findPullRequestUrlByBranch(owner, repo, branchName) {
     }
   }
 
+  /**
+ * retrieves a list of active releases from a Google Sheets document.
+ * Each sheet in the document represents a different release. Only sheets with visible
+ * titles containing a semantic version and optionally a platform within parentheses
+ * are considered. Each active release is identified by parsing the sheet's title
+ * for semantic versioning and platform details.
+ *
+ * @param {string} documentId - The ID of the Google Sheets document to query.
+ * @returns {Promise<Object[]>} A promise that resolves to an array of objects, each representing
+ * an active release with properties for the document ID, semantic version, platform,
+ * sheet ID, and the testing status.
+ * @throws {Error} Throws an error if there is an issue retrieving data from the spreadsheet.
+ *
+ */
 async function GetActiveReleases(documentId) {
     const authClient = await getGoogleAuth();
 
@@ -206,7 +220,7 @@ async function GetActiveReleases(documentId) {
  * @param {string} spreadsheetId - The ID of the Google Spreadsheet.
  * @param {string} sheetName - The name of the sheet within the spreadsheet.
  * @param {string} cellRange - The A1 notation of the range to read (e.g., 'A1', 'A1:B2').
- * @returns {Promise<string[][] | undefined>} The data read from the specified range, or undefined if no data.
+ * @returns {Promise<string[][]>} The data read from the specified range, or undefined if no data.
  */
 async function readSheetData(spreadsheetId, sheetName, cellRange) {
     const authClient = await getGoogleAuth();
@@ -228,10 +242,16 @@ async function readSheetData(spreadsheetId, sheetName, cellRange) {
 }
 
 /**
- * Determines the number of release blockers for a given release and team
- * @param {*} release 
- * @param {*} team 
- * @returns 
+ * fetches the count and details of GitHub issues marked as release blockers
+ * for a specific version and team. This function queries GitHub issues that are tagged with
+ * specific labels related to the release version, team, and a "release-blocker" label.
+ *
+ * @param {Object} release - An object representing the release
+ * @param{Object} team - An object representing the team
+ * @returns {Promise<Object>} A promise that resolves to an object containing the count of open release-blocking issues,
+ * a URL to view these issues on GitHub, and optionally an array of issue objects.
+ * @throws {Error} Throws an error if the GitHub API call fails.
+ *
  */
 async function getReleaseBlockers(release, team) {
 
@@ -263,10 +283,6 @@ async function getReleaseBlockers(release, team) {
         console.error('Failed to fetch issues:', error);
         return error;
     }
-}
-
-function testOnly() {
-    return process.env.TEST_ONLY === 'true';
 }
 
 /**
@@ -305,7 +321,7 @@ async function fmtSlackHandle(team) {
 
 /**
  * Publishes the testing status for a release to the appropriate Slack channel
- * @param {*} release 
+ * @param {Object} release represents a release
  */
 async function publishReleaseTestingStatus(release) {
 
@@ -317,14 +333,12 @@ async function publishReleaseTestingStatus(release) {
     console.log(`Publishing testing status for release ${release.SemanticVersion} on platform ${release.Platform} to channel ${channel}`);
 
     //Determine notification counts for this release
-    //const notificationCount = await getNotificationCount(release);
     const testingDocumentLink = createSheetUrl(release.DocumentId, release.sheetId);
 
-    // Format the Slack message
+
     var header = `:blablablocker:* [${fmtPlatform}] - ${release.SemanticVersion} Release Validation.*\n`
     + `_*Testing Plan and Progress Tracker Summary*_ (<https://docs.google.com/spreadsheets/d/${release.DocumentId}/edit#gid=${release.sheetId}|${release.SemanticVersion}>):`;
 
-    // Construct the message
     var body = `*Teams Sign Off ${release.SemanticVersion} Release on <${releasePrUrl}|GH>:*\n`
 
     const hasPendingSignoffs = teamResults.some(team => team.status !== "Completed");
@@ -333,8 +347,9 @@ async function publishReleaseTestingStatus(release) {
 
     for (const team of teamResults) {
         let slackHandlePart = await fmtSlackHandle(team);
+        //Grab RCs for a specific team/release
         const releaseBlockers = await getReleaseBlockers(release, team.team);
-        //Accumulate the release blocker count
+        //Accumulate the total release blocker count
         releaseBlockerCount += releaseBlockers.count;
         let releaseBlockerParts = releaseBlockers.count > 0 ? ` - <${releaseBlockers.url}|${releaseBlockers.count} Release Blockers>` : '';
     
@@ -351,7 +366,7 @@ async function publishReleaseTestingStatus(release) {
 
 
     try {
-        const response = await slackClient.chat.postMessage({
+        await slackClient.chat.postMessage({
           channel: channel,
           text: slackMessage,
           unfurl_links: false,
@@ -366,12 +381,21 @@ async function publishReleaseTestingStatus(release) {
       }
 }
 
-async function publishReleasesTestingStatus(activeReleases) {
+
+/**
+ * publishes the testing status for a list of releases. 
+ *
+ * @param {Object[]} releases - An array of release objects. Each release object should be suitable
+ * for use with the `publishReleaseTestingStatus` function.
+ * @throws {Error} Throws an error if the publishing process fails for one or more releases.
+ *
+ */
+async function publishReleasesTestingStatus(releases) {
 
     console.log('Publishing testing status for all active releases...');
 
     try {
-        const promises = activeReleases.map(release => publishReleaseTestingStatus(release));
+        const promises = releases.map(release => publishReleaseTestingStatus(release));
         await Promise.all(promises);
     } catch (error) {
         console.error('An error occurred:', error);
@@ -409,12 +433,19 @@ async function main() {
     await publishReleasesTestingStatus(filteredReleases);
 }
 
-function createSheetUrl(documentId, sheetId) {
-    return `https://docs.google.com/spreadsheets/d/${documentId}/edit#gid=${sheetId}`;
-}
-
+//Entrypoint
 main();
 
+
+// Helper functions
 function formatTitle(val) {
     return String(val).charAt(0).toUpperCase() + String(val).slice(1);
+}
+
+function testOnly() {
+    return process.env.TEST_ONLY === 'true';
+}
+
+function createSheetUrl(documentId, sheetId) {
+    return `https://docs.google.com/spreadsheets/d/${documentId}/edit#gid=${sheetId}`;
 }
