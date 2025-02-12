@@ -4,7 +4,7 @@ import { Octokit } from '@octokit/rest';
 
 // Clients
 const sheets = google.sheets('v4');
-const token = process.env.SLACK_TOKEN;
+const token = process.env.SLACK_API_KEY;
 const githubToken = process.env.GITHUB_TOKEN;
 const slackClient = new WebClient(token);
 const octokit = new Octokit({
