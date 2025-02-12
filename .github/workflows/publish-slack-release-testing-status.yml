@@ -6,19 +6,17 @@ on:
       platform: # possible values are [ mobile, extension ]
         required: true
         type: string
-      slack-api-key:
-        required: true
-        type: string
-      github-token:
-        required: true
-        type: string
-      google-credentials-creds-base64:
-        required: true
-        type: string
       google-document-id:
         required: true
         type: string
         default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
+    secrets:
+      slack-api-key:
+        required: true
+      github-token:
+        required: true
+      google-credentials-creds-base64:
+        required: true
 
 jobs:
   publish-status:
