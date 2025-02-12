@@ -25,7 +25,14 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      # Step 1: Checkout github-tools repository
+      # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
+      - name: Checkout invoking repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.github-token }}
+
+      # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
         uses: actions/checkout@v4
         with:
@@ -33,13 +40,13 @@ jobs:
           ref: slack-release-testing #TODO Update to main
           path: github-tools
 
-      # Step 2: Setup environment from github-tools
+      # Step 3: Setup environment from github-tools
       - name: Setup environment
         uses: ./github-tools/.github/actions/setup-environment
 
-      # Step 3: Run Script
-      - name: Create Release
-        id: create-release-pr
+      # Step 4: Run Script
+      - name: Publish Slack Release Testing Status
+        id: publish-slack-release-testing-status
         shell: bash
         env:
           GITHUB_TOKEN: ${{ inputs.github-token }}
