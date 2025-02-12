@@ -406,7 +406,7 @@ async function main() {
         console.log(`Version: ${release.SemanticVersion}, Platform: ${release.Platform}, Sheet ID: ${release.sheetId}`);
     });
 
-    await publishReleasesTestingStatus(activeReleases);
+    await publishReleasesTestingStatus(filteredReleases);
 }
 
 function createSheetUrl(documentId, sheetId) {
