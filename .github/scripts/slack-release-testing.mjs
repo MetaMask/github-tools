@@ -389,13 +389,17 @@ async function main() {
         console.error("Document ID is not set. Please set the GOOG_DOCUMENT_ID environment variable.");
         return;
     }
-    
+
+    const platform = process.env.PLATFORM;
+
     await initializeSlackTeams();
 
     const activeReleases = await GetActiveReleases(documentId);
-    console.log('Active Releases:');
 
-    activeReleases.forEach(release => {
+    // Filter active releases based on the platform
+    const filteredReleases = activeReleases.filter(release => release.Platform === platform);
+
+    filteredReleases.forEach(release => {
         console.log(`Version: ${release.SemanticVersion}, Platform: ${release.Platform}, Sheet ID: ${release.sheetId}`);
     });
 
