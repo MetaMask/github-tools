@@ -1,0 +1,54 @@
+name: Publish Slack Release Testing Status
+
+on:
+  workflow_call:
+    inputs:
+      platform: # possible values are [ mobile, extension ]
+        required: true
+        type: string
+      slack-api-key:
+        required: true
+        type: string
+      github-token:
+        required: true
+        type: string
+      google-credentials-creds-base64:
+        required: true
+        type: string
+      google-document-id:
+        required: true
+        type: string
+        default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
+
+jobs:
+  publish-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Step 1: Checkout github-tools repository
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: slack-release-testing #TODO Update to main
+          path: github-tools
+
+      # Step 2: Setup environment from github-tools
+      - name: Setup environment
+        uses: ./github-tools/.github/actions/setup-environment
+
+      # Step 3: Run Script
+      - name: Create Release
+        id: create-release-pr
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github-token }}
+          SLACK_API_KEY: ${{ inputs.slack-api-key }}
+          GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
+          GOOGLE_CREDENTIALS_CREDS_BASE64: ${{ inputs.google-credentials-creds-base64 }}
+          TEST_ONLY: 'true' #TODO Remove this line
+        working-directory: ./github-tools
+        run: |
+          yarn run slack:release-testing

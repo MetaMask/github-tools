@@ -9,6 +9,8 @@ This repository holds a collection of scripts which are intended to be run local
 - `yarn get-review-metrics`: Gets the PR load of the extension platform team.
 - `yarn count-references-to-contributor-docs`: Counts the number of references to the `contributor-docs` repo in pull request comments.
 
+- `yarn run slack:release-testing`: Publishes a notification to slack for active releases regarding the release testing statuses.
+
 ### Authentication
 
 Some scripts require a GitHub token in order to run fully.
