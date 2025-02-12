@@ -10,6 +10,11 @@ on:
         required: true
         type: string
         default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
+      # Controls whether to actually publish to production slack channels, true will publish to prod slack channels
+      test-only:
+        required: false
+        type: string
+        default: 'false'
     secrets:
       slack-api-key:
         required: true
@@ -25,13 +30,6 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
-      - name: Checkout invoking repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.github-token }}
-
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
         uses: actions/checkout@v4
@@ -40,20 +38,32 @@ jobs:
           ref: slack-release-testing #TODO Update to main
           path: github-tools
 
-      # Step 3: Setup environment from github-tools
-      - name: Setup environment
-        uses: ./github-tools/.github/actions/setup-environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache: yarn
+
+      - name: Enable Corepack
+        run: corepack enable
+        shell: bash
+        working-directory: ./github-tools
+    
+      - name: Install dependencies
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
 
       # Step 4: Run Script
       - name: Publish Slack Release Testing Status
         id: publish-slack-release-testing-status
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github-token }}
-          SLACK_API_KEY: ${{ inputs.slack-api-key }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          SLACK_API_KEY: ${{ secrets.slack-api-key }}
           GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
-          GOOGLE_CREDENTIALS_CREDS_BASE64: ${{ inputs.google-credentials-creds-base64 }}
-          TEST_ONLY: 'true' #TODO Remove this line
+          GOOGLE_CREDENTIALS_CREDS_BASE64: ${{ secrets.google-credentials-creds-base64 }}
+          TEST_ONLY: ${{inputs.test-only}}
         working-directory: ./github-tools
         run: |
           yarn run slack:release-testing
