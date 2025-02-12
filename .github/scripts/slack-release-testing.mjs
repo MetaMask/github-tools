@@ -293,7 +293,6 @@ async function fmtSlackHandle(team) {
 
     //Notify if they have pending validations or have not completed signoff
     const shouldNotify = team.pendingValidations > 0 || team.status.trim().toLowerCase() !== 'completed';
-    console.log(`Team: ${team.team}, Should Notify: ${shouldNotify} because pending validations: ${team.pendingValidations} and status: ${team.status}`);
     //Don't notify teams when in testOnly mode
     if (testOnly()) {
       return shouldNotify ? ` - @${team.slackHandle}` : '';  
