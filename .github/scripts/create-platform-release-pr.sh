@@ -47,10 +47,10 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    if platform == "mobile"; then
+    if [ "$platform" == "mobile" ]; then
       RELEASE_BRANCH_NAME="release/${new_version}"
       echo "${RELEASE_BRANCH_NAME}"
-    elif platform == "extension"; then
+    elif [ "$platform" == "extension" ]; then
       RELEASE_BRANCH_NAME="Version-v${new_version}"
       echo "${RELEASE_BRANCH_NAME}"
     else
