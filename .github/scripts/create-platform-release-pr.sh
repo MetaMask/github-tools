@@ -47,10 +47,18 @@ get_release_branch_name() {
     local platform="$1"       # Platform can be 'mobile' or 'extension'
     local new_version="$2"    # Semantic version, e.g., '12.9.2'
 
-    if platform == "mobile"; then
+    # Check if TEST_ONLY environment variable is set to "true"
+    # This is to run a development version of the release process without impacting downstream automation
+    if [ "$TEST_ONLY" == "true" ]; then
+      echo "release-testing/${new_version}"
+      return 0
+    fi
+
+    # Determine the release branch name based on platform
+    if [ "$platform" == "mobile" ]; then
       RELEASE_BRANCH_NAME="release/${new_version}"
       echo "${RELEASE_BRANCH_NAME}"
-    elif platform == "extension"; then
+    elif [ "$platform" == "extension" ]; then
       RELEASE_BRANCH_NAME="Version-v${new_version}"
       echo "${RELEASE_BRANCH_NAME}"
     else
@@ -58,6 +66,7 @@ get_release_branch_name() {
       exit 1
     fi
 }
+
 
 
 RELEASE_BRANCH_NAME=$(get_release_branch_name $PLATFORM $NEW_VERSION)
@@ -157,10 +166,18 @@ corepack prepare yarn@4.5.1 --activate
 yarn --cwd install
 echo "Generating test plan csv.."
 yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
+
+# TODO Remove
+cat ../commits.csv
+
+echo "Updating release sheet.."
+# Create a new Release Sheet Page for the new version with our commits.csv content
+yarn yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOG_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}"
 cd ../
 
 echo "Adding and committing changes.."
 git add ./commits.csv
+
 
 if ! (git commit -am "updated changelog and generated feature test plan");
 then

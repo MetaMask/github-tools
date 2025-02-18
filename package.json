@@ -16,7 +16,8 @@
     "lint:tsc": "tsc",
     "slack:release-testing": "node .github/scripts/slack-release-testing.mjs",
     "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
     "@metamask/utils": "^7.1.0",

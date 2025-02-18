@@ -19,7 +19,18 @@ on:
         required: true
         type: string
         description: 'Previous release version tag. eg: v7.7.0'
+      # Flag to indicate if the release is a test release for development purposes only
+      test-only:
+        required: false
+        type: string
+        description: 'If true, the release will be marked as a test release.'
+        default: 'false'
       # possible values are [ mobile, extension ]
+      release-sheet-google-document-id:
+        required: false
+        type: string
+        description: 'The Google Document ID for the release notes.'
+        default: '1_aJ-cqS5ngrXzAIly3HOyl7CY_lqIoV2T7_OU83AD50' # Release Testing Document
       platform:
         required: true
         type: string
@@ -28,6 +39,9 @@ on:
       github-token:
         required: true
         description: 'GitHub token used for authentication.'
+      google-application-creds-base64:
+        required: true
+        description: 'Google application credentials base64 encoded.'
 
 jobs:
   create-release-pr:
@@ -50,7 +64,7 @@ jobs:
         with:
           repository: MetaMask/github-tools
           ref: platform-shared-workflows
-          path: github-tools
+          path: slack-release-testing
 
       # Step 3: Setup environment from github-tools
       - name: Setup environment
@@ -64,6 +78,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           BASE_BRANCH: ${{ inputs.base-branch }}
           GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
+          TEST_ONLY: ${{ inputs.test-only }}
+          GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
+          NEW_VERSION: ${{ inputs.semver-version }}
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools

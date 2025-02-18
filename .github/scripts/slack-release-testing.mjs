@@ -366,7 +366,7 @@ async function publishReleaseTestingStatus(release) {
 
 
     try {
-        await slackClient.chat.postMessage({
+          await slackClient.chat.postMessage({
           channel: channel,
           text: slackMessage,
           unfurl_links: false,
