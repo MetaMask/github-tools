@@ -158,7 +158,6 @@ npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}"
 # Need to run from .github-tools context to inherit it's dependencies/environment
 echo "Current Directory: $(pwd)"
 PROJECT_GIT_DIR=$(pwd)
-ls -ltra
 cd ./github-tools/
 ls -ltra
 corepack prepare yarn@4.5.1 --activate
@@ -169,7 +168,7 @@ yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}
 
 echo "Updating release sheet.."
 # Create a new Release Sheet Page for the new version with our commits.csv content
-yarn yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
+yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
 cd ../
 
 echo "Adding and committing changes.."
