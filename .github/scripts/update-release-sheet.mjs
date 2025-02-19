@@ -62,7 +62,7 @@ async function createReleaseSheet(
 
   try {
     // Step 1: Duplicate the template sheet
-    const duplicateSheetResponse = sheets.spreadsheets.batchUpdate({
+    const duplicateSheetResponse = await sheets.spreadsheets.batchUpdate({
       spreadsheetId: documentId,
       resource: {
         requests: [
@@ -83,7 +83,7 @@ async function createReleaseSheet(
     console.log(`Sheet duplicated successfully. New sheet ID: ${newSheetId}`);
 
     // Step 2. Make the new sheet the active sheet
-    const sheetActivationResponse = sheets.spreadsheets.batchUpdate({
+    const sheetActivationResponse = await sheets.spreadsheets.batchUpdate({
       spreadsheetId: documentId,
       resource: {
         requests: [
@@ -228,7 +228,7 @@ async function getAllReleases(documentId) {
 
 async function main() {
   const args = process.argv.slice(2);
-  if (args.length !== 5) {
+  if (args.length !== 7) {
     console.error(
       'Incorrect argument count. Example Usage: node update-release-sheet.mjs mobile 7.10.0 documentId ./commits.csv .',
     );
@@ -241,6 +241,8 @@ async function main() {
   const documentId = args[2];
   const commitsFile = args[3];
   const gitDir = args[4];
+  const mobileTemplateSheetId = args[5];
+  const extensionTemplateSheetId = args[6];
 
   // Change the working directory to the git repository path
   // Since this is invoked by a shared workflow, the working directory is not guaranteed to be the repository root
@@ -263,6 +265,16 @@ async function main() {
 
   if (!semanticVersion) {
     console.error('Semantic version is not set.');
+    return;
+  }
+
+  if (!mobileTemplateSheetId) {
+    console.error('Mobile template sheet ID is not set.');
+    return;
+  }
+
+  if (!extensionTemplateSheetId) {
+    console.error('Extension template sheet ID is not set.');
     return;
   }
 
@@ -292,7 +304,11 @@ async function main() {
     return;
   }
 
-  const templateSheetId = getTemplateSheetId(platform);
+  const templateSheetId = determineTemplateId(
+    platform,
+    mobileTemplateSheetId,
+    extensionTemplateSheetId,
+  );
 
   createReleaseSheet(
     documentId,
@@ -303,13 +319,16 @@ async function main() {
   );
 }
 
-// TODO These need to be provisioned/updated on the prod worksheet
-function getTemplateSheetId(platform) {
+function determineTemplateId(
+  platform,
+  mobileTemplateSheetId,
+  extensionTemplateSheetId,
+) {
   switch (platform) {
     case 'mobile':
-      return '514823427';
+      return mobileTemplateSheetId;
     case 'extension':
-      return '599904091';
+      return extensionTemplateSheetId;
     default:
       throw new Error(`Unknown platform: ${platform}`);
   }

@@ -20,6 +20,16 @@ on:
         type: string
         description: 'Previous release version tag. eg: v7.7.0'
       # Flag to indicate if the release is a test release for development purposes only
+      mobile-template-sheet-id:
+        required: true
+        type: string
+        description: 'The Mobile testing sheet template id.'
+        default: '1012668681'
+      extension-template-sheet-id:
+        required: true
+        type: string
+        description: 'The Extension testing sheet template id.'
+        default: '720412332'
       test-only:
         required: false
         type: string
@@ -82,6 +92,8 @@ jobs:
           GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           NEW_VERSION: ${{ inputs.semver-version }}
+          MOBILE_TEMPLATE_SHEET_ID: ${{ secrets.mobile-template-sheet-id }}
+          EXTENSION_TEMPLATE_SHEET_ID: ${{ secrets.extension-template-sheet-id }}
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
