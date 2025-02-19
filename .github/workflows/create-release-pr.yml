@@ -21,12 +21,12 @@ on:
         description: 'Previous release version tag. eg: v7.7.0'
       # Flag to indicate if the release is a test release for development purposes only
       mobile-template-sheet-id:
-        required: true
+        required: false
         type: string
         description: 'The Mobile testing sheet template id.'
         default: '1012668681'
       extension-template-sheet-id:
-        required: true
+        required: false
         type: string
         description: 'The Extension testing sheet template id.'
         default: '720412332'
