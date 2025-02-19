@@ -92,8 +92,8 @@ jobs:
           GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           NEW_VERSION: ${{ inputs.semver-version }}
-          MOBILE_TEMPLATE_SHEET_ID: ${{ secrets.mobile-template-sheet-id }}
-          EXTENSION_TEMPLATE_SHEET_ID: ${{ secrets.extension-template-sheet-id }}
+          MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
+          EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
