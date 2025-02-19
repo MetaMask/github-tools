@@ -27,6 +27,7 @@
     "@slack/web-api": "^6.0.0",
     "@types/luxon": "^3.3.0",
     "axios": "^0.24.0",
+    "csv-parse": "5.6.0",
     "googleapis": "144.0.0",
     "luxon": "^3.3.0",
     "ora": "^5.4.1",

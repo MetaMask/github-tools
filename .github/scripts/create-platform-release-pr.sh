@@ -167,9 +167,6 @@ yarn --cwd install
 echo "Generating test plan csv.."
 yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
 
-# TODO Remove
-cat ../commits.csv
-
 echo "Updating release sheet.."
 # Create a new Release Sheet Page for the new version with our commits.csv content
 yarn yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOG_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}"

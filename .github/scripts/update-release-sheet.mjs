@@ -1,5 +1,9 @@
 import { google } from 'googleapis';
 
+import fs from 'fs';
+import { parse } from 'csv-parse/sync';
+
+
 // Clients
 const sheets = google.sheets('v4');
 
@@ -32,32 +36,6 @@ async function getGoogleAuth() {
 }
 
 /**
- * Reads data from a specified cell or range in a single sheet within a Google Spreadsheet.
- * @param {string} spreadsheetId - The ID of the Google Spreadsheet.
- * @param {string} sheetName - The name of the sheet within the spreadsheet.
- * @param {string} cellRange - The A1 notation of the range to read (e.g., 'A1', 'A1:B2').
- * @returns {Promise<string[][]>} The data read from the specified range, or undefined if no data.
- */
-async function readSheetData(spreadsheetId, sheetName, cellRange) {
-    const authClient = await getGoogleAuth();
-
-    try {
-        const range = `${sheetName}!${cellRange}`;
-        const result = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range,
-            auth: authClient,
-        });
-
-        return result.data.values;
-
-    } catch (err) {
-        console.error('Failed to read data from the sheet:', err);
-        throw err;
-    }
-}
-
-/**
  * Creates a new release sheet by duplicating an existing template sheet and then overwriting
  * specific data rows in the new sheet.
  * 
@@ -67,9 +45,13 @@ async function readSheetData(spreadsheetId, sheetName, cellRange) {
  * @param {number} templateSheetId - The sheet ID of the template to be duplicated.
  * @returns {Promise<void>} A promise that resolves when the sheet has been created and modified.
  */
-async function createReleaseSheet(documentId, platform, semanticVersion, templateSheetId) {
+async function createReleaseSheet(documentId, platform, semanticVersion, templateSheetId, sheetData) {
     const authClient = await getGoogleAuth();
     const sheetTitle = `v${semanticVersion} (${platform})`;
+
+    const existingSheetCount = await getTotalSheetCount(documentId);
+
+    console.log(`Existing sheet count: ${existingSheetCount}`);
 
     try {
         // Step 1: Duplicate the template sheet
@@ -91,7 +73,7 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
         console.log(`Sheet duplicated successfully. New sheet ID: ${newSheetId}`);
 
 
-        // Optionally, make the new sheet the active sheet
+        // Step 2. Make the new sheet the active sheet
         const sheetActivationResponse = await sheets.spreadsheets.batchUpdate({
             spreadsheetId: documentId,
             resource: {
@@ -101,6 +83,7 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
                             properties: {
                                 sheetId: newSheetId,
                                 hidden: false,
+                                index: existingSheetCount,
                             },
                             fields: 'hidden',
                         },
@@ -112,24 +95,30 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
 
         console.log(`Sheet activated successfully.`);
 
-        // Step 3: Update the necessary rows in the new sheet
-        const values = [
-            // Assuming you want to update the first row; adjust range and values as necessary
-            ["Updated Data 1", "Updated Data 2", "Updated Data 3"],
-        ];
-        const valueRange = `${sheetTitle}!A1:C1`; // Adjust the range according to your needs
+        const dataStartRow = 3;
+        const dataEndRow = dataStartRow + sheetData.length - 1;
+        const columnStart = 'A';
+        const columnEnd = 'G';
+        
+        const valueRange = `${sheetTitle}!${columnStart}${dataStartRow}:${columnEnd}${dataEndRow}`;
+
+        console.log(`Updating newly provisioned sheet with commit data.`);
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: documentId,
             range: valueRange,
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: values,
+                values: sheetData,
             },
             auth: authClient,
         });
 
         console.log('Sheet duplicated and updated successfully.');
+
+        const newSheetCount = await getTotalSheetCount(documentId);
+
+        console.log(`New sheet count: ${newSheetCount}`);
 
     } catch (error) {
         console.error('Error creating release sheet:', error);
@@ -137,10 +126,53 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
     }
 }
 
+/**
+ * Retriev1es the total number of sheets in a given Google Sheets document.
+ *
+ * @param {string} documentId - The ID of the Google Sheets document from which to retrieve the sheet count.
+ * @returns {Promise<number>} A promise that resolves with the number of sheets in the specified document.
+ * @throws {Error} Throws an error if the Google Sheets API call fails or if the authentication process fails.
+ */
+async function getTotalSheetCount(documentId) {
+  const authClient = await getGoogleAuth();
 
+  try {
+    const response = await sheets.spreadsheets.get({
+        spreadsheetId: documentId,
+        auth: authClient,
+        fields: 'sheets(properties(title,sheetId))',
+    });
 
+    const sheetsData = response.data.sheets;
 
-  async function GetAllReleases(documentId) {
+    if (!sheetsData) {
+        console.log('No sheets found in the spreadsheet.');
+        return 0;
+    }
+
+    return sheetsData.length;
+
+  } catch (err) {
+    console.error('Failed to retrieve spreadsheet data:', err);
+    throw err;
+  }
+}
+
+  /**
+ * retrieves a list of all releases from a Google Sheets document.
+ * Each sheet in the document represents a different release. Only sheets with visible
+ * titles containing a semantic version and optionally a platform within parentheses
+ * are considered. Each active release is identified by parsing the sheet's title
+ * for semantic versioning and platform details.
+ *
+ * @param {string} documentId - The ID of the Google Sheets document to query.
+ * @returns {Promise<Object[]>} A promise that resolves to an array of objects, each representing
+ * an active release with properties for the document ID, semantic version, platform,
+ * sheet ID, and the testing status.
+ * @throws {Error} Throws an error if there is an issue retrieving data from the spreadsheet.
+ *
+ */
+  async function getAllReleases(documentId) {
     const authClient = await getGoogleAuth();
 
     try {
@@ -163,10 +195,9 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
             const platformMatch = title.match(/\(([^)]+)\)/);
 
             if (!versionMatch) {
-                console.log(`Skipping sheet: ${title} - Semantic version not found.`);
+                console.log(`Skipping sheet: ${title} with id ${sheet.properties.sheetId} - Semantic version not found.`);
                 return null; // Skip this sheet because we couldn't determine the semantic version
             }
-
 
             return {
                 DocumentId: documentId,
@@ -190,9 +221,9 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
   async function main() {
 
     const args = process.argv.slice(2);
-    if (args.length !== 4) {
+    if (args.length !== 5) {
       console.error(
-        'Usage: node update-release-sheet.mjs mobile 7.10.0 documentId ./commits.csv .',
+        'Incorrect argument count. Example Usage: node update-release-sheet.mjs mobile 7.10.0 documentId ./commits.csv .',
       );
       console.error('Received:', args, ' with length:', args.length);
       process.exit(1);
@@ -229,9 +260,12 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
         return;
     }
 
-    const releases = await GetAllReleases(documentId);
+    const commits = parseCSVv2(commitsFile);
+
+    const releases = await getAllReleases(documentId);
 
     var sheetExists = false;
+
     releases.forEach(release => {
         console.log(`Version: ${release.SemanticVersion}, Platform: ${release.Platform}, Sheet ID: ${release.sheetId} Title: ${release.title}`);
         if (release.SemanticVersion === semanticVersion && release.Platform === platform) {
@@ -247,12 +281,64 @@ async function createReleaseSheet(documentId, platform, semanticVersion, templat
         return;
     }
 
-    const templateSheetId = "1885469311";
+    const templateSheetId = getTemplateSheetId(platform);
 
-    createReleaseSheet(documentId, platform, semanticVersion, templateSheetId);
+    createReleaseSheet(documentId, platform, semanticVersion, templateSheetId, commits);
 
+  }
 
+// TODO These need to be provisioned/updated on the prod worksheet
+function getTemplateSheetId(platform) {
+    switch (platform) {
+        case 'mobile':
+            return '514823427';
+        case 'extension':
+            return '599904091';
+        default:
+            throw new Error(`Unknown platform: ${platform}`);
+    }
+}
 
+  // Function to parse a CSV file into a 2D array with specific modifications
+  function parseCSVv2(filePath) {
+      try {
+          console.log(`Parsing CSV file: ${filePath}`);
+  
+          // Read the entire file content
+          const fileContent = fs.readFileSync(filePath, { encoding: 'utf8' });
+          // Split the content into lines
+          const lines = fileContent.split('\n');
+  
+          // Initialize the 2D array to hold our processed data
+          const data2D = [];
+  
+          // Start from the second line to skip headers
+          for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim() === '') continue;  // Skip empty lines
+  
+              // Split the line into columns based on commas
+              const columns = lines[i].split(',');
+
+              const modifiedColumns = [
+                  columns[0], // Commit Message
+                  columns[1], // Author
+                  columns[2], // PR Link
+                  '',          // Blank string 'd'
+                  '',          // Blank string 'e'
+                  columns[3], // Team
+                  columns[4]  // Change Type
+              ];
+  
+              // Add this row to the 2D array
+              data2D.push(modifiedColumns);
+          }
+  
+          return data2D;
+  
+      } catch (error) {
+          console.error('Failed to parse CSV:', error);
+          return []; // Return an empty array in case of error
+      }
   }
 
   await main()

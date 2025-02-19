@@ -166,7 +166,7 @@ async function findPullRequestUrlByBranch(owner, repo, branchName) {
  * @throws {Error} Throws an error if there is an issue retrieving data from the spreadsheet.
  *
  */
-async function GetActiveReleases(documentId) {
+async function getActiveReleases(documentId) {
     const authClient = await getGoogleAuth();
 
     try {
@@ -421,7 +421,7 @@ async function main() {
 
     await initializeSlackTeams();
 
-    const activeReleases = await GetActiveReleases(documentId);
+    const activeReleases = await getActiveReleases(documentId);
 
     // Filter active releases based on the platform
     const filteredReleases = activeReleases.filter(release => release.Platform === platform);

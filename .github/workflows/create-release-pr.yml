@@ -24,7 +24,7 @@ on:
         required: false
         type: string
         description: 'If true, the release will be marked as a test release.'
-        default: "false"
+        default: 'false'
       # possible values are [ mobile, extension ]
       release-sheet-google-document-id:
         required: false
