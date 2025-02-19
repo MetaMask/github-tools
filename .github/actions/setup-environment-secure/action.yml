@@ -1,0 +1,25 @@
+name: Setup environment secure
+inputs:
+  fetch-depth:
+    required: false
+    default: 1
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - run: corepack enable
+      shell: bash
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: '' # Do not use a yarn cache for a more secure environment
+
+    - name: Install dependencies
+      run: yarn --immutable
+      shell: bash
