@@ -24,12 +24,12 @@ on:
         required: false
         type: string
         description: 'The Mobile testing sheet template id.'
-        default: '1012668681'
+        default: '1012668681' # prod sheet template
       extension-template-sheet-id:
         required: false
         type: string
         description: 'The Extension testing sheet template id.'
-        default: '720412332'
+        default: '720412332' # prod sheet template
       test-only:
         required: false
         type: string
@@ -40,7 +40,7 @@ on:
         required: false
         type: string
         description: 'The Google Document ID for the release notes.'
-        default: '1_aJ-cqS5ngrXzAIly3HOyl7CY_lqIoV2T7_OU83AD50' # Release Testing Document
+        default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ' # Prod Release Document
       platform:
         required: true
         type: string
