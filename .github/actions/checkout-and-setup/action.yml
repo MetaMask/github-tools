@@ -19,17 +19,18 @@ runs:
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
 
+    - run: corepack enable
+      shell: bash
+
     - name: Download workspace
-      if: ${{ inputs.should-cache-restore == 'true' }}
+      id: downloadWorkspace
       uses: actions/cache/restore@v4
       with:
         path: ./node_modules
         key: workspace-${{ github.sha }}
 
-    - run: corepack enable
-      shell: bash
-
     - name: Set up Node.js
+      if: always()
       uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
@@ -38,15 +39,15 @@ runs:
         #   1) Self-hosted runners will fail to find this cache, and then fail on the 'Post Setup environment' step
         #   2) This action will run a few seconds slower, because when we restore the 'node_modules' folder from cache, there's no need to download the '.yarn' folder too
         # (GHA does not allow the : ? ternary operator, you must write && ||)
-        cache: ${{ inputs.should-cache-restore == 'false' && 'yarn' || '' }}
+        cache: ${{ steps.downloadWorkspace.outcome == 'failure' && 'yarn' || '' }}
 
     - name: Install dependencies
-      if: ${{ inputs.should-cache-restore == 'false' }}
+      if: ${{ always() && steps.downloadWorkspace.outcome == 'failure' }}
       run: yarn --immutable
       shell: bash
 
     - name: Cache workspace
-      if: ${{ inputs.should-cache-save == 'true' }}
+      if: ${{ always() && inputs.should-cache-save == 'true' }}
       uses: actions/cache/save@v4
       with:
         path: ./node_modules
