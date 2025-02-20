@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: slack-release-testing
+          ref: main
           path: github-tools
 
       # Step 3: Setup environment from github-tools
