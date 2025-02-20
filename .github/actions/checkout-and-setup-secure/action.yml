@@ -1,4 +1,4 @@
-name: Setup environment secure
+name: Checkout and setup environment secure
 inputs:
   fetch-depth:
     required: false
@@ -8,6 +8,8 @@ runs:
   steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
+      if: ${{ hashFiles('README.md') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
 
