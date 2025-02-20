@@ -29,8 +29,10 @@ runs:
         path: ./node_modules
         key: workspace-${{ github.sha }}
 
+    - run: echo ${{ toJSON(steps.downloadWorkspace.outputs) }}
+      shell: bash
+
     - name: Set up Node.js
-      if: always()
       uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
@@ -39,15 +41,15 @@ runs:
         #   1) Self-hosted runners will fail to find this cache, and then fail on the 'Post Setup environment' step
         #   2) This action will run a few seconds slower, because when we restore the 'node_modules' folder from cache, there's no need to download the '.yarn' folder too
         # (GHA does not allow the : ? ternary operator, you must write && ||)
-        cache: ${{ steps.downloadWorkspace.outcome == 'failure' && 'yarn' || '' }}
+        cache: ${{ steps.downloadWorkspace.outputs.cache-hit && 'yarn' || '' }}
 
     - name: Install dependencies
-      if: ${{ always() && steps.downloadWorkspace.outcome == 'failure' }}
+      if: ${{ !steps.downloadWorkspace.outputs.cache-hit }}
       run: yarn --immutable
       shell: bash
 
     - name: Cache workspace
-      if: ${{ always() && inputs.should-cache-save == 'true' }}
+      if: ${{ inputs.should-cache-save == 'true' }}
       uses: actions/cache/save@v4
       with:
         path: ./node_modules
