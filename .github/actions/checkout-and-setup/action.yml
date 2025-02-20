@@ -1,53 +1,54 @@
 name: Checkout and setup environment
 inputs:
-  should-cache-restore:
-    required: false
-    default: 'false'
-  should-cache-save:
-    required: false
-    default: 'false'
   fetch-depth:
     required: false
     default: 1
+  should-save-node-modules: # We should only turn this on for the 'prep-deps' job
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
+    # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
     - name: Checkout repository
       uses: actions/checkout@v4
-      # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
       if: ${{ hashFiles('README.md') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
 
-    - name: Download workspace
-      if: ${{ inputs.should-cache-restore == 'true' }}
+    - run: corepack enable
+      shell: bash
+
+    # Try to download cache of node_modules, if it exists
+    # On failure, will run the yarn install instead
+    - name: Download node_modules cache
+      id: downloadNodeModules
       uses: actions/cache/restore@v4
       with:
         path: ./node_modules
-        key: workspace-${{ github.sha }}
-
-    - run: corepack enable
-      shell: bash
+        key: node-modules-${{ github.sha }}
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
-        # If we are not restoring from workspace cache, use setup-node cache to restore the '.yarn' folder
+        # If the node_modules cache was not found, use setup-node cache to restore the '.yarn' folder
         # Notes: if this is always set to 'yarn':
         #   1) Self-hosted runners will fail to find this cache, and then fail on the 'Post Setup environment' step
         #   2) This action will run a few seconds slower, because when we restore the 'node_modules' folder from cache, there's no need to download the '.yarn' folder too
         # (GHA does not allow the : ? ternary operator, you must write && ||)
-        cache: ${{ inputs.should-cache-restore == 'false' && 'yarn' || '' }}
+        cache: ${{ steps.downloadNodeModules.outputs.cache-hit != 'true' && 'yarn' || '' }}
 
+    # If the node_modules cache was not found, run the yarn install
     - name: Install dependencies
-      if: ${{ inputs.should-cache-restore == 'false' }}
+      if: ${{ steps.downloadNodeModules.outputs.cache-hit != 'true'}}
       run: yarn --immutable
       shell: bash
 
+    # For the 'prep-deps' job, save the node_modules cache
     - name: Cache workspace
-      if: ${{ inputs.should-cache-save == 'true' }}
+      if: ${{ inputs.should-save-node-modules == 'true' }}
       uses: actions/cache/save@v4
       with:
         path: ./node_modules
-        key: workspace-${{ github.sha }}
+        key: node-modules-${{ github.sha }}
