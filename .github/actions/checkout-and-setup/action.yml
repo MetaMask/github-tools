@@ -2,7 +2,7 @@ name: Checkout and setup environment
 inputs:
   should-save-node-modules: # We only want to turn this on for the 'prep-deps' job
     required: false
-    default: 'false'
+    default: false
   fetch-depth:
     required: false
     default: 1
@@ -47,7 +47,7 @@ runs:
 
     # For the 'prep-deps' job, save the node_modules cache
     - name: Cache workspace
-      if: ${{ inputs.should-save-node-modules == 'true' }}
+      if: ${{ inputs.should-save-node-modules == true }}
       uses: actions/cache/save@v4
       with:
         path: ./node_modules
