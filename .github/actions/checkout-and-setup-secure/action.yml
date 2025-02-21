@@ -1,0 +1,27 @@
+name: Checkout and setup environment secure
+inputs:
+  fetch-depth:
+    required: false
+    default: 1
+runs:
+  using: composite
+  steps:
+    # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      if: ${{ hashFiles('README.md') == '' }}
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - run: corepack enable
+      shell: bash
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: '' # Do not use a yarn cache for a more secure environment
+
+    - name: Install dependencies
+      run: yarn --immutable
+      shell: bash
