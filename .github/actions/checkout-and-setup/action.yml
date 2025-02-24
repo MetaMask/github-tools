@@ -6,16 +6,16 @@ inputs:
   ref:
     required: false
     default: ''
-  should-save-node-modules: # We should only turn this on for the 'prep-deps' job
+  cache-node-modules: # We should only turn this on for the 'prep-deps' job
     required: false
     default: 'false'
 runs:
   using: composite
   steps:
-    # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
+    # Only checkout code if the working folder is empty (no .git), do not overwrite an existing custom checkout
     - name: Checkout repository
       uses: actions/checkout@v4
-      if: ${{ hashFiles('README.md') == '' }}
+      if: ${{ hashFiles('.git') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
         ref: ${{ inputs.ref }}
@@ -26,7 +26,7 @@ runs:
     # Try to download cache of node_modules, if it exists
     # On failure, will run the yarn install instead
     - name: Download node_modules cache
-      id: downloadNodeModules
+      id: download-node-modules
       uses: actions/cache/restore@v4
       with:
         path: ./node_modules
@@ -41,17 +41,17 @@ runs:
         #   1) Self-hosted runners will fail to find this cache, and then fail on the 'Post Setup environment' step
         #   2) This action will run a few seconds slower, because when we restore the 'node_modules' folder from cache, there's no need to download the '.yarn' folder too
         # (GHA does not allow the : ? ternary operator, you must write && ||)
-        cache: ${{ steps.downloadNodeModules.outputs.cache-hit != 'true' && 'yarn' || '' }}
+        cache: ${{ steps.download-node-modules.outputs.cache-hit != 'true' && 'yarn' || '' }}
 
     # If the node_modules cache was not found, run the yarn install
     - name: Install dependencies
-      if: ${{ steps.downloadNodeModules.outputs.cache-hit != 'true'}}
+      if: ${{ steps.download-node-modules.outputs.cache-hit != 'true'}}
       run: yarn --immutable
       shell: bash
 
     # For the 'prep-deps' job, save the node_modules cache
     - name: Cache workspace
-      if: ${{ inputs.should-save-node-modules == 'true' }}
+      if: ${{ inputs.cache-node-modules == 'true' }}
       uses: actions/cache/save@v4
       with:
         path: ./node_modules

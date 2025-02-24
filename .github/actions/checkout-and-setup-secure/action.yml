@@ -9,10 +9,10 @@ inputs:
 runs:
   using: composite
   steps:
-    # Only checkout code if the working folder is empty (no README.md), do not overwrite an existing custom checkout
+    # Only checkout code if the working folder is empty (no .git), do not overwrite an existing custom checkout
     - name: Checkout repository
       uses: actions/checkout@v4
-      if: ${{ hashFiles('README.md') == '' }}
+      if: ${{ hashFiles('.git') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
         ref: ${{ inputs.ref }}
