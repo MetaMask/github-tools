@@ -3,6 +3,9 @@ inputs:
   fetch-depth:
     required: false
     default: 1
+  ref:
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -12,6 +15,7 @@ runs:
       if: ${{ hashFiles('README.md') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
+        ref: ${{ inputs.ref }}
 
     - run: corepack enable
       shell: bash

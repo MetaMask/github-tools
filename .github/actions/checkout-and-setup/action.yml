@@ -3,6 +3,9 @@ inputs:
   fetch-depth:
     required: false
     default: 1
+  ref:
+    required: false
+    default: ''
   should-save-node-modules: # We should only turn this on for the 'prep-deps' job
     required: false
     default: 'false'
@@ -15,6 +18,7 @@ runs:
       if: ${{ hashFiles('README.md') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
+        ref: ${{ inputs.ref }}
 
     - run: corepack enable
       shell: bash
