@@ -10,8 +10,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment
+      - name: Checkout and setup environment
+        uses: ./.github/actions/checkout-and-setup
 
       - run: yarn lint
 
@@ -29,8 +29,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment
+      - name: Checkout and setup environment
+        uses: ./.github/actions/checkout-and-setup
 
       - run: yarn test
 
