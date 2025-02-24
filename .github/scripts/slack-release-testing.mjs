@@ -208,7 +208,7 @@ async function getActiveReleases(documentId) {
         const testingStatusData = await readSheetData(
           documentId,
           title,
-          'J1:J1',
+          'L1:L1',
         );
 
         return {
