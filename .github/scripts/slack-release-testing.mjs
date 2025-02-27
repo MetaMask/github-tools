@@ -329,7 +329,7 @@ async function fmtSlackHandle(team) {
   }
 
   //Lookup Slack Team Id for real notifications
-  const slackTeamId = slackTeamsMap[teamName];
+  const slackTeamId = slackTeamsMap[`${team.team}`];
   return shouldNotify ? ` - <!subteam^${slackTeamId}>` : '';
 }
 
