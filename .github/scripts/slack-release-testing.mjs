@@ -54,7 +54,7 @@ async function initializeSlackTeams() {
 
     if (response.ok && response.usergroups) {
       slackTeamsMap = response.usergroups.reduce((map, group) => {
-        map[group.name] = group.id;
+        map[group.id] = group.handle;
         return map;
       }, {});
     } else {
@@ -319,19 +319,30 @@ async function getPublishChannelName(release) {
 }
 
 async function fmtSlackHandle(team) {
-  //Notify if they have pending validations or have not completed signoff
+  // Notify if they have pending validations or have not completed signoff
   const shouldNotify =
     team.pendingValidations > 0 ||
     team.status.trim().toLowerCase() !== 'completed';
-  //Don't notify teams when in testOnly mode
+
+  // Don't notify teams when in testOnly mode
   if (testOnly()) {
     return shouldNotify ? ` - @${team.slackHandle}` : '';
   }
 
-  //Lookup Slack Team Id for real notifications
-  const slackTeamId = slackTeamsMap[`${team.team}`];
-  return shouldNotify ? ` - <!subteam^${slackTeamId}>` : '';
+  // Lookup Slack Team Id for real notifications
+  const slackTeamId = slackTeamsMap[`${team.slackHandle}`];
+
+  // Check if slackTeamId is not found in the map
+  if (!slackTeamId) {
+    console.log(
+      `Slack team ID not found for handle: ${team.slackHandle}`,
+    );
+    return '';
+  }
+
+  return shouldNotify ? ` - <!subteam^${slackTeamId}|team>` : '';
 }
+
 
 /**
  * Publishes the testing status for a release to the appropriate Slack channel
