@@ -17,5 +17,6 @@ jobs:
         shell: bash
 
       - name: Lint workflow files
-        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
+        run: ${{ steps.download-actionlint.outputs.executable }} -color -ignore 'missing input "is-high-risk-environment".+'
         shell: bash
