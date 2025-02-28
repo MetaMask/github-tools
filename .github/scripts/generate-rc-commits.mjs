@@ -77,6 +77,7 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
   try {
     const git = simpleGit();
 
+
     const logOptions = {
       from: branchB,
       to: branchA,
@@ -132,10 +133,10 @@ function formatAsCSV(commitsByTeam) {
   for (const [team, commits] of Object.entries(commitsByTeam)) {
     commits.forEach((commit) => {
       const row = [
-        escapeCSV(commit.message),
-        escapeCSV(commit.author),
+        stripDelimiter(commit.message, ','),
+        stripDelimiter(commit.author, ','),
         commit.prLink,
-        escapeCSV(team),
+        stripDelimiter(team, ','),,
         assignChangeType(commit.message),
       ];
       csvContent.push(row.join(','));
@@ -145,6 +146,14 @@ function formatAsCSV(commitsByTeam) {
 
   return csvContent;
 }
+
+// Helper function to strip delimiter from CSV fields so they can be properly imported automatically later
+function stripDelimiter(inputString, delimiter) {
+  // Create a regex dynamically based on the provided delimiter
+  const regex = new RegExp(delimiter, 'g');
+  return inputString.replace(regex, '');
+}
+
 
 // Helper function to escape CSV fields
 function escapeCSV(field) {
