@@ -54,7 +54,7 @@ async function initializeSlackTeams() {
 
     if (response.ok && response.usergroups) {
       slackTeamsMap = response.usergroups.reduce((map, group) => {
-        map[group.id] = group.handle;
+        map[group.handle] = group.id;
         return map;
       }, {});
     } else {
