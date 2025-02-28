@@ -336,6 +336,10 @@ function determineTemplateId(
 
 // Function to parse a CSV file into a 2D array with specific modifications
 function parseCSVv2(filePath) {
+
+  // List of authors to exclude
+  const excludedAuthors = ['github-actions[bot]', 'runway-github[bot]'];
+
   try {
     console.log(`Parsing CSV file: ${filePath}`);
 
@@ -363,6 +367,14 @@ function parseCSVv2(filePath) {
         columns[3], // Team
         columns[4], // Change Type
       ];
+
+      const author = modifiedColumns[1];
+
+      if (excludedAuthors.includes(author)) {
+        console.log(`Excluding commit by author: ${author}`);
+        continue; // Skip this commit
+      }
+
 
       // Add this row to the 2D array
       data2D.push(modifiedColumns);
