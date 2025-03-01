@@ -163,3 +163,27 @@ jobs:
       - name: Ensure previous step failed
         if: ${{ steps.checkout-and-setup.outcome == 'success' }}
         run: exit 1
+
+  test-do-not-checkout-twice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: caching # TODO: once merged, change this to the merged commit hash
+
+      - name: Store initial head SHA
+        run: echo "INITIAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: false
+          ref: caching-test
+
+      - name: Store new head SHA
+        run: echo "NEW_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Make sure the Git HEAD did not change
+        if: ${{ env.NEW_SHA != env.INITIAL_SHA }}
+        run: exit 1

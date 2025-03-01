@@ -1,4 +1,5 @@
 name: Checkout and setup environment
+description: Git checkout if not already checked out, get node_modules from cache if available, set up Node.js, run yarn install
 inputs:
   is-high-risk-environment:
     description: 'Use a secure setup without caching (true = secure, false = optimized for speed)'
@@ -28,11 +29,13 @@ runs:
     # The "required: true" field is not enforced by GitHub, so we need to check it manually
     - name: Enforce required input is either "true" or "false"
       run: |
-        if [[ ${{ inputs.is-high-risk-environment }} == "true" || ${{ inputs.is-high-risk-environment }} == "false" ]]; then
-          echo 'is-high-risk-environment input is valid';
+        if [[ "${{ inputs.is-high-risk-environment }}" == "true" ]]; then
+          echo 'High-risk environment detected. Disabling cache for security.'
+        elif [[ "${{ inputs.is-high-risk-environment }}" == "false" ]]; then
+          echo 'Low-risk environment detected. Enabling cache for optimized performance.'
         else
-          echo 'is-high-risk-environment input must be either "true" or "false"';
-          exit 1;
+          echo "::error::Invalid value for 'is-high-risk-environment'. Must be 'true' (secure, no cache) or 'false' (faster, cache enabled)."
+          exit 1
         fi
       shell: bash
 
@@ -56,9 +59,6 @@ runs:
       with:
         path: ./node_modules
         key: node-modules-${{ github.sha }}
-
-    - run: echo 'Cache hit ${{ steps.download-node-modules.outputs.cache-hit }}'
-      shell: bash
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
