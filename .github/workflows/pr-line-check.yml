@@ -27,10 +27,10 @@ jobs:
           # Use the PR base branch if available; otherwise use the default input.
           if [ -n "${{ github.event.pull_request.base.ref }}" ]; then
             echo "Using PR base branch: ${{ github.event.pull_request.base.ref }}"
-            echo "base_branch=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+            echo "base_branch=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
           else
             echo "Using default base branch: ${{ inputs.base_ref }}"
-            echo "base_branch=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
+            echo "base_branch=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Calculate changed lines
@@ -39,16 +39,18 @@ jobs:
           BASE_BRANCH="${{ steps.get-base-branch.outputs.base_branch }}"
           # Fetch the base branch for comparison
           git fetch origin "$BASE_BRANCH"
-          
+
           # Calculate additions and deletions across all changes between the base and HEAD
-          additions=$(git diff origin/"$BASE_BRANCH"...HEAD --numstat | awk '{add += $1} END {print add}')
-          deletions=$(git diff origin/"$BASE_BRANCH"...HEAD --numstat | awk '{del += $2} END {print del}')
+          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | awk '{add += $1} END {print add}')
+          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | awk '{del += $2} END {print del}')
           total=$((additions + deletions))
-          
+
           echo "Additions: $additions, Deletions: $deletions, Total: $total"
-          echo "lines_changed=$total" >> $GITHUB_OUTPUT
-          
-          if [ "$total" -gt "${{ inputs.max_lines }}" ]; then
-            echo "Error: Total changed lines ($total) exceed the limit of ${{ inputs.max_lines }}."
+          echo "lines_changed=$total" >> "$GITHUB_OUTPUT"
+
+          # Assign the input value to a shell variable to ensure numeric comparison
+          max_lines="${{ inputs.max_lines }}"
+          if [ "$total" -gt "$max_lines" ]; then
+            echo "Error: Total changed lines ($total) exceed the limit of $max_lines."
             exit 1
           fi
