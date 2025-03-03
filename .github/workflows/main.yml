@@ -15,12 +15,17 @@ jobs:
     name: Build, lint, and test
     uses: ./.github/workflows/build-lint-test.yml
 
+  test-checkout-and-setup:
+    name: Test checkout-and-setup
+    uses: ./.github/workflows/test-checkout-and-setup.yml
+
   all-jobs-completed:
     name: All jobs completed
     runs-on: ubuntu-latest
     needs:
       - lint-workflows
       - build-lint-test
+      - test-checkout-and-setup
     outputs:
       PASSED: ${{ steps.set-output.outputs.PASSED }}
     steps:
