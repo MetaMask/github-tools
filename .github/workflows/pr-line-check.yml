@@ -1,0 +1,54 @@
+name: Check PR Lines Changed
+
+on:
+  workflow_call:
+    inputs:
+      max_lines:
+        description: 'Maximum allowed total lines changed'
+        required: false
+        type: number
+        default: 1000
+      base_ref:
+        description: 'Default base branch to compare against (if not running on a PR)'
+        required: false
+        type: string
+        default: 'main'
+
+jobs:
+  check-lines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine base branch
+        id: get-base-branch
+        run: |
+          # Use the PR base branch if available; otherwise use the default input.
+          if [ -n "${{ github.event.pull_request.base.ref }}" ]; then
+            echo "Using PR base branch: ${{ github.event.pull_request.base.ref }}"
+            echo "base_branch=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "Using default base branch: ${{ inputs.base_ref }}"
+            echo "base_branch=${{ inputs.base_ref }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Calculate changed lines
+        id: line_count
+        run: |
+          BASE_BRANCH="${{ steps.get-base-branch.outputs.base_branch }}"
+          # Fetch the base branch for comparison
+          git fetch origin "$BASE_BRANCH"
+          
+          # Calculate additions and deletions across all changes between the base and HEAD
+          additions=$(git diff origin/"$BASE_BRANCH"...HEAD --numstat | awk '{add += $1} END {print add}')
+          deletions=$(git diff origin/"$BASE_BRANCH"...HEAD --numstat | awk '{del += $2} END {print del}')
+          total=$((additions + deletions))
+          
+          echo "Additions: $additions, Deletions: $deletions, Total: $total"
+          echo "lines_changed=$total" >> $GITHUB_OUTPUT
+          
+          if [ "$total" -gt "${{ inputs.max_lines }}" ]; then
+            echo "Error: Total changed lines ($total) exceed the limit of ${{ inputs.max_lines }}."
+            exit 1
+          fi
