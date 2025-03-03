@@ -1,18 +1,18 @@
-name: "Add Issue/PR to Project by team"
+name: 'Add Issue/PR to Project by team'
 
 on:
   workflow_call:
     inputs:
       project-url:
-        description: "URL of the GitHub Project where items should be added"
+        description: 'URL of the GitHub Project where items should be added'
         required: true
         type: string
       team-name:
-        description: "Team name to match for PR review_requested or requested_team"
+        description: 'Team name to match for PR review_requested or requested_team'
         required: true
         type: string
       team-label:
-        description: "Label that indicates the Issue/PR belongs to the team"
+        description: 'Label that indicates the Issue/PR belongs to the team'
         required: true
         type: string
     secrets:
@@ -21,7 +21,7 @@ on:
 
 jobs:
   add_to_project:
-    name: "Add to Project Board"
+    name: 'Add to Project Board'
     runs-on: ubuntu-latest
 
     # Ensure we have permissions to read issues/PRs and create project issues
