@@ -1,0 +1,189 @@
+name: Test checkout-and-setup
+
+on:
+  workflow_call:
+
+jobs:
+  prep-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: false
+          cache-node-modules: true
+
+  test-high-risk-after-prep-deps:
+    runs-on: ubuntu-latest
+    needs: prep-deps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: true
+
+      - name: Ensure node_modules cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.node-modules-cache-hit }}
+        run: exit 1
+
+      - name: Ensure .yarn cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.yarn-cache-hit }}
+        run: exit 1
+
+  test-low-risk-after-prep-deps:
+    runs-on: ubuntu-latest
+    needs: prep-deps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: false
+
+      - name: Ensure node_modules cache was used
+        if: ${{ !steps.checkout-and-setup.outputs.node-modules-cache-hit }}
+        run: exit 1
+
+      - name: Ensure .yarn cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.yarn-cache-hit }}
+        run: exit 1
+
+  test-high-risk-without-prep-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: true
+
+      - name: Ensure node_modules cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.node-modules-cache-hit }}
+        run: exit 1
+
+      - name: Ensure .yarn cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.yarn-cache-hit }}
+        run: exit 1
+
+  test-low-risk-without-prep-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: false
+
+      - name: Ensure node_modules cache was not used
+        if: ${{ steps.checkout-and-setup.outputs.node-modules-cache-hit }}
+        run: exit 1
+
+      - name: Ensure .yarn cache was used
+        if: ${{ !steps.checkout-and-setup.outputs.yarn-cache-hit }}
+        run: exit 1
+
+  test-high-risk-string:
+    runs-on: ubuntu-latest
+    needs: prep-deps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: 'true'
+
+  test-low-risk-string:
+    runs-on: ubuntu-latest
+    needs: prep-deps
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: 'false'
+
+  test-no-input:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        continue-on-error: true
+        uses: ./.github/actions/checkout-and-setup
+
+      - name: Ensure previous step failed
+        if: ${{ steps.checkout-and-setup.outcome == 'success' }}
+        run: exit 1
+
+  test-bad-input-string:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        continue-on-error: true
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: 'foo'
+
+      - name: Ensure previous step failed
+        if: ${{ steps.checkout-and-setup.outcome == 'success' }}
+        run: exit 1
+
+  test-bad-input-number:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        continue-on-error: true
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: 1
+
+      - name: Ensure previous step failed
+        if: ${{ steps.checkout-and-setup.outcome == 'success' }}
+        run: exit 1
+
+  test-do-not-checkout-twice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: caching # TODO: once merged, change this to the merged commit hash
+
+      - name: Store initial head SHA
+        run: echo "INITIAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Checkout and setup environment
+        id: checkout-and-setup
+        uses: ./.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: false
+          ref: caching-test
+
+      - name: Store new head SHA
+        run: echo "NEW_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Make sure the Git HEAD did not change
+        if: ${{ env.NEW_SHA != env.INITIAL_SHA }}
+        run: exit 1
