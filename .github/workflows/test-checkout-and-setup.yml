@@ -169,7 +169,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: caching # TODO: once merged, change this to the merged commit hash
+          ref: 1299bb1de0c6974ae6d0a32c7e8897fe168239ac # The commit hash when checkout-and-setup was first created
 
       - name: Store initial head SHA
         run: echo "INITIAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -179,7 +179,7 @@ jobs:
         uses: ./.github/actions/checkout-and-setup
         with:
           is-high-risk-environment: false
-          ref: caching-test
+          ref: main
 
       - name: Store new head SHA
         run: echo "NEW_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
