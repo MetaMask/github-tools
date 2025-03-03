@@ -77,8 +77,10 @@ jobs:
           path: github-tools
 
       # Step 3: Setup environment from github-tools
-      - name: Setup environment
-        uses: ./github-tools/.github/actions/setup-environment
+      - name: Checkout and setup environment
+        uses: ./github-tools/.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: true
 
       # Step 4: Execute the script with access to both repositories
       - name: Create Release
