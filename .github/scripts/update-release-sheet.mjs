@@ -340,6 +340,13 @@ function parseCSVv2(filePath) {
   // List of authors to exclude
   const excludedAuthors = ['github-actions[bot]', 'runway-github[bot]'];
 
+   // Regex patterns to exclude certain commit messages
+  // Regex patterns to exclude certain commit messages
+  const excludedCommitRegex = [
+    /cherry-pick/,           // Matches any occurrence of "cherry-pick"
+    /cp-\d+\.\d+\.\d+/       // Matches patterns like "cp-1.0.0"
+  ];
+
   try {
     console.log(`Parsing CSV file: ${filePath}`);
 
@@ -368,11 +375,19 @@ function parseCSVv2(filePath) {
         columns[4], // Change Type
       ];
 
+      const commitMessage = modifiedColumns[0];
       const author = modifiedColumns[1];
 
       if (excludedAuthors.includes(author)) {
         console.log(`Excluding commit by author: ${author}`);
         continue; // Skip this commit
+      }
+
+      // Check if the commit message matches any excluded patterns
+      const isExcludedMessage = excludedCommitRegex.some(pattern => pattern.test(commitMessage));
+      if (isExcludedMessage) {
+        console.log(`Excluding commit due to message pattern: ${commitMessage}`);
+            continue; // Skip this commit
       }
 
 
