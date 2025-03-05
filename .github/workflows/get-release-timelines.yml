@@ -24,8 +24,8 @@ jobs:
 
       - name: Get release timelines
         env:
-          OWNER: metamask
-          REPOSITORY: metamask-extension
+          OWNER: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.event.repository.name }}
           VERSION: ${{ inputs.version }}
           RUNWAY_APP_ID: ${{ secrets.RUNWAY_APP_ID || '-' }}
           RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY || '-' }}
