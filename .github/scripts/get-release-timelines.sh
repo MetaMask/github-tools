@@ -76,13 +76,13 @@ echo "${all_blockers}" | jq -c '.[]' | while IFS= read -r issue; do
       }
     }' | jq -r '.data.repository.issue.closedByPullRequestsReferences.nodes')
 
-  bugfix_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick") | not)]')
-  bugfix_pr_created_at=$(echo "${bugfix_pr}" | jq -r 'last.createdAt')
-  bugfix_pr_merged_at=$(echo "${bugfix_pr}" | jq -r 'last.mergedAt')
+  bugfix_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick") | not)] | last')
+  bugfix_pr_created_at=$(echo "${bugfix_pr}" | jq -r '.createdAt')
+  bugfix_pr_merged_at=$(echo "${bugfix_pr}" | jq -r '.mergedAt')
 
-  cherry_pick_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick"))]')
-  cherry_pick_pr_created_at=$(echo "${cherry_pick_pr}" | jq -r 'last.createdAt')
-  cherry_pick_pr_merged_at=$(echo "${cherry_pick_pr}" | jq -r 'last.mergedAt')
+  cherry_pick_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick"))] | last')
+  cherry_pick_pr_created_at=$(echo "${cherry_pick_pr}" | jq -r '.createdAt')
+  cherry_pick_pr_merged_at=$(echo "${cherry_pick_pr}" | jq -r '.mergedAt')
 
   echo "${release_pr_merged_at},${release_submitted_at},${rollout_1_at},${rollout_10_at},${rollout_100_at},${issue_created_at},${last_team_assigned_at},${triage_completed_at},${bugfix_pr_created_at},${bugfix_pr_merged_at},${cherry_pick_pr_created_at},${cherry_pick_pr_merged_at}" >> "${release_timelines_filename}"
 done
