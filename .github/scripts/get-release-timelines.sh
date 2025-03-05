@@ -15,6 +15,16 @@ if [[ -z "${VERSION}" ]]; then
   exit 1
 fi
 
+if [[ -z "${RUNWAY_APP_ID}" ]]; then
+  echo "::error::RUNWAY_APP_ID not provided. Set the 'RUNWAY_APP_ID' environment variable."
+  exit 1
+fi
+
+if [[ -z "${RUNWAY_API_KEY}" ]]; then
+  echo "::error::RUNWAY_API_KEY not provided. Set the 'RUNWAY_API_KEY' environment variable."
+  exit 1
+fi
+
 release_timelines_filename="release-timelines-${VERSION}.csv"
 
 echo "release_pr_merged_at,release_submitted_at,rollout_1_at,rollout_10_at,rollout_100_at,issue_created_at,last_team_assigned_at,triage_completed_at,bugfix_pr_created_at,bugfix_pr_merged_at,cherry_pick_pr_created_at,cherry_pick_pr_merged_at" > "${release_timelines_filename}"
@@ -34,12 +44,8 @@ rollout_1_at="null"
 rollout_10_at="null"
 rollout_100_at="null"
 
-release_submitted_at="null"
-
-if [[ -n "${RUNWAY_API_KEY}" && -n "${RUNWAY_APP_ID}" ]]; then
-  runway_release_id="${RUNWAY_APP_ID}:${VERSION}"
-  release_submitted_at=$(curl --silent --header "X-API-Key: ${RUNWAY_API_KEY}" "https://api.runway.team/v1/app/${RUNWAY_APP_ID}/release/${runway_release_id}" | jq -r '.submittedAt')
-fi
+runway_release_id="${RUNWAY_APP_ID}:${VERSION}"
+release_submitted_at=$(curl --silent --header "X-API-Key: ${RUNWAY_API_KEY}" "https://api.runway.team/v1/app/${RUNWAY_APP_ID}/release/${runway_release_id}" | jq -r '.submittedAt')
 
 release_label="regression-RC-${VERSION}"
 release_blockers=$(gh issue list --repo "${OWNER}/${REPOSITORY}" --state all --label "release-blocker,${release_label}" --limit 100 --json number,createdAt)
