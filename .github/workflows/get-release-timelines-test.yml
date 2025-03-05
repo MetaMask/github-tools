@@ -15,5 +15,5 @@ jobs:
     with:
       version: ${{ github.event.inputs.version }}
     secrets:
-      RUNWAY_APP_ID: '-'
-      RUNWAY_API_KEY: '-'
+      RUNWAY_APP_ID: ''
+      RUNWAY_API_KEY: ''
