@@ -15,9 +15,6 @@ on:
         description: 'Label that indicates the Issue/PR belongs to the team'
         required: true
         type: string
-    secrets:
-      GITHUB_TOKEN:
-        required: true
 
 jobs:
   add_to_project:
