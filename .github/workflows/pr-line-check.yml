@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: 'main'
+      ignore_patterns:
+        description: 'Regex pattern for files to ignore when calculating changes'
+        required: false
+        type: string
+        default: '(\.lock$)'
 
 jobs:
   check-lines:
@@ -40,15 +45,18 @@ jobs:
           # Fetch the base branch for comparison
           git fetch origin "$BASE_BRANCH"
 
-          # Calculate additions and deletions across all changes between the base and HEAD
-          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | awk '{add += $1} END {print add}')
-          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | awk '{del += $2} END {print del}')
+           # Set the ignore pattern from input
+          ignore_pattern="${{ inputs.ignore_patterns }}"
+
+          # Calculate additions and deletions across all changes between the base and HEAD,
+          # filtering out files matching the ignore pattern.
+          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{add += $1} END {print add}')
+          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{del += $2} END {print del}')
           total=$((additions + deletions))
 
           echo "Additions: $additions, Deletions: $deletions, Total: $total"
           echo "lines_changed=$total" >> "$GITHUB_OUTPUT"
 
-          # Assign the input value to a shell variable to ensure numeric comparison
           max_lines="${{ inputs.max_lines }}"
           if [ "$total" -gt "$max_lines" ]; then
             echo "Error: Total changed lines ($total) exceed the limit of $max_lines."
