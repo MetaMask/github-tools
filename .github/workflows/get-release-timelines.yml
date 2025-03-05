@@ -24,9 +24,9 @@ jobs:
 
       - name: Get release timelines
         env:
-          OWNER: ${{ github.repository_owner }}
-          REPOSITORY: ${{ github.event.repository.name }}
-          VERSION: ${{ inputs.version }}
+          OWNER: metamask
+          REPOSITORY: metamask-extension
+          VERSION: 12.13.0
           RUNWAY_APP_ID: ${{ secrets.RUNWAY_APP_ID }}
           RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
