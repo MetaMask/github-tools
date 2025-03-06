@@ -15,6 +15,10 @@ on:
         description: 'Label that indicates the Issue/PR belongs to the team'
         required: true
         type: string
+    secrets:
+      github-token:
+        description: 'GitHub token with permissions to add items to projects'
+        required: true
 
 jobs:
   add_to_project:
@@ -40,7 +44,7 @@ jobs:
               contains(github.event.pull_request.requested_teams.*.name, inputs.team-name)
             )
           )
-          || 
+          ||
           (github.event_name == 'issues' &&
             (
               contains(github.event.issue.labels.*.name, inputs.team-label)
@@ -48,5 +52,4 @@ jobs:
           )
         with:
           project-url: ${{ inputs.project-url }}
-          # The reusable workflow automatically receives the calling workflow's GITHUB_TOKEN
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.github-token }}
