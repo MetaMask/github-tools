@@ -76,11 +76,11 @@ echo "${all_blockers}" | jq -c '.[]' | while IFS= read -r issue; do
       }
     }' | jq -r '.data.repository.issue.closedByPullRequestsReferences.nodes')
 
-  bugfix_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick") | not)] | last')
+  bugfix_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | contains("cherry-pick") | not)] | last')
   bugfix_pr_created_at=$(echo "${bugfix_pr}" | jq -r '.createdAt')
   bugfix_pr_merged_at=$(echo "${bugfix_pr}" | jq -r '.mergedAt')
 
-  cherry_pick_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | startswith("chore(runway): cherry-pick"))] | last')
+  cherry_pick_pr=$(echo "${linked_prs}" | jq -r '[.[] | select(.title | contains("cherry-pick"))] | last')
   cherry_pick_pr_created_at=$(echo "${cherry_pick_pr}" | jq -r '.createdAt')
   cherry_pick_pr_merged_at=$(echo "${cherry_pick_pr}" | jq -r '.mergedAt')
 
