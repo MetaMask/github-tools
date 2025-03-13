@@ -3,9 +3,6 @@ name: Changelog Check
 on:
   workflow_call:
     inputs:
-      pr-number:
-        required: true
-        type: string
       base-branch:
         required: true
         type: string
