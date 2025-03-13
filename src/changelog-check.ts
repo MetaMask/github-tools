@@ -25,7 +25,7 @@ const repoPath = process.cwd(); // Root directory for any temp storage
 // Function to fetch the raw file content from GitHub
 async function fetchChangelogFromGitHub(repo: string, branch: string): Promise<string> {
     // Use raw.githubusercontent.com to directly fetch file content
-    const url = `https://raw.githubusercontent.com/MetaMask/${repo}/${branch}/CHANGELOG.md`;
+    const url = `https://raw.githubusercontent.com/${repo}/${branch}/CHANGELOG.md`;
     const token = process.env.GITHUB_TOKEN || "";
 
     try {

@@ -44,10 +44,10 @@ jobs:
 
       # Step 4: Run Script
       - name: Check Changelog
-        id: check-changelog
+        id: changelog-check
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
         working-directory: ./github-tools
         run: |
-          yarn run check-changelog ${{ github.repository }} ${{ inputs.base-branch }} ${{ inputs.feature-branch }}
+          yarn run changelog-check ${{ github.repository }} ${{ inputs.base-branch }} ${{ inputs.feature-branch }}
