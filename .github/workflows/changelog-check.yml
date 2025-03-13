@@ -1,0 +1,61 @@
+name: Changelog Check
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+      feature_branch:
+        required: true
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.feature_branch }}
+
+      - name: Fetch base branch for comparison
+        run: |
+          git fetch origin ${{ inputs.base_branch }}
+
+      - name: Check if 'CHANGELOG.md' was modified
+        id: check_changes
+        run: |
+          if git diff --name-only origin/${{ inputs.base_branch }}...${{ inputs.feature_branch }} | grep -q '^CHANGELOG\.md$'; then
+            echo "changelog_modified=true" >> $GITHUB_ENV
+          else
+            echo "changelog_modified=false" >> $GITHUB_ENV
+          fi
+
+      - name: Check if 'no-changelog-required' label exists
+        id: check_label
+        run: |
+          LABELS=$(gh pr view ${{ inputs.pr_number }} --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -q "no-changelog-required"; then
+            echo "label_exists=true" >> $GITHUB_ENV
+          else
+            echo "label_exists=false" >> $GITHUB_ENV
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine action result
+        run: |
+          if [[ "$changelog_modified" == "true" || "$label_exists" == "true" ]]; then
+            echo "✅ Either CHANGELOG.md was modified or 'no-changelog-required' label exists. Passing."
+            exit 0
+          else
+            echo "❌ CHANGELOG.md was not modified and no 'no-changelog-required' label found. Failing."
+            exit 1
+          fi
