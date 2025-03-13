@@ -23,16 +23,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.feature_branch }}
+          fetch-depth: 0  # Ensure full history is fetched
+          ref: ${{ inputs.feature-branch }}
 
       - name: Fetch base branch for comparison
         run: |
-          git fetch origin ${{ inputs.base_branch }}
+          git fetch origin ${{ inputs.base-branch }}
 
       - name: Check if 'CHANGELOG.md' was modified
         id: check_changes
         run: |
-          if git diff --name-only origin/${{ inputs.base_branch }}...${{ inputs.feature_branch }} | grep -q '^CHANGELOG\.md$'; then
+          if git diff --name-only origin/${{ inputs.base-branch }} ${{ inputs.feature-branch }} | grep -q '^CHANGELOG\.md$'; then
             echo "changelog_modified=true" >> $GITHUB_ENV
           else
             echo "changelog_modified=false" >> $GITHUB_ENV
@@ -40,15 +41,15 @@ jobs:
 
       - name: Check if 'no-changelog-required' label exists
         id: check_label
+        env:
+          GH_TOKEN: ${{ secrets.gh-token }}
         run: |
-          LABELS=$(gh pr view ${{ inputs.pr_number }} --json labels --jq '.labels[].name')
+          LABELS=$(gh pr view ${{ inputs.pr-number }} --json labels --jq '.labels[].name')
           if echo "$LABELS" | grep -q "no-changelog-required"; then
             echo "label_exists=true" >> $GITHUB_ENV
           else
             echo "label_exists=false" >> $GITHUB_ENV
           fi
-        env:
-          GH_TOKEN: ${{ secrets.gh-token }}
 
       - name: Determine action result
         run: |
