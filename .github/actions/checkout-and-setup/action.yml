@@ -1,0 +1,88 @@
+name: Checkout and setup environment
+description: Git checkout if not already checked out, get node_modules from cache if available, set up Node.js, run yarn install
+inputs:
+  is-high-risk-environment:
+    description: 'Use a secure setup without caching (true = secure, false = optimized for speed)'
+    required: true
+  fetch-depth:
+    description: 'Depth of the Git history to fetch'
+    required: false
+    default: '1'
+  ref:
+    description: 'Branch, tag, or SHA to checkout'
+    required: false
+    default: ''
+  cache-node-modules:
+    description: 'Enable caching for node_modules (for the `prep-deps` job, only applies when is-high-risk-environment is false)'
+    required: false
+    default: 'false'
+# The outputs are for the unit tests in `test-checkout-and-setup.yml`, and probably not useful for other workflows
+outputs:
+  node-modules-cache-hit:
+    value: ${{ steps.download-node-modules.outputs.cache-hit }}
+  yarn-cache-hit:
+    value: ${{ steps.setup-node.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    # The "required: true" field is not enforced by GitHub, so we need to check it manually
+    - name: Enforce required input is either "true" or "false"
+      run: |
+        if [[ "${{ inputs.is-high-risk-environment }}" == "true" ]]; then
+          echo 'High-risk environment detected. Disabling cache for security.'
+        elif [[ "${{ inputs.is-high-risk-environment }}" == "false" ]]; then
+          echo 'Low-risk environment detected. Enabling cache for optimized performance.'
+        else
+          echo "::error::Invalid value for 'is-high-risk-environment'. Must be 'true' (secure, no cache) or 'false' (faster, cache enabled)."
+          exit 1
+        fi
+      shell: bash
+
+    # Checkout repository only if not already checked out
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      if: ${{ hashFiles('.git') == '' }}
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+        ref: ${{ inputs.ref }}
+
+    - run: corepack enable
+      shell: bash
+
+    # In a low-risk environment, try to download cache of node_modules, if it exists
+    # On failure, will run the yarn install instead
+    - name: Download node_modules cache
+      if: ${{ inputs.is-high-risk-environment == 'false' }}
+      id: download-node-modules
+      uses: actions/cache/restore@v4
+      with:
+        path: ./node_modules
+        key: node-modules-${{ github.sha }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      id: setup-node
+      with:
+        node-version-file: .nvmrc
+        # If the node_modules cache was not found, use setup-node cache to restore the '.yarn' folder
+        # Notes: if this is always set to 'yarn':
+        #   1) Will not be secure for high-risk environment
+        #   2) Self-hosted runners will fail to find this cache, and then fail on the 'Post Setup environment' step
+        #   3) This action will run a few seconds slower, because when we restore the 'node_modules' folder from cache, there's no need to download the '.yarn' folder too
+        # (GHA does not allow the : ? ternary operator, you must write && ||)
+        cache: ${{ ( inputs.is-high-risk-environment != 'true' && steps.download-node-modules.outputs.cache-hit != 'true' ) && 'yarn' || '' }}
+
+    # If the node_modules cache was not found (or it's a high-risk environment), run the yarn install
+    - name: Install dependencies
+      if: ${{ steps.download-node-modules.outputs.cache-hit != 'true'}}
+      run: yarn --immutable
+      shell: bash
+
+    # For the 'prep-deps' job, save the node_modules cache
+    - name: Cache workspace
+      if: ${{ inputs.is-high-risk-environment == 'false' && inputs.cache-node-modules == 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ./node_modules
+        key: node-modules-${{ github.sha }}

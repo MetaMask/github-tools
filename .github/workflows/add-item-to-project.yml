@@ -1,0 +1,55 @@
+name: 'Add Issue/PR to Project by team'
+
+on:
+  workflow_call:
+    inputs:
+      project-url:
+        description: 'URL of the GitHub Project where items should be added'
+        required: true
+        type: string
+      team-name:
+        description: 'Team name to match for PR review_requested or requested_team'
+        required: true
+        type: string
+      team-label:
+        description: 'Label that indicates the Issue/PR belongs to the team'
+        required: true
+        type: string
+    secrets:
+      github-token:
+        description: 'GitHub token with permissions to add items to projects'
+        required: true
+
+jobs:
+  add_to_project:
+    name: 'Add to Project Board'
+    runs-on: ubuntu-latest
+
+    # Ensure we have permissions to read issues/PRs and create project issues
+    # (some repos may need 'contents: read', 'issues: write', 'pull-requests: write', etc.)
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      # If you are using "classic" Projects, also add: projects: write
+
+    steps:
+      - name: Add item to project board
+        uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
+        if: |
+          (github.event_name == 'pull_request' &&
+            (
+              github.event.requested_team.name == inputs.team-name ||
+              contains(github.event.pull_request.labels.*.name, inputs.team-label) ||
+              contains(github.event.pull_request.requested_teams.*.name, inputs.team-name)
+            )
+          )
+          ||
+          (github.event_name == 'issues' &&
+            (
+              contains(github.event.issue.labels.*.name, inputs.team-label)
+            )
+          )
+        with:
+          project-url: ${{ inputs.project-url }}
+          github-token: ${{ secrets.github-token }}
