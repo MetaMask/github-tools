@@ -4,6 +4,7 @@
   "private": true,
   "description": "Tools for interacting with the GitHub API to do metrics gathering",
   "scripts": {
+    "changelog-check": "ts-node src/changelog-check.ts",
     "count-references-to-contributor-docs": "ts-node --swc src/scripts/count-references-to-contributor-docs/cli.ts",
     "gen:commits": "node .github/scripts/generate-rc-commits.mjs",
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
@@ -17,8 +18,7 @@
     "slack:release-testing": "node .github/scripts/slack-release-testing.mjs",
     "test": "jest && jest-it-up",
     "test:watch": "jest --watch",
-    "update-release-sheet": "node .github/scripts/update-release-sheet.mjs",
-    "changelog-check": "ts-node src/changelog-check.ts"
+    "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
     "@metamask/utils": "^7.1.0",
