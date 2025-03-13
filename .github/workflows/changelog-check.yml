@@ -3,17 +3,17 @@ name: Changelog Check
 on:
   workflow_call:
     inputs:
-      pr_number:
+      pr-number:
         required: true
         type: string
-      base_branch:
+      base-branch:
         required: true
         type: string
-      feature_branch:
+      feature-branch:
         required: true
         type: string
     secrets:
-      GITHUB_TOKEN:
+      gh-token:
         required: true
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
             echo "label_exists=false" >> $GITHUB_ENV
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.gh-token }}
 
       - name: Determine action result
         run: |
