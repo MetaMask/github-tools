@@ -83,17 +83,17 @@ differences.forEach(part => {
 console.log("🔍 Diff between base and feature '[Unreleased]' sections:");
 
 if (removedLines.length > 0) {
-    console.log("\x1b[31m❌ Removed:\x1b[0m");
-    removedLines.forEach(line => console.log(`\x1b[31m- ${line}\x1b[0m`));
+    console.log("❌ Removed:");
+    removedLines.forEach(line => console.log(`${line}`));
 } else {
-    console.log("\x1b[31m❌ No removed lines.\x1b[0m");
+    console.log("❌ No removed lines.");
 }
 
 if (addedLines.length > 0) {
-    console.log("\x1b[32m✅ Added:\x1b[0m");
-    addedLines.forEach(line => console.log(`\x1b[32m+ ${line}\x1b[0m`));
+    console.log("✅ Added:");
+    addedLines.forEach(line => console.log(`${line}`));
 } else {
-    console.log("\x1b[32m✅ No added lines.\x1b[0m");
+    console.log("✅ No added lines.");
 }
 
 }
