@@ -20,43 +20,37 @@ jobs:
   check-changelog:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      # Step 1: Checkout github-tools repository
+      - name: Checkout github-tools repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensure full history is fetched
-          ref: ${{ inputs.feature-branch }}
+          repository: MetaMask/github-tools
+          ref: changelog-checker
+          path: github-tools
 
-      - name: Fetch base branch for comparison
-        run: |
-          git fetch origin ${{ inputs.base-branch }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
 
-      - name: Check if 'CHANGELOG.md' was modified
-        id: check_changes
-        run: |
-          if git diff --name-only origin/${{ inputs.base-branch }} ${{ inputs.feature-branch }} | grep -q '^CHANGELOG\.md$'; then
-            echo "changelog_modified=true" >> $GITHUB_ENV
-          else
-            echo "changelog_modified=false" >> $GITHUB_ENV
-          fi
+      - name: Enable Corepack
+        run: corepack enable
+        shell: bash
+        working-directory: ./github-tools
 
-      - name: Check if 'no-changelog-required' label exists
-        id: check_label
+      - name: Install dependencies
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
+
+      # Step 4: Run Script
+      - name: Check Changelog
+        id: check-changelog
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.gh-token }}
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+        working-directory: ./github-tools
         run: |
-          LABELS=$(gh pr view ${{ inputs.pr-number }} --json labels --jq '.labels[].name')
-          if echo "$LABELS" | grep -q "no-changelog-required"; then
-            echo "label_exists=true" >> $GITHUB_ENV
-          else
-            echo "label_exists=false" >> $GITHUB_ENV
-          fi
-
-      - name: Determine action result
-        run: |
-          if [[ "$changelog_modified" == "true" || "$label_exists" == "true" ]]; then
-            echo "✅ Either CHANGELOG.md was modified or 'no-changelog-required' label exists. Passing."
-            exit 0
-          else
-            echo "❌ CHANGELOG.md was not modified and no 'no-changelog-required' label found. Failing."
-            exit 1
-          fi
+          yarn run check-changelog ${{ github.repository }} ${{ inputs.base-branch }} ${{ inputs.feature-branch }}
