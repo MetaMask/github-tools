@@ -67,10 +67,6 @@ jobs:
           labels=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
           "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
       
-          # Print the raw response for debugging
-          echo "API Response Body:"
-          echo "$labels"
-      
           # Proceed with checking for the 'no-changelog' label using jq
           if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
             echo "No-changelog label found, skipping changelog check."
