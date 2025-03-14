@@ -62,16 +62,16 @@ jobs:
       - name: Check PR Labels
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
-        shell: bash
         run: |
             labels=$(curl -H "Authorization: token ${{ secrets.gh-token }}" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
             if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
-            echo "::set-output name=skip-changelog::true"
-            echo "no-changelog label found, skipping changelog check."
+              echo "::set-output name=skip-changelog::true"
+              echo "no-changelog label found, skipping changelog check."
             else
-            echo "::set-output name=skip-changelog::false"
-            echo "No-changelog label not found, proceeding with changelog check."
+              echo "::set-output name=skip-changelog::false"
+              echo "No-changelog label not found, proceeding with changelog check."
+            fi
         env:
             GITHUB_TOKEN: ${{ secrets.gh-token }}
 
