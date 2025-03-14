@@ -63,18 +63,26 @@ jobs:
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
         run: |
-          labels=$(curl -H "Authorization: token '${{ secrets.gh-token }}'" \
+          # Fetch labels from the GitHub API
+          labels=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
           "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
+      
+          # Print the raw response for debugging
+          echo "API Response Body:"
+          echo "$labels"
+      
+          # Proceed with checking for the 'no-changelog' label using jq
           if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
-            echo "no-changelog label found, skipping changelog check."
+            echo "No-changelog label found, skipping changelog check."
             echo "SKIP_CHANGELOG=true" >> $GITHUB_ENV
           else
             echo "SKIP_CHANGELOG=false" >> $GITHUB_ENV
-            echo "no-changelog label not found, proceeding with changelog check."
+            echo "No-changelog label not found, proceeding with changelog check."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
         shell: bash
+      
 
       - name: Check Changelog
         if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
