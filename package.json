@@ -31,11 +31,8 @@
     "changelog-parser": "3.0.1",
     "csv-parse": "5.6.0",
     "diff": "^7.0.0",
-    "fs-extra": "11.3.0",
     "googleapis": "144.0.0",
-    "isomorphic-git": "1.29.0",
     "luxon": "^3.3.0",
-    "node-fetch": "^3.3.2",
     "ora": "^5.4.1",
     "simple-git": "3.27.0"
   },
