@@ -69,8 +69,7 @@ jobs:
           gh_token=${{ secrets.gh-token }}
       
           # Use the variables in a way that ShellCheck will not flag
-          labels=$(curl -H "Authorization: token '${gh_token}'" \
-          "https://api.github.com/repos/${repo}/issues/${pr_number}/labels")
+          labels=$(curl -H "Authorization: token ${gh_token} https://api.github.com/repos/${repo}/issues/${pr_number}/labels)
       
           if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
             echo "no-changelog label found, skipping changelog check."
