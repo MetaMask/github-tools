@@ -62,6 +62,7 @@ jobs:
       - name: Check PR Labels
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
+        shell: bash
         run: |
             labels=$(curl -H "Authorization: token ${{ secrets.gh-token }}" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
