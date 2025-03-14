@@ -3,3 +3,7 @@ paths:
     ignore:
       # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
       - 'missing input "is-high-risk-environment".+'
+  .github/workflows/changelog-check.yml:
+    ignore:
+      # Ignore SC2086 warnings related to shell commands
+      - 'SC2086:.+'
