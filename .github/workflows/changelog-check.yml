@@ -63,8 +63,6 @@ jobs:
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
         run: |
-          #!/bin/sh
-          # shellcheck disable=SC2086
           labels=$(curl -H "Authorization: token '${{ secrets.gh-token }}'" \
           "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
           if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
@@ -72,10 +70,11 @@ jobs:
             echo "SKIP_CHANGELOG=true" >> $GITHUB_ENV
           else
             echo "SKIP_CHANGELOG=false" >> $GITHUB_ENV
-            echo "No-changelog label not found, proceeding with changelog check."
+            echo "no-changelog label not found, proceeding with changelog check."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
+        shell: bash
 
       - name: Check Changelog
         if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
