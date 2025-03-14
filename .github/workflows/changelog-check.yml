@@ -71,8 +71,10 @@ jobs:
           else
             echo "SKIP_CHANGELOG=false" >> $GITHUB_ENV
             echo "No-changelog label not found, proceeding with changelog check."
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
+        shell: bash      
 
 
       - name: Check Changelog
