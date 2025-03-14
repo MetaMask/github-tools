@@ -63,14 +63,10 @@ jobs:
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
         run: |
-          # Use double quotes and properly handle dynamic data within the bash context
-          repo=${{ github.repository }}
-          pr_number=${{ inputs.pr-number }}
-          gh_token=${{ secrets.gh-token }}
-      
-          # Use the variables in a way that ShellCheck will not flag
-          labels=$(curl -H "Authorization: token ${gh_token} https://api.github.com/repos/${repo}/issues/${pr_number}/labels)
-      
+          #!/bin/sh
+          # shellcheck disable=SC2086
+          labels=$(curl -H "Authorization: token '${{ secrets.gh-token }}'" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
           if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
             echo "no-changelog label found, skipping changelog check."
             echo "SKIP_CHANGELOG=true" >> $GITHUB_ENV
@@ -80,7 +76,6 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
-        shell: bash
 
       - name: Check Changelog
         if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
