@@ -59,6 +59,7 @@ jobs:
         shell: bash
         working-directory: ./github-tools
 
+      # shellcheck disable=SC2086
       - name: Check PR Labels
         if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
