@@ -64,9 +64,9 @@ jobs:
         id: label-check
         run: |
           # Use double quotes and properly handle dynamic data within the bash context
-          repo="${{ github.repository }}"
-          pr_number="${{ inputs.pr-number }}"
-          gh_token="${{ secrets.gh-token }}"
+          repo=${{ github.repository }}
+          pr_number=${{ inputs.pr-number }}
+          gh_token=${{ secrets.gh-token }}
       
           # Use the variables in a way that ShellCheck will not flag
           labels=$(curl -H "Authorization: token '${gh_token}'" \
