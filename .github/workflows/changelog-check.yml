@@ -9,6 +9,9 @@ on:
       feature-branch:
         required: true
         type: string
+      pr-number:
+        required: true
+        type: string
     secrets:
       gh-token:
         required: true
@@ -17,7 +20,6 @@ jobs:
   check-changelog:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout github-tools repository
       - name: Checkout github-tools repository
         uses: actions/checkout@v4
         with:
@@ -42,7 +44,20 @@ jobs:
         shell: bash
         working-directory: ./github-tools
 
-      # Step 4: Run Script
+      - name: Check PR Labels
+        id: label-check
+        run: |
+          labels=$(curl -H "Authorization: token ${{ secrets.gh-token }}" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
+          if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
+            echo "No-changelog label found, skipping changelog check."
+            exit 0
+          else
+            echo "No-changelog label not found, proceeding with changelog check."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+
       - name: Check Changelog
         id: changelog-check
         shell: bash
