@@ -15,10 +15,16 @@ on:
         description: 'Label that indicates the Issue/PR belongs to the team'
         required: true
         type: string
+      filter-enabled:
+        description: 'If true, only add items that match the team criteria. If false, add every item.'
+        required: false
+        type: boolean
+        default: true
     secrets:
       github-token:
         description: 'GitHub token with permissions to add items to projects'
         required: true
+
 
 jobs:
   add_to_project:
@@ -36,8 +42,14 @@ jobs:
     steps:
       - name: Add item to project board
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
+        # If filtering is disabled, the condition is always true.
+        # If filtering is enabled, then:
+        #   - For PRs, check that the PR either has the specified team in requested_team
+        #     or contains the team label.
+        #   - For Issues, check that the issue contains the team label.
         if: |
-          (github.event_name == 'pull_request' &&
+          !inputs.filter-enabled ||
+          ((github.event_name == 'pull_request' &&
             (
               github.event.requested_team.name == inputs.team-name ||
               contains(github.event.pull_request.labels.*.name, inputs.team-label) ||
@@ -49,7 +61,7 @@ jobs:
             (
               contains(github.event.issue.labels.*.name, inputs.team-label)
             )
-          )
+          ))
         with:
           project-url: ${{ inputs.project-url }}
           github-token: ${{ secrets.github-token }}
