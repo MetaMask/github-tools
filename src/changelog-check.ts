@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { diffLines } from 'diff'; // Import diff library
+import { diffLines } from 'diff';
 
 // Manually define types for changelog-parser since it lacks official TypeScript support
 type Release = {
@@ -36,7 +36,6 @@ async function fetchChangelogFromGitHub(
   repo: string,
   branch: string,
 ): Promise<string> {
-  // Use raw.githubusercontent.com to directly fetch file content
   const url = `https://raw.githubusercontent.com/${repo}/${branch}/CHANGELOG.md`;
   // eslint-disable-next-line n/no-process-env
   const token = process.env.GITHUB_TOKEN ?? '';
@@ -44,10 +43,10 @@ async function fetchChangelogFromGitHub(
   try {
     const response = await axios.get(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      responseType: 'text', // Ensure we get raw text
+      responseType: 'text',
     });
 
-    return response.data; // Directly return the raw content
+    return response.data;
   } catch (error) {
     console.error(
       `❌ Error fetching CHANGELOG.md from ${branch} on ${repo}:`,
