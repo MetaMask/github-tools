@@ -187,7 +187,7 @@ const [githubRepo, baseBranch, featureBranch] = args;
 // Ensure all required arguments are provided
 if (!githubRepo || !baseBranch || !featureBranch) {
   console.error(
-    '✅ Usage: ts-node scripts/check-changelog.ts <github-repo> <base-branch> <feature-branch>',
+    '❌ Usage: ts-node src/check-changelog.ts <github-repo> <base-branch> <feature-branch>',
   );
   throw new Error('❌ Missing required arguments.');
 }
