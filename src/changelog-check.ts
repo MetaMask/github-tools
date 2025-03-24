@@ -177,7 +177,7 @@ async function validateChangelog(
 const args = process.argv.slice(2);
 if (args.length < 3) {
   console.error(
-    '❌ Usage: node scripts/check-changelog.js <github-repo> <base-branch> <feature-branch>',
+    '❌ Usage: ts-node src/check-changelog.ts <github-repo> <base-branch> <feature-branch>',
   );
   throw new Error('❌ Missing required arguments.');
 }
