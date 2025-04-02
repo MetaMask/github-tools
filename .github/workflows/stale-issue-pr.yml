@@ -16,7 +16,7 @@ jobs:
           close-issue-message: 'This issue was closed because there has been no follow activity in 90 days. If you feel this was closed in error please provide evidence on the current production app in a new issue or comment in the existing issue to a maintainer. Thank you for your contributions.'
           stale-issue-label: 'stale'
           only-issue-labels: 'type-bug'
-          exempt-issue-labels: 'type-security, feature-request, needs-triage, needs-reproduction'
+          exempt-issue-labels: 'type-security, feature-request, needs-triage'
           days-before-issue-stale: 90
           days-before-issue-close: 90
           stale-pr-message: 'This PR has been automatically marked as stale because it has not had recent activity in the last 90 days. It will be closed in 7 days. Thank you for your contributions.'
