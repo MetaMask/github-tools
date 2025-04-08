@@ -1,4 +1,4 @@
-name: Changelog Check
+name: Check Changelog
 
 on:
   workflow_call:
