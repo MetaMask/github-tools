@@ -9,8 +9,8 @@ on:
       head-ref:
         required: true
         type: string
-      pr-number:
-        description: 'The pull request number'
+      labels:
+        description: 'JSON string of PR labels'
         required: true
         type: string
       repo:
@@ -58,23 +58,12 @@ jobs:
 
       - name: Check PR Labels
         id: label-check
-        env:
-          GITHUB_TOKEN: ${{ secrets.gh-token }}
-          GITHUB_REPO: ${{ inputs.repo }}
-          PR_NUMBER: ${{ inputs.pr-number }}
         run: |
-          # Fetch labels and check for no-changelog
-          if labels=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/labels"); then
-            if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
-              echo "no-changelog label found, skipping changelog check."
-              echo "skip_check=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "No no-changelog label found, proceeding with check."
-              echo "skip_check=false" >> "$GITHUB_OUTPUT"
-            fi
+          if echo '${{ inputs.labels }}' | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
+            echo "no-changelog label found, skipping changelog check."
+            echo "skip_check=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Failed to fetch labels. Assuming changelog check is needed."
+            echo "No no-changelog label found, proceeding with check."
             echo "skip_check=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
