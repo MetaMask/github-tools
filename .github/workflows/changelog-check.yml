@@ -1,0 +1,74 @@
+name: Changelog Check
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        required: true
+        type: string
+      feature-branch:
+        required: true
+        type: string
+      pr-number:
+        required: false
+        type: string
+    secrets:
+      gh-token:
+        required: true
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: changelog-checker
+          path: github-tools
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
+
+      - name: Enable Corepack
+        run: corepack enable
+        shell: bash
+        working-directory: ./github-tools
+
+      - name: Install dependencies
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
+
+      - name: Check PR Labels
+        id: label-check
+        run: |
+          # Fetch labels from the GitHub API
+          labels=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
+
+          # Proceed with checking for the 'no-changelog' label using jq
+          if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
+            echo "No-changelog label found, skipping changelog check."
+            echo "SKIP_CHANGELOG=true" >> $GITHUB_ENV
+          else
+            echo "SKIP_CHANGELOG=false" >> $GITHUB_ENV
+            echo "No-changelog label not found, proceeding with changelog check."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+        shell: bash
+
+      - name: Check Changelog
+        if: env.SKIP_CHANGELOG != 'true'
+        id: changelog-check
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+        working-directory: ./github-tools
+        run: |
+          yarn run changelog-check ${{ github.repository }} ${{ inputs.base-branch }} ${{ inputs.feature-branch }}
