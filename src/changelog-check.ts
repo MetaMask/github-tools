@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { diffLines } from 'diff';
+import fetch from 'node-fetch';
+import { parseChangelog } from '@metamask/auto-changelog';
 
 // Manually define types for changelog-parser since it lacks official TypeScript support
 type Release = {
@@ -10,17 +10,6 @@ type Release = {
   parsed: Record<string, string[]>;
 };
 
-type Changelog = {
-  title: string;
-  description: string;
-  versions: Release[];
-};
-
-const changelogParser: (options: {
-  filePath?: string;
-  text?: string;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-}) => Promise<Changelog> = require('changelog-parser');
 
 /**
  * Asynchronously fetches the CHANGELOG.md file content from a specified GitHub repository and branch.
@@ -41,87 +30,48 @@ async function fetchChangelogFromGitHub(
   const token = process.env.GITHUB_TOKEN ?? '';
 
   try {
-    const response = await axios.get(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      responseType: 'text',
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const response = await fetch(url, {
+      headers: headers
     });
 
-    return response.data;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.text();
   } catch (error) {
     console.error(
       `❌ Error fetching CHANGELOG.md from ${branch} on ${repo}:`,
-      error,
+      error
     );
-    return '';
+    throw error;
   }
 }
 
-/**
- * Parses the content of a CHANGELOG.md file to extract the section marked as "[Unreleased]".
- * @param content - The raw markdown content of the CHANGELOG.md file to be parsed.
- * @returns A promise that resolves to the markdown content of the "[Unreleased]" section,
- * or an empty string if the section is not found or an error occurs.
- */
-async function parseChangelog(content: string): Promise<string> {
-  try {
-    const parsed: Changelog = await changelogParser({ text: content });
-
-    // Try to find the "[Unreleased]" section
-    const unreleasedSection = parsed.versions.find(
-      (ver) => ver.title.trim().toLowerCase() === '[unreleased]',
-    );
-
-    if (!unreleasedSection) {
-      console.warn(
-        "⚠️ '[Unreleased]' section not found! Check the formatting in CHANGELOG.md.",
-      );
-      return '';
-    }
-
-    return unreleasedSection.body;
-  } catch (error) {
-    console.error('❌ Error parsing CHANGELOG.md:', error);
-    return '';
-  }
-}
 
 /**
- * Displays the differences between two sets of changelog entries.
+ * Determines if there's a difference in the changelog entries between the base and feature branches.
  * @param baseChanges - The content of the '[Unreleased]' section from the base branch's CHANGELOG.md.
  * @param featureChanges - The content of the '[Unreleased]' section from the feature branch's CHANGELOG.md.
  */
-function displayDiff(baseChanges: string, featureChanges: string) {
-  // Compute the line-by-line differences
-  const differences = diffLines(baseChanges, featureChanges);
+function compareChangeLogs(baseChanges: string[], featureChanges: string[]): boolean {
+  const newEntries = featureChanges.filter(entry => !baseChanges.includes(entry));
 
-  const addedLines: string[] = [];
-  const removedLines: string[] = [];
-
-  // Collect added and removed lines into separate lists
-  differences.forEach((part) => {
-    if (part.added) {
-      addedLines.push(part.value.trim()); // Trim to remove leading/trailing spaces
-    } else if (part.removed) {
-      removedLines.push(part.value.trim());
-    }
-  });
-
-  // Print the diff summary
-  console.log("🔍 Diff between base and feature '[Unreleased]' sections:");
-
-  if (removedLines.length > 0) {
-    console.log('❌ Removed:');
-    removedLines.forEach((line) => console.log(`${line}`));
-  } else {
-    console.log('❌ No removed lines.');
+  // Log and return true if there are new entries
+  if (newEntries.length > 0) {
+    console.log('New entries in feature branch:', newEntries);
+    return true;
   }
 
-  if (addedLines.length > 0) {
-    console.log('✅ Added:');
-    addedLines.forEach((line) => console.log(`${line}`));
-  } else {
-    console.log('✅ No added lines.');
+  // Check if the number of entries has changed
+  if (baseChanges.length !== featureChanges.length) {
+    console.log('The number of entries has changed. Base branch has', baseChanges.length, 'entries, while feature branch has', featureChanges.length, 'entries.');
+    return true;
   }
+
+  // If no new entries and the size has not changed, return false
+  return false;
 }
 
 /**
@@ -150,21 +100,29 @@ async function validateChangelog(
     throw new Error('❌ CHANGELOG.md is missing in the feature branch.');
   }
 
-  // Parse the changelogs
-  const baseChanges = await parseChangelog(baseChangelogContent);
-  const featureChanges = await parseChangelog(featureChangelogContent);
+  const baseUnreleasedChanges = parseChangelog({
+    changelogContent: baseChangelogContent,
+    repoUrl: '', // Not needed as we're only parsing unreleased changes
+  }).getReleaseChanges('Unreleased');
+
+  const featureUnreleasedChanges = parseChangelog({
+    changelogContent: featureChangelogContent,
+    repoUrl: '', // Not needed as we're only parsing unreleased changes
+  }).getReleaseChanges('Unreleased');
+
+
+  const baseChanges = Object.values(baseUnreleasedChanges).flat();
+  const featureChanges = Object.values(featureUnreleasedChanges).flat();
 
   console.log('🔍 Comparing changelog entries...');
 
-  console.log('Base unreleased section:', baseChanges);
-  console.log('Feature unreleased section:', featureChanges);
+  console.log('Base unreleased section:', baseUnreleasedChanges);
+  console.log('Feature unreleased section:', featureUnreleasedChanges);
 
-  displayDiff(baseChanges, featureChanges);
 
-  if (baseChanges === featureChanges) {
-    console.log(
-      "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
-    );
+  const hasChanges = compareChangeLogs(baseChanges, featureChanges);
+
+  if(!hasChanges) {
     throw new Error(
       "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
     );
@@ -177,7 +135,7 @@ async function validateChangelog(
 const args = process.argv.slice(2);
 if (args.length < 3) {
   console.error(
-    '❌ Usage: ts-node src/check-changelog.ts <github-repo> <base-branch> <feature-branch>',
+    '❌ Usage: ts-node scripts/check-changelog.js <github-repo> <base-branch> <feature-branch>',
   );
   throw new Error('❌ Missing required arguments.');
 }

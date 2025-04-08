@@ -12,9 +12,6 @@ on:
       pr-number:
         required: false
         type: string
-      event-type:
-        required: true
-        type: string
     secrets:
       gh-token:
         required: true
@@ -23,16 +20,7 @@ jobs:
   check-changelog:
     runs-on: ubuntu-latest
     steps:
-      - name: Conditional Skip or Execute
-        run: |
-          if [[ "${{ inputs.event-type }}" == "merge_group" ]]; then
-            echo "Merge group event detected, auto-succeeding."
-            exit 0
-          fi
-          echo "Proceeding with pull request checks."
-
       - name: Checkout github-tools repository
-        if: ${{ inputs.event-type == 'pull_request' }}
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
@@ -40,7 +28,6 @@ jobs:
           path: github-tools
 
       - name: Set up Node.js
-        if: ${{ inputs.event-type == 'pull_request' }}
         uses: actions/setup-node@v4
         with:
           node-version-file: ./github-tools/.nvmrc
@@ -48,19 +35,16 @@ jobs:
           cache: yarn
 
       - name: Enable Corepack
-        if: ${{ inputs.event-type == 'pull_request' }}
         run: corepack enable
         shell: bash
         working-directory: ./github-tools
 
       - name: Install dependencies
-        if: ${{ inputs.event-type == 'pull_request' }}
         run: yarn --immutable
         shell: bash
         working-directory: ./github-tools
 
       - name: Check PR Labels
-        if: ${{ inputs.event-type == 'pull_request' }}
         id: label-check
         run: |
           # Fetch labels from the GitHub API
@@ -80,7 +64,7 @@ jobs:
         shell: bash
 
       - name: Check Changelog
-        if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
+        if:  env.SKIP_CHANGELOG != 'true'
         id: changelog-check
         shell: bash
         env:
