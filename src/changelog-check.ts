@@ -1,5 +1,5 @@
-import fetch from 'node-fetch';
 import { parseChangelog } from '@metamask/auto-changelog';
+import nodeFetch from 'node-fetch';
 
 /**
  * Asynchronously fetches the CHANGELOG.md file content from a specified GitHub repository and branch.
@@ -20,9 +20,9 @@ async function fetchChangelogFromGitHub(
   const token = process.env.GITHUB_TOKEN ?? '';
 
   try {
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    const response = await fetch(url, {
-      headers: headers
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await nodeFetch(url, {
+      headers,
     });
 
     if (!response.ok) {
@@ -33,20 +33,26 @@ async function fetchChangelogFromGitHub(
   } catch (error) {
     console.error(
       `❌ Error fetching CHANGELOG.md from ${branch} on ${repo}:`,
-      error
+      error,
     );
     throw error;
   }
 }
 
-
 /**
- * Determines if there's a difference in the changelog entries between the base and feature branches.
+ * Compares the changelog entries between the base and feature branches to determine if there are differences.
+ *
  * @param baseChanges - The content of the '[Unreleased]' section from the base branch's CHANGELOG.md.
  * @param featureChanges - The content of the '[Unreleased]' section from the feature branch's CHANGELOG.md.
+ * @returns Returns true if there are new or differing number of entries in the feature branch compared to the base branch.
  */
-function compareChangeLogs(baseChanges: string[], featureChanges: string[]): boolean {
-  const newEntries = featureChanges.filter(entry => !baseChanges.includes(entry));
+function compareChangeLogs(
+  baseChanges: string[],
+  featureChanges: string[],
+): boolean {
+  const newEntries = featureChanges.filter(
+    (entry) => !baseChanges.includes(entry),
+  );
 
   // Log and return true if there are new entries
   if (newEntries.length > 0) {
@@ -56,7 +62,13 @@ function compareChangeLogs(baseChanges: string[], featureChanges: string[]): boo
 
   // Check if the number of entries has changed
   if (baseChanges.length !== featureChanges.length) {
-    console.log('The number of entries has changed. Base branch has', baseChanges.length, 'entries, while feature branch has', featureChanges.length, 'entries.');
+    console.log(
+      'The number of entries has changed. Base branch has',
+      baseChanges.length,
+      'entries, while feature branch has',
+      featureChanges.length,
+      'entries.',
+    );
     return true;
   }
 
@@ -97,7 +109,6 @@ async function validateChangelog(
     repoUrl: '', // Not needed as we're only parsing unreleased changes
   }).getReleaseChanges('Unreleased');
 
-
   const baseChanges = Object.values(baseUnreleasedChanges).flat();
   const featureChanges = Object.values(featureUnreleasedChanges).flat();
 
@@ -106,10 +117,9 @@ async function validateChangelog(
   console.log('Base unreleased section:', baseUnreleasedChanges);
   console.log('Feature unreleased section:', featureUnreleasedChanges);
 
-
   const hasChanges = compareChangeLogs(baseChanges, featureChanges);
 
-  if(!hasChanges) {
+  if (!hasChanges) {
     throw new Error(
       "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
     );

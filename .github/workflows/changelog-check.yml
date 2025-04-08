@@ -64,7 +64,7 @@ jobs:
         shell: bash
 
       - name: Check Changelog
-        if:  env.SKIP_CHANGELOG != 'true'
+        if: env.SKIP_CHANGELOG != 'true'
         id: changelog-check
         shell: bash
         env:
