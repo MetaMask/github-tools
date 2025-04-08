@@ -1,16 +1,6 @@
 import fetch from 'node-fetch';
 import { parseChangelog } from '@metamask/auto-changelog';
 
-// Manually define types for changelog-parser since it lacks official TypeScript support
-type Release = {
-  version: string | null;
-  title: string;
-  date: string | null;
-  body: string;
-  parsed: Record<string, string[]>;
-};
-
-
 /**
  * Asynchronously fetches the CHANGELOG.md file content from a specified GitHub repository and branch.
  * The function constructs a URL to access the raw content of the file using GitHub's raw content service.
