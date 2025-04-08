@@ -58,8 +58,10 @@ jobs:
 
       - name: Check PR Labels
         id: label-check
+        env:
+          PR_LABELS: ${{ inputs.labels }}
         run: |
-          if echo '${{ inputs.labels }}' | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
+          if echo "$PR_LABELS" | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
             echo "no-changelog label found, skipping changelog check."
             echo "skip_check=true" >> "$GITHUB_OUTPUT"
           else
@@ -73,5 +75,7 @@ jobs:
         id: changelog-check
         shell: bash
         working-directory: ./github-tools
+        env:
+          BASE_BRANCH: ${{ inputs.base-branch || 'main' }}
         run: |
-          yarn run changelog:check ../target-repo ${{ inputs.base-branch || 'main' }}
+          yarn run changelog:check ../target-repo "$BASE_BRANCH"

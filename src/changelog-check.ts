@@ -64,7 +64,7 @@ function getPackageInfo(
 }
 
 /**
- * Gets the list of changed files between the current branch and main.
+ * Gets the list of changed files between the current branch and baseRef.
  *
  * @param repoPath - The path to the repository.
  * @param baseRef - The base reference to compare against.
