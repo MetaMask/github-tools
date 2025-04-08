@@ -78,15 +78,12 @@ async function validateChangelog(
 ) {
   console.log(`🔍 Fetching CHANGELOG.md from GitHub repository: ${repo}`);
 
-  // Fetch CHANGELOG.md from both branches
-  const baseChangelogContent = await fetchChangelogFromGitHub(repo, baseBranch);
-  const featureChangelogContent = await fetchChangelogFromGitHub(
-    repo,
-    featureBranch,
-  );
+  const [baseChangelogContent, featureChangelogContent] = await Promise.all([
+    fetchChangelogFromGitHub(repo, baseBranch),
+    fetchChangelogFromGitHub(repo, featureBranch),
+  ]);
 
   if (!featureChangelogContent) {
-    console.error('❌ CHANGELOG.md is missing in the feature branch.');
     throw new Error('❌ CHANGELOG.md is missing in the feature branch.');
   }
 
