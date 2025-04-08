@@ -25,37 +25,6 @@ jobs:
   check-changelog:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out target repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repo }}
-          ref: ${{ inputs.head-ref }}
-          path: target-repo
-          fetch-depth: 0
-
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
-        with:
-          repository: MetaMask/github-tools
-          ref: cryptodev2s/changelog-checker
-          path: github-tools
-
-      - name: Enable Corepack
-        run: corepack enable
-        shell: bash
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ./github-tools/.nvmrc
-          cache-dependency-path: ./github-tools/yarn.lock
-          cache: yarn
-
-      - name: Install dependencies
-        run: yarn --immutable
-        shell: bash
-        working-directory: ./github-tools
-
       - name: Check PR Labels
         id: label-check
         env:
@@ -69,6 +38,42 @@ jobs:
             echo "skip_check=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
+
+      - name: Check out target repository
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.head-ref }}
+          path: target-repo
+          fetch-depth: 0
+
+      - name: Checkout github-tools repository
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: cryptodev2s/changelog-checker
+          path: github-tools
+
+      - name: Enable Corepack
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        run: corepack enable
+        shell: bash
+
+      - name: Set up Node.js
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
+
+      - name: Install dependencies
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
 
       - name: Check Changelog
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
