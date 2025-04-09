@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: cryptodev2s/changelog-checker
+          ref: main
           path: github-tools
 
       - name: Enable Corepack
