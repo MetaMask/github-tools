@@ -4,6 +4,7 @@
   "private": true,
   "description": "Tools for interacting with the GitHub API to do metrics gathering",
   "scripts": {
+    "changelog:check": "ts-node src/changelog-check.ts",
     "count-references-to-contributor-docs": "ts-node --swc src/scripts/count-references-to-contributor-docs/cli.ts",
     "gen:commits": "node .github/scripts/generate-rc-commits.mjs",
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
@@ -20,6 +21,7 @@
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
+    "@metamask/auto-changelog": "^3.4.4",
     "@metamask/utils": "^7.1.0",
     "@octokit/graphql": "^7.0.1",
     "@octokit/request": "^8.1.1",
@@ -28,6 +30,7 @@
     "@types/luxon": "^3.3.0",
     "axios": "^0.24.0",
     "csv-parse": "5.6.0",
+    "execa": "^9.5.2",
     "googleapis": "144.0.0",
     "luxon": "^3.3.0",
     "ora": "^5.4.1",
