@@ -41,9 +41,38 @@ jobs:
       - name: Calculate changed lines
         id: line_count
         run: |
+          set -e
+
           BASE_BRANCH="${{ steps.get-base-branch.outputs.base_branch }}"
-          # Fetch the base branch for comparison
-          git fetch origin "$BASE_BRANCH"
+          echo "Using base branch: $BASE_BRANCH"
+
+          # Instead of a full fetch, perform incremental fetches at increasing depth
+          # until the merge-base between origin/<BASE_BRANCH> and HEAD is present.
+          fetch_with_depth() {
+            local depth=$1
+            echo "Attempting to fetch with depth $depth..."
+            git fetch --depth="$depth" origin "$BASE_BRANCH"
+          }
+
+          depths=(1 10 100)
+          merge_base_found=false
+
+          for d in "${depths[@]}"; do
+            fetch_with_depth "$d"
+            if git merge-base "origin/$BASE_BRANCH" HEAD > /dev/null 2>&1; then
+              echo "Merge base found with depth $d."
+              merge_base_found=true
+              break
+            else
+              echo "Merge base not found with depth $d, increasing depth..."
+            fi
+          done
+
+          # If we haven't found the merge base with shallow fetches, unshallow the repo.
+          if [ "$merge_base_found" = false ]; then
+            echo "Could not find merge base with shallow fetches, fetching full history..."
+            git fetch --unshallow origin "$BASE_BRANCH" || git fetch origin "$BASE_BRANCH"
+          fi
 
            # Set the ignore pattern from input
           ignore_pattern="${{ inputs.ignore_patterns }}"
