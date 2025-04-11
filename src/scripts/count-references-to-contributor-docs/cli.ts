@@ -15,7 +15,7 @@ const REPOSITORY_NAMES = [
   'snaps',
 ] as const;
 
-type RepositoryName = (typeof REPOSITORY_NAMES)[number];
+type RepositoryName = typeof REPOSITORY_NAMES[number];
 
 /**
  * It is not necessary for us to query all of the pull requests or pull requests
