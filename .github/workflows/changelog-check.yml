@@ -13,6 +13,10 @@ on:
         description: 'JSON string of PR labels'
         required: true
         type: string
+      pr-number:
+        description: 'The pull request number'
+        required: true
+        type: string
       repo:
         description: 'The repository to check'
         required: true
@@ -82,5 +86,6 @@ jobs:
         working-directory: ./github-tools
         env:
           BASE_BRANCH: ${{ inputs.base-branch || 'main' }}
+          PR_NUMBER: ${{ inputs.pr-number }}
         run: |
-          yarn run changelog:check ../target-repo "$BASE_BRANCH"
+          yarn run changelog:check ../target-repo "$BASE_BRANCH" "$PR_NUMBER"
