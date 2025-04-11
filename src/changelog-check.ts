@@ -8,6 +8,17 @@ type PackageJson = {
 };
 
 /**
+ * Logs an error message in red to the console.
+ *
+ * @param message - The error message to log.
+ */
+function logError(message: string): void {
+  const redColor = '\x1b[31m';
+  const resetColor = '\x1b[0m';
+  console.error(`${redColor}${message}${resetColor}`);
+}
+
+/**
  * Gets the workspace patterns from package.json.
  *
  * @param repoPath - The path to the repository.
@@ -89,7 +100,11 @@ async function getChangedFiles(
 
     return stdout.split('\n').filter(Boolean);
   } catch (error) {
-    console.error('Failed to get changed files:', error);
+    logError(
+      `Failed to get changed files: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
     throw error;
   }
 }
@@ -98,8 +113,12 @@ async function getChangedFiles(
  * Reads and validates a changelog file.
  *
  * @param changelogPath - The path to the changelog file to check.
+ * @param prNumber - The pull request number.
  */
-async function checkChangelogFile(changelogPath: string): Promise<void> {
+async function checkChangelogFile(
+  changelogPath: string,
+  prNumber: string,
+): Promise<void> {
   try {
     const changelogContent = await fs.readFile(changelogPath, 'utf-8');
 
@@ -112,14 +131,18 @@ async function checkChangelogFile(changelogPath: string): Promise<void> {
       repoUrl: '', // Not needed as we're only parsing unreleased changes
     }).getReleaseChanges('Unreleased');
 
-    if (Object.values(changelogUnreleasedChanges).length === 0) {
+    if (
+      !Object.values(changelogUnreleasedChanges)
+        .flat()
+        .some((entry) => entry.includes(`[#${prNumber}]`))
+    ) {
       throw new Error(
-        "❌ No new entries detected under '## Unreleased' section. Please update the changelog.",
+        "This PR contains changes that might require documentation in the changelog. If these changes aren't user-facing, consider adding the 'no-changelog' label instead.",
       );
     }
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      throw new Error(`❌ CHANGELOG.md not found at ${changelogPath}`);
+      throw new Error(`CHANGELOG.md not found at ${changelogPath}`);
     }
     throw error;
   }
@@ -173,13 +196,12 @@ async function main() {
   // Parse command-line arguments
   const args = process.argv.slice(2);
 
-  const [repoPath, baseRef] = args;
+  const [repoPath, baseRef, prNumber] = args;
 
-  if (!repoPath || !baseRef) {
-    console.error(
-      '❌ Usage: ts-node src/check-changelog.ts <repo-path> <base-ref>',
+  if (!repoPath || !baseRef || !prNumber) {
+    throw new Error(
+      'Missing required arguments. Usage: ts-node src/check-changelog.ts <repo-path> <base-ref>',
     );
-    throw new Error('❌ Missing required arguments.');
   }
 
   const fullRepoPath = path.resolve(process.cwd(), repoPath);
@@ -225,15 +247,17 @@ async function main() {
               pkgInfo.package,
               'CHANGELOG.md',
             ),
+            prNumber,
           );
           console.log(
-            `✅ CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
+            `CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
           );
           return { package: pkgInfo.package, success: true };
         } catch (error) {
-          console.error(
-            `❌ Changelog check failed for package ${pkgInfo.package}:`,
-            error,
+          logError(
+            `Changelog check failed for package ${pkgInfo.package}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           );
           return { package: pkgInfo.package, success: false, error };
         }
@@ -249,11 +273,13 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(path.join(fullRepoPath, 'CHANGELOG.md'));
-    console.log('✅ CHANGELOG.md has been correctly updated.');
+    await checkChangelogFile(path.join(fullRepoPath, 'CHANGELOG.md'), prNumber);
+    console.log('CHANGELOG.md has been correctly updated.');
   }
 }
 
 main().catch((error) => {
-  throw error;
+  logError(error.message);
+  // eslint-disable-next-line n/no-process-exit
+  process.exit(1);
 });
