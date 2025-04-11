@@ -25,7 +25,6 @@ on:
         description: 'GitHub token with permissions to add items to projects'
         required: true
 
-
 jobs:
   add_to_project:
     name: 'Add to Project Board'
