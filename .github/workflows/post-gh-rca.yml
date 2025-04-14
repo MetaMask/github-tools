@@ -7,104 +7,81 @@ permissions:
 on:
   workflow_call:
     inputs:
-      issue_labels:
-        description: Labels of issues to post RCA form to.
-        required: true
-        type: string
-      google_form_base_url:
+      google-form-base-url:
         description: Base URL of the Google Form.
         required: true
         type: string
-      repo_owner:
+      repo-owner:
         description: The repo owner
         required: true
         type: string
-      repo_name:
+      repo-name:
         description: The repo name
         required: true
         type: string
+      issue-number:
+        description: The number of the closed issue
+        required: true
+        type: string
+      issue-labels:
+        required: true
+        type: string # JSON stringified array
 
 jobs:
   post-rca-form:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Fetch all open, assigned issues with specific labels
-      - name: Get specified GitHub issues
-        uses: actions/github-script@v7
-        id: fetch_issues
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const owner_name = '${{ inputs.repo_owner }}';
-            const repo_name = '${{ inputs.repo_name }}';
-            const inputLabels = JSON.parse('${{ inputs.issue_labels }}');
-            console.log(`🔎 Fetching issues for ${owner_name}/${repo_name}`);
-            console.log("🔎 Input labels:", inputLabels);
-
-            const allIssues = await github.paginate(
-              github.rest.issues.listForRepo,
-              {
-                owner: owner_name,
-                repo: repo_name,
-                state: 'open',
-                per_page: 100,
-              }
-            );
-
-            const targetIssues = allIssues.filter(issue =>
-              issue.labels.some(label => inputLabels.includes(label.name)) &&
-              issue.assignees.length > 0
-            );
-
-            console.log("🔎 Found issues matching criteria:", targetIssues);
-            return targetIssues;
-
-      # Step 2: Post comments and log results
-      - name: Post Google Form link and log results
+      - name: Post Google Form link and log results on issue close
         uses: actions/github-script@v7
         env:
-          GOOGLE_FORM_BASE_URL: ${{ inputs.google_form_base_url }}
+          GOOGLE_FORM_BASE_URL: ${{ inputs.google-form-base-url }}
+          ISSUE_LABELS: ${{ inputs.issue-labels }}
+          OWNER_NAME: ${{ inputs.repo-owner }}
+          REPO_NAME: ${{ inputs.repo-name }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const googleFormBaseUrl = process.env.GOOGLE_FORM_BASE_URL;
-            const owner_name = '${{ inputs.repo_owner }}';
-            const repo_name = '${{ inputs.repo_name }}';
-            const issues = ${{ steps.fetch_issues.outputs.result }};
+            const owner_name = process.env.OWNER_NAME;
+            const repo_name = process.env.REPO_NAME;
+            const issue_number = parseInt(process.env.ISSUE_NUMBER);
 
-            const processed = [];
-            const skipped = [];
+            const allowedLabels = JSON.parse(process.env.ISSUE_LABELS);
 
-            for (const issue of issues) {
-              // Check if the issue already has a comment with the form link
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: owner_name,
-                repo: repo_name,
-                issue_number: issue.number,
-              });
+            // Fetch issue details to get the assignees
+            const { data: issue } = await github.rest.issues.get({
+              owner: owner_name,
+              repo: repo_name,
+              issue_number: issue_number,
+            });
 
-              const hasFormComment = comments.some(comment =>
-                comment.body.includes("<!-- AUTO-FORM -->")
-              );
+            const hasAllowedLabel = issue.labels.some(label =>
+              allowedLabels.includes(label.name)
+            );
 
-              if (hasFormComment) {
-                skipped.push(`#${issue.number} (existing comment)`);
-                continue;
-              }
-
-              const formUrl = `${googleFormBaseUrl}${issue.number}`;
-              // Post the form link as a comment on the issue
-              await github.rest.issues.createComment({
-                owner: owner_name,
-                repo: repo_name,
-                issue_number: issue.number,
-                body: `Please complete this RCA report:\n${formUrl}\n<!-- AUTO-FORM -->`,
-              });
-
-              processed.push(`#${issue.number}`);
+            if (!hasAllowedLabel) {
+              console.log(`❌ Issue #${issue_number} skipped — no matching label.`);
+              return;
             }
 
-            // Log processed and skipped issues
-            console.log("Processed Issues:\n" + processed.join('\n'));
-            console.log("Skipped Issues:\n" + skipped.join('\n'));
+            const assignees = issue.assignees.map(user => `@${user.login}`).join(', ');
+            const formUrl = `${googleFormBaseUrl}${issue_number}`;
+            const message = `
+              Hi ${assignees},
+
+              This issue has been closed. Please complete this RCA form:
+              ${formUrl}
+
+              <!-- AUTO-FORM -->
+            `;
+
+            // Post the comment on the closed issue
+            await github.rest.issues.createComment({
+              owner: owner_name,
+              repo: repo_name,
+              issue_number: issue_number,
+              body: message,
+            });
+            console.log(`✅ Comment posted on issue #${issue_number}`);
