@@ -45,7 +45,7 @@ rollout_10_at="null"
 rollout_100_at="null"
 
 runway_release_id="${RUNWAY_APP_ID}:${VERSION}"
-release_submitted_at=$(curl --silent --header "X-API-Key: ${RUNWAY_API_KEY}" "https://api.runway.team/v1/app/${RUNWAY_APP_ID}/release/${runway_release_id}" | jq -r '.submittedAt')
+release_submitted_at=$(curl --silent --header "X-API-Key: ${RUNWAY_API_KEY}" "https://api.runway.team/v1/app/${RUNWAY_APP_ID}/release/${runway_release_id}" | jq -r '.completedAt')
 
 release_label="regression-RC-${VERSION}"
 release_blockers=$(gh issue list --repo "${OWNER}/${REPOSITORY}" --state all --label "release-blocker,${release_label}" --limit 100 --json number,createdAt)

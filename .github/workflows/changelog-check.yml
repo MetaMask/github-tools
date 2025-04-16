@@ -1,0 +1,91 @@
+name: Check Changelog
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        required: false
+        type: string
+      head-ref:
+        required: true
+        type: string
+      labels:
+        description: 'JSON string of PR labels'
+        required: true
+        type: string
+      pr-number:
+        description: 'The pull request number'
+        required: true
+        type: string
+      repo:
+        description: 'The repository to check'
+        required: true
+        type: string
+    secrets:
+      gh-token:
+        required: true
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Labels
+        id: label-check
+        env:
+          PR_LABELS: ${{ inputs.labels }}
+        run: |
+          if echo "$PR_LABELS" | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
+            echo "no-changelog label found, skipping changelog check."
+            echo "skip_check=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No no-changelog label found, proceeding with check."
+            echo "skip_check=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Check out target repository
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.head-ref }}
+          path: target-repo
+          fetch-depth: 0
+
+      - name: Checkout github-tools repository
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: main
+          path: github-tools
+
+      - name: Enable Corepack
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        run: corepack enable
+        shell: bash
+
+      - name: Set up Node.js
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
+
+      - name: Install dependencies
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
+
+      - name: Check Changelog
+        if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+        id: changelog-check
+        shell: bash
+        working-directory: ./github-tools
+        env:
+          BASE_BRANCH: ${{ inputs.base-branch || 'main' }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          yarn run changelog:check ../target-repo "$BASE_BRANCH" "$PR_NUMBER"

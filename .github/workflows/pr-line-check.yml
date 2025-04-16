@@ -1,0 +1,93 @@
+name: Check PR Lines Changed
+
+on:
+  workflow_call:
+    inputs:
+      max_lines:
+        description: 'Maximum allowed total lines changed'
+        required: false
+        type: number
+        default: 1000
+      base_ref:
+        description: 'Default base branch to compare against (if not running on a PR)'
+        required: false
+        type: string
+        default: 'main'
+      ignore_patterns:
+        description: 'Regex pattern for files to ignore when calculating changes'
+        required: false
+        type: string
+        default: '(\.lock$)'
+
+jobs:
+  check-lines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine base branch
+        id: get-base-branch
+        run: |
+          # Use the PR base branch if available; otherwise use the default input.
+          if [ -n "${{ github.event.pull_request.base.ref }}" ]; then
+            echo "Using PR base branch: ${{ github.event.pull_request.base.ref }}"
+            echo "base_branch=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Using default base branch: ${{ inputs.base_ref }}"
+            echo "base_branch=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Calculate changed lines
+        id: line_count
+        run: |
+          set -e
+
+          BASE_BRANCH="${{ steps.get-base-branch.outputs.base_branch }}"
+          echo "Using base branch: $BASE_BRANCH"
+
+          # Instead of a full fetch, perform incremental fetches at increasing depth
+          # until the merge-base between origin/<BASE_BRANCH> and HEAD is present.
+          fetch_with_depth() {
+            local depth=$1
+            echo "Attempting to fetch with depth $depth..."
+            git fetch --depth="$depth" origin "$BASE_BRANCH"
+          }
+
+          depths=(1 10 100)
+          merge_base_found=false
+
+          for d in "${depths[@]}"; do
+            fetch_with_depth "$d"
+            if git merge-base "origin/$BASE_BRANCH" HEAD > /dev/null 2>&1; then
+              echo "Merge base found with depth $d."
+              merge_base_found=true
+              break
+            else
+              echo "Merge base not found with depth $d, increasing depth..."
+            fi
+          done
+
+          # If we haven't found the merge base with shallow fetches, unshallow the repo.
+          if [ "$merge_base_found" = false ]; then
+            echo "Could not find merge base with shallow fetches, fetching full history..."
+            git fetch --unshallow origin "$BASE_BRANCH" || git fetch origin "$BASE_BRANCH"
+          fi
+
+           # Set the ignore pattern from input
+          ignore_pattern="${{ inputs.ignore_patterns }}"
+
+          # Calculate additions and deletions across all changes between the base and HEAD,
+          # filtering out files matching the ignore pattern.
+          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{add += $1} END {print add}')
+          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{del += $2} END {print del}')
+          total=$((additions + deletions))
+
+          echo "Additions: $additions, Deletions: $deletions, Total: $total"
+          echo "lines_changed=$total" >> "$GITHUB_OUTPUT"
+
+          max_lines="${{ inputs.max_lines }}"
+          if [ "$total" -gt "$max_lines" ]; then
+            echo "Error: Total changed lines ($total) exceed the limit of $max_lines."
+            exit 1
+          fi
