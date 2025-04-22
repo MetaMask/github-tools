@@ -110,6 +110,57 @@ async function getChangedFiles(
 }
 
 /**
+ * Checks if a package.json file only has version changes by comparing the diff output.
+ * Returns true if the diff contains exactly two lines (one addition and one removal)
+ * and both lines are version changes with the same format (with or without trailing comma).
+ *
+ * @param repoPath - The path to the repository.
+ * @param filePath - The path to the package.json file.
+ * @param baseRef - The base reference to compare against.
+ * @returns Promise that resolves to true if only version was changed, false otherwise.
+ */
+async function isVersionOnlyChange(
+  repoPath: string,
+  filePath: string,
+  baseRef: string,
+): Promise<boolean> {
+  try {
+    const { stdout } = await execa(
+      'git',
+      ['diff', `origin/${baseRef}...HEAD`, '--', filePath],
+      {
+        cwd: repoPath,
+      },
+    );
+
+    if (!stdout) {
+      return false;
+    }
+
+    // Split the diff into lines and filter out the diff header lines (+++ and ---)
+    const lines = stdout
+      .split('\n')
+      .filter((line) => line.startsWith('+') || line.startsWith('-'))
+      .filter((line) => !line.startsWith('+++') && !line.startsWith('---'));
+
+    // If we have exactly 2 lines (one addition and one removal) and they both contain version changes
+    if (lines.length === 2) {
+      const versionRegex = /^[+-]\s*"version":\s*"[^"]+"\s*,?\s*$/mu;
+      return lines.every((line) => versionRegex.test(line));
+    }
+
+    return false;
+  } catch (error) {
+    logError(
+      `Failed to check ${filePath} changes: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
+/**
  * Reads and validates a changelog file.
  *
  * @param changelogPath - The path to the changelog file to check.
@@ -153,11 +204,15 @@ async function checkChangelogFile(
  *
  * @param files - The list of changed files.
  * @param workspacePatterns - The workspace patterns.
+ * @param repoPath - The path to the repository.
+ * @param baseRef - The base reference to compare against.
  * @returns Array of changed package information.
  */
 async function getChangedPackages(
   files: string[],
   workspacePatterns: string[],
+  repoPath: string,
+  baseRef: string,
 ): Promise<
   {
     base: string;
@@ -181,6 +236,17 @@ async function getChangedPackages(
         !file.includes('/docs/') &&
         !file.endsWith('CHANGELOG.md')
       ) {
+        // If the file is package.json, check if it's only a version change
+        if (file.endsWith('package.json')) {
+          const isVersionOnly = await isVersionOnlyChange(
+            repoPath,
+            file,
+            baseRef,
+          );
+          if (isVersionOnly) {
+            continue;
+          }
+        }
         changedPackages.set(packageInfo.package, packageInfo);
       }
     }
@@ -229,6 +295,8 @@ async function main() {
     const changedPackages = await getChangedPackages(
       changedFiles,
       workspacePatterns,
+      fullRepoPath,
+      baseRef,
     );
     if (!changedPackages.length) {
       console.log(
