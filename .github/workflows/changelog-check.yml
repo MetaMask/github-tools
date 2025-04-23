@@ -3,6 +3,10 @@ name: Check Changelog
 on:
   workflow_call:
     inputs:
+      action-sha:
+        description: 'The SHA of the action to use'
+        required: false
+        type: string
       base-branch:
         required: false
         type: string
@@ -55,7 +59,7 @@ jobs:
       - name: Debug Action SHA
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
         run: |
-          echo "Action SHA: ${{ github.action_sha }}"
+          echo "Action SHA: ${{ inputs.action-sha }}"
         shell: bash
 
       - name: Checkout github-tools repository
@@ -63,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: ${{ github.action_sha }}
+          ref: ${{ inputs.action-sha || 'main' }}
           path: github-tools
 
       - name: Enable Corepack
