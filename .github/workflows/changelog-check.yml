@@ -59,7 +59,7 @@ jobs:
       - name: Debug Action SHA
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
         run: |
-          echo "Action SHA: ${{ inputs.action-sha }}"
+          echo "Action SHA: ${{ inputs.action-sha || 'main' }}"
         shell: bash
 
       - name: Checkout github-tools repository
