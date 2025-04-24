@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: main
+          ref: ${{ github.action_ref }}
           path: github-tools
 
       - name: Enable Corepack
