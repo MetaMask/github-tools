@@ -29,7 +29,7 @@ on:
         required: false
         type: string
         description: 'The Extension testing sheet template id.'
-        default: '720412332' # prod sheet template
+        default: '295804563' # prod sheet template
       test-only:
         required: false
         type: string
