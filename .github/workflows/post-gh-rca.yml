@@ -57,14 +57,22 @@ jobs:
               issue_number: issue_number,
             });
 
-            const hasAllowedLabel = issue.labels.some(label =>
-              allowedLabels.includes(label.name)
-            );
+            const prefixes = ['team-', 'regression-'];
+
+            const wildcardLabels = issue.labels
+              .map(({ name }) => name)
+              .filter(name => prefixes.some(pref => name.startsWith(pref)));
+            
+            // checks if it has a label that matches exactly OR has any wildcard labels
+            const hasAllowedLabel = issue.labels
+              .some(({ name }) => allowedLabels.includes(name)) || wildcardLabels.length > 0;
 
             if (!hasAllowedLabel) {
               console.log(`❌ Issue #${issue_number} skipped — no matching label.`);
               return;
             }
+            
+            // TODO add wildcard labels to the form url
 
             const assignees = issue.assignees.map(user => `@${user.login}`).join(', ');
             const formUrl = `${googleFormBaseUrl}${issue_number}`;
