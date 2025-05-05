@@ -5,6 +5,7 @@ import path from 'path';
 
 type PackageJson = {
   workspaces: string[];
+  private?: boolean;
 };
 
 /**
@@ -161,6 +162,31 @@ async function isVersionOnlyChange(
 }
 
 /**
+ * Checks if a package is marked as private in its package.json.
+ *
+ * @param repoPath - The path to the repository.
+ * @param filePath - The path to the package.json file.
+ * @returns Promise that resolves to true if the package is private, false otherwise.
+ */
+async function isPrivatePackage(
+  repoPath: string,
+  filePath: string,
+): Promise<boolean> {
+  try {
+    const content = await fs.readFile(path.join(repoPath, filePath), 'utf-8');
+    const packageJson = JSON.parse(content) as PackageJson;
+    return packageJson.private === true;
+  } catch (error) {
+    logError(
+      `Failed to check if package is private: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
+/**
  * Reads and validates a changelog file.
  *
  * @param changelogPath - The path to the changelog file to check.
@@ -220,6 +246,7 @@ async function getChangedPackages(
   }[]
 > {
   const changedPackages = new Map<string, { base: string; package: string }>();
+  const privatePackageCache = new Map<string, boolean>();
 
   for (const file of files) {
     // Skip workflow files
@@ -229,6 +256,23 @@ async function getChangedPackages(
 
     const packageInfo = getPackageInfo(file, workspacePatterns);
     if (packageInfo) {
+      // Check if we've already determined if this package is private
+      let isPrivate = privatePackageCache.get(packageInfo.package);
+      if (isPrivate === undefined) {
+        // If not in cache, check and cache the result
+        const packageJsonPath = path.join(
+          packageInfo.base,
+          packageInfo.package,
+          'package.json',
+        );
+        isPrivate = await isPrivatePackage(repoPath, packageJsonPath);
+        privatePackageCache.set(packageInfo.package, isPrivate);
+      }
+
+      if (isPrivate) {
+        continue;
+      }
+
       // Skip test files, docs, and changelog files
       if (
         !file.match(/\.(test|spec)\./u) &&
