@@ -165,15 +165,18 @@ async function isVersionOnlyChange(
  * Checks if a package is marked as private in its package.json.
  *
  * @param repoPath - The path to the repository.
- * @param filePath - The path to the package.json file.
+ * @param packageJsonPath - The path to the package.json file.
  * @returns Promise that resolves to true if the package is private, false otherwise.
  */
 async function isPrivatePackage(
   repoPath: string,
-  filePath: string,
+  packageJsonPath: string,
 ): Promise<boolean> {
   try {
-    const content = await fs.readFile(path.join(repoPath, filePath), 'utf-8');
+    const content = await fs.readFile(
+      path.join(repoPath, packageJsonPath),
+      'utf-8',
+    );
     const packageJson = JSON.parse(content) as PackageJson;
     return packageJson.private === true;
   } catch (error) {
@@ -256,10 +259,8 @@ async function getChangedPackages(
 
     const packageInfo = getPackageInfo(file, workspacePatterns);
     if (packageInfo) {
-      // Check if we've already determined if this package is private
       let isPrivate = privatePackageCache.get(packageInfo.package);
       if (isPrivate === undefined) {
-        // If not in cache, check and cache the result
         const packageJsonPath = path.join(
           packageInfo.base,
           packageInfo.package,
