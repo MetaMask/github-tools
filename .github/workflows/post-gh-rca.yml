@@ -23,31 +23,56 @@ on:
         description: The number of the closed issue
         required: true
         type: string
-      issue-labels:
+      labels:
+        description: JSON-stringified array of labels that should trigger the RCA prompt
         required: true
-        type: string # JSON stringified array
+        type: string
+      entry-issue:
+        description: The entry ID for the issue field in the Google Form
+        required: true
+        type: string
+        default: entry.340898780
+      entry-regression:
+        description: The entry ID for the regression field in the Google Form
+        required: true
+        type: string
+        default: entry.1698032149
+      entry-team:
+        description: The entry ID for the team field in the Google Form
+        required: true
+        type: string
+        default: entry.1228565618
 
 jobs:
   post-rca-form:
+    name: Post Google Form link and log results on issue close
     runs-on: ubuntu-latest
-
     steps:
-      - name: Post Google Form link and log results on issue close
+      - name: Post RCA Form Link
         uses: actions/github-script@v7
         env:
           GOOGLE_FORM_BASE_URL: ${{ inputs.google-form-base-url }}
-          ISSUE_LABELS: ${{ inputs.issue-labels }}
-          OWNER_NAME: ${{ inputs.repo-owner }}
-          REPO_NAME: ${{ inputs.repo-name }}
-          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          ISSUE_LABELS:        ${{ inputs.labels }}
+          OWNER_NAME:          ${{ inputs.repo-owner }}
+          REPO_NAME:           ${{ inputs.repo-name }}
+          ISSUE_NUMBER:        ${{ inputs.issue-number }}
+          ENTRY_ISSUE:         ${{ inputs.entry-issue }}
+          ENTRY_REGRESSION:    ${{ inputs.entry-regression }}
+          ENTRY_TEAM:          ${{ inputs.entry-team }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const googleFormBaseUrl = process.env.GOOGLE_FORM_BASE_URL;
-            const owner_name = process.env.OWNER_NAME;
-            const repo_name = process.env.REPO_NAME;
-            const issue_number = parseInt(process.env.ISSUE_NUMBER);
+            const {
+              GOOGLE_FORM_BASE_URL: baseUrl,
+              ENTRY_ISSUE,
+              ENTRY_REGRESSION,
+              ENTRY_TEAM,
+              OWNER_NAME: owner,
+              REPO_NAME: repo,
+              ISSUE_NUMBER: issueNumStr,
+            } = process.env;
 
+            const issue_number  = parseInt(issueNumStr, 10);
             const allowedLabels = JSON.parse(process.env.ISSUE_LABELS);
 
             // Fetch issue details to get the assignees
@@ -57,39 +82,45 @@ jobs:
               issue_number: issue_number,
             });
 
-            const prefixes = ['team-', 'regression-'];
-
-            const wildcardLabels = issue.labels
-              .map(({ name }) => name)
-              .filter(name => prefixes.some(pref => name.startsWith(pref)));
-            
-            // checks if it has a label that matches exactly OR has any wildcard labels
-            const hasAllowedLabel = issue.labels
-              .some(({ name }) => allowedLabels.includes(name)) || wildcardLabels.length > 0;
+            const hasAllowedLabel = issue.labels.some(label =>
+              allowedLabels.includes(label.name)
+            );
 
             if (!hasAllowedLabel) {
               console.log(`❌ Issue #${issue_number} skipped — no matching label.`);
               return;
             }
-            
-            // TODO add wildcard labels to the form url
 
-            const assignees = issue.assignees.map(user => `@${user.login}`).join(', ');
-            const formUrl = `${googleFormBaseUrl}${issue_number}`;
-            const message = `
-              Hi ${assignees},
+            // if it's a sev1-high or sev0-high, lets grab team and regression labels, if there's any
+            // if there's none, an empty value will be sent, which is what we want
+            const teamLabels = issue.labels
+              .map(l => l.name)
+              .filter(n => n.startsWith('team-'));
 
-              This issue has been closed. Please complete this RCA form:
-              ${formUrl}
+            const regressionLabels = issue.labels
+              .map(l => l.name)
+              .filter(n => n.startsWith('regression-'));
 
-              <!-- AUTO-FORM -->
-            `;
+            const formUrl = new URL(baseUrl);
+            formUrl.searchParams.set(ENTRY_ISSUE, issue_number);
+            formUrl.searchParams.set(
+              ENTRY_REGRESSION,
+              regressionLabels.length ? regressionLabels.join(',') : ''
+            );
+            formUrl.searchParams.set(
+              ENTRY_TEAM,
+              teamLabels.length ? teamLabels.join(',') : ''
+            );
 
-            // Post the comment on the closed issue
+            const assignees = issue.assignees.map(u=>`@${u.login}`).join(', ');
+            const body = `Hi ${assignees},
+
+            This issue has been closed. Please complete this RCA form:
+            ${formUrl.toString()}
+
+            <!-- AUTO-FORM -->`;
+
             await github.rest.issues.createComment({
-              owner: owner_name,
-              repo: repo_name,
-              issue_number: issue_number,
-              body: message,
+              owner, repo, issue_number, body
             });
             console.log(`✅ Comment posted on issue #${issue_number}`);
