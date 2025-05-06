@@ -49,13 +49,13 @@ jobs:
         uses: actions/github-script@v7
         env:
           GOOGLE_FORM_BASE_URL: ${{ inputs.google-form-base-url }}
-          ISSUE_LABELS:        ${{ inputs.issue-labels }}
-          OWNER_NAME:          ${{ inputs.repo-owner }}
-          REPO_NAME:           ${{ inputs.repo-name }}
-          ISSUE_NUMBER:        ${{ inputs.issue-number }}
-          ENTRY_ISSUE:         ${{ inputs.entry-issue }}
-          ENTRY_REGRESSION:    ${{ inputs.entry-regression }}
-          ENTRY_TEAM:          ${{ inputs.entry-team }}
+          ISSUE_LABELS: ${{ inputs.issue-labels }}
+          OWNER_NAME: ${{ inputs.repo-owner }}
+          REPO_NAME: ${{ inputs.repo-name }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          ENTRY_ISSUE: ${{ inputs.entry-issue }}
+          ENTRY_REGRESSION: ${{ inputs.entry-regression }}
+          ENTRY_TEAM: ${{ inputs.entry-team }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
