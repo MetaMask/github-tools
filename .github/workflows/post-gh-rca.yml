@@ -23,23 +23,23 @@ on:
         description: The number of the closed issue
         required: true
         type: string
-      labels:
+      issue-labels:
         description: JSON-stringified array of labels that should trigger the RCA prompt
         required: true
         type: string
       entry-issue:
         description: The entry ID for the issue field in the Google Form
-        required: true
+        required: false
         type: string
         default: entry.340898780
       entry-regression:
         description: The entry ID for the regression field in the Google Form
-        required: true
+        required: false
         type: string
         default: entry.1698032149
       entry-team:
         description: The entry ID for the team field in the Google Form
-        required: true
+        required: false
         type: string
         default: entry.1228565618
 
@@ -52,7 +52,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GOOGLE_FORM_BASE_URL: ${{ inputs.google-form-base-url }}
-          ISSUE_LABELS:        ${{ inputs.labels }}
+          ISSUE_LABELS:        ${{ inputs.issue-labels }}
           OWNER_NAME:          ${{ inputs.repo-owner }}
           REPO_NAME:           ${{ inputs.repo-name }}
           ISSUE_NUMBER:        ${{ inputs.issue-number }}
@@ -77,8 +77,8 @@ jobs:
 
             // Fetch issue details to get the assignees
             const { data: issue } = await github.rest.issues.get({
-              owner: owner_name,
-              repo: repo_name,
+              owner,
+              repo,
               issue_number: issue_number,
             });
 
