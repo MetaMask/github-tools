@@ -29,19 +29,16 @@ on:
         type: string
       entry-issue:
         description: The entry ID for the issue field in the Google Form
-        required: false
+        required: true
         type: string
-        default: entry.340898780
       entry-regression:
         description: The entry ID for the regression field in the Google Form
-        required: false
+        required: true
         type: string
-        default: entry.1228565618
       entry-team:
         description: The entry ID for the team field in the Google Form
-        required: false
+        required: true
         type: string
-        default: entry.1698032149 
 
 jobs:
   post-rca-form:
