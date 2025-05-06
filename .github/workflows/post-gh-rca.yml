@@ -36,12 +36,12 @@ on:
         description: The entry ID for the regression field in the Google Form
         required: false
         type: string
-        default: entry.1698032149
+        default: entry.1228565618
       entry-team:
         description: The entry ID for the team field in the Google Form
         required: false
         type: string
-        default: entry.1228565618
+        default: entry.1698032149 
 
 jobs:
   post-rca-form:
