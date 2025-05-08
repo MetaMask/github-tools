@@ -1,7 +1,78 @@
 name: 'Close stale issues and PRs'
+
 on:
-  schedule:
-    - cron: '30 * * * *'
+  workflow_call:
+    inputs:
+      stale_issue_message:
+        description: 'Message to post when marking an issue as stale'
+        required: false
+        default: 'This issue has been automatically marked as stale because it has not had recent activity in the last 30 days. It will be closed in 60 days. Thank you for your contributions.'
+        type: string
+      close_issue_message:
+        description: 'Message to post when closing a stale issue'
+        required: false
+        default: 'This issue was closed because there has been no follow activity in 90 days. If you feel this was closed in error please provide evidence on the current production app in a new issue or comment in the existing issue to a maintainer. Thank you for your contributions.'
+        type: string
+      stale_issue_label:
+        description: 'Label to use when marking an issue as stale'
+        required: false
+        default: 'stale'
+        type: string
+      any_of_issue_labels:
+        description: 'Comma-separated list of labels to check for issues'
+        required: false
+        default: 'type-bug, needs-information, needs-reproduction'
+        type: string
+      exempt_issue_labels:
+        description: 'Comma-separated list of labels that exempt issues from being marked as stale'
+        required: false
+        default: 'type-security, feature-request, Sev1-high, needs-triage'
+        type: string
+      days_before_issue_stale:
+        description: 'Number of days of inactivity before an issue becomes stale'
+        required: false
+        default: 30
+        type: number
+      days_before_issue_close:
+        description: 'Number of days of inactivity before a stale issue is closed'
+        required: false
+        default: 60
+        type: number
+      stale_pr_message:
+        description: 'Message to post when marking a PR as stale'
+        required: false
+        default: 'This PR has been automatically marked as stale because it has not had recent activity in the last 90 days. It will be closed in 7 days. Thank you for your contributions.'
+        type: string
+      stale_pr_label:
+        description: 'Label to use when marking a PR as stale'
+        required: false
+        default: 'stale'
+        type: string
+      exempt_pr_labels:
+        description: 'Comma-separated list of labels that exempt PRs from being marked as stale'
+        required: false
+        default: 'work-in-progress, external-contributor'
+        type: string
+      close_pr_message:
+        description: 'Message to post when closing a stale PR'
+        required: false
+        default: 'This PR was closed because there has been no follow up activity in 7 days. Thank you for your contributions.'
+        type: string
+      days_before_pr_stale:
+        description: 'Number of days of inactivity before a PR becomes stale'
+        required: false
+        default: 90
+        type: number
+      days_before_pr_close:
+        description: 'Number of days of inactivity before a stale PR is closed'
+        required: false
+        default: 7
+        type: number
+      operations_per_run:
+        description: 'Maximum number of operations to perform per run'
+        required: false
+        default: 200
+        type: number
 
 jobs:
   stale:
@@ -12,17 +83,17 @@ jobs:
     steps:
       - uses: actions/stale@72afbce2b0dbd1d903bb142cebe2d15dc307ae57
         with:
-          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity in the last 90 days. It will be closed in 90 days. Thank you for your contributions.'
-          close-issue-message: 'This issue was closed because there has been no follow activity in 90 days. If you feel this was closed in error please provide evidence on the current production app in a new issue or comment in the existing issue to a maintainer. Thank you for your contributions.'
-          stale-issue-label: 'stale'
-          any-of-issue-labels: 'type-bug, needs-information, needs-reproduction'
-          exempt-issue-labels: 'type-security, feature-request, needs-triage'
-          days-before-issue-stale: 30
-          days-before-issue-close: 90
-          stale-pr-message: 'This PR has been automatically marked as stale because it has not had recent activity in the last 90 days. It will be closed in 7 days. Thank you for your contributions.'
-          stale-pr-label: 'stale'
-          exempt-pr-labels: 'work-in-progress, external-contributor'
-          close-pr-message: 'This PR was closed because there has been no follow up activity in 7 days. Thank you for your contributions.'
-          days-before-pr-stale: 90
-          days-before-pr-close: 7
-          operations-per-run: 200
+          stale-issue-message: ${{ inputs.stale_issue_message }}
+          close-issue-message: ${{ inputs.close_issue_message }}
+          stale-issue-label: ${{ inputs.stale_issue_label }}
+          any-of-issue-labels: ${{ inputs.any_of_issue_labels }}
+          exempt-issue-labels: ${{ inputs.exempt_issue_labels }}
+          days-before-issue-stale: ${{ inputs.days_before_issue_stale }}
+          days-before-issue-close: ${{ inputs.days_before_issue_close }}
+          stale-pr-message: ${{ inputs.stale_pr_message }}
+          stale-pr-label: ${{ inputs.stale_pr_label }}
+          exempt-pr-labels: ${{ inputs.exempt_pr_labels }}
+          close-pr-message: ${{ inputs.close_pr_message }}
+          days-before-pr-stale: ${{ inputs.days_before_pr_stale }}
+          days-before-pr-close: ${{ inputs.days_before_pr_close }}
+          operations-per-run: ${{ inputs.operations_per_run }}
