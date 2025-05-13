@@ -1,0 +1,100 @@
+name: Stable Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Type of version bump (major, minor, patch)'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: 'patch'
+
+jobs:
+  stable-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Get next version from latest tag
+        id: version
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          
+          # Remove 'v' prefix if it exists
+          LATEST_VERSION=${LATEST_TAG#v}
+          
+          # Split version into components
+          IFS='.' read -r major minor patch <<< "$LATEST_VERSION"
+          
+          # Increment version based on input
+          case "${{ github.event.inputs.version_type }}" in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          # Construct new version
+          NEW_VERSION="$major.$minor.$patch"
+          echo "next_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $LATEST_VERSION"
+          echo "Next version: $NEW_VERSION"
+
+      - name: Check if PR exists
+        id: check-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:stable-main-${process.env.NEXT_VERSION}`,
+              base: 'main'
+            });
+            return prs.length > 0;
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+          
+      - name: Run stable sync
+        # if: steps.check-pr.outputs.result != 'true'
+        run: node .github/scripts/stable-sync.js "stable-main-${{ steps.version.outputs.next_version }}"
+
+      - name: Create Pull Request
+        if: steps.check-pr.outputs.result != 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync stable to main for version ${{ steps.version.outputs.next_version }}"
+          title: "chore: sync stable to main for version ${{ steps.version.outputs.next_version }}"
+          body: |
+            This PR syncs the stable branch to main for version ${{ steps.version.outputs.next_version }}.
+            
+            Changes:
+            - Merged stable into main
+            - Preserved stable-specific files
+            - Updated version to ${{ steps.version.outputs.next_version }}
+          branch: "stable-main-${{ steps.version.outputs.next_version }}"
+          base: main
+          labels: |
+            sync
+            stable 
