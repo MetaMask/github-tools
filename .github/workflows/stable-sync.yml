@@ -7,6 +7,12 @@ on:
             required: true
             type: string
             description: 'The semantic version to use for the sync (e.g., x.x.x)'
+  workflow_call:
+    inputs:
+      semver-version:
+        required: true
+        type: string
+        description: 'The semantic version to use for the sync (e.g., x.x.x)'
 
 jobs:
   stable-sync:
