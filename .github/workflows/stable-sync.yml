@@ -41,6 +41,11 @@ jobs:
             return prs.length > 0;
         env:
           SEMVER_VERSION: ${{ inputs.semver-version }}
+
+      - name: Set Git user and email
+        run: |
+          git config user.name "metamaskbot"
+          git config user.email "metamaskbot@users.noreply.github.com"
           
       - name: Run stable sync
         # if: steps.check-pr.outputs.result != 'true'
