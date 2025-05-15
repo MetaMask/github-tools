@@ -2,16 +2,6 @@ name: Stable Sync
 
 on:
   workflow_dispatch:
-    inputs:
-      version_type:
-        description: 'Type of version bump (major, minor, patch)'
-        required: true
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
-        default: 'patch'
 
 jobs:
   stable-sync:
@@ -25,40 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      - name: Get next version from latest tag
-        id: version
-        run: |
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          
-          # Remove 'v' prefix if it exists
-          LATEST_VERSION=${LATEST_TAG#v}
-          
-          # Split version into components
-          IFS='.' read -r major minor patch <<< "$LATEST_VERSION"
-          
-          # Increment version based on input
-          case "${{ github.event.inputs.version_type }}" in
-            "major")
-              major=$((major + 1))
-              minor=0
-              patch=0
-              ;;
-            "minor")
-              minor=$((minor + 1))
-              patch=0
-              ;;
-            "patch")
-              patch=$((patch + 1))
-              ;;
-          esac
-          
-          # Construct new version
-          NEW_VERSION="$major.$minor.$patch"
-          echo "next_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $LATEST_VERSION"
-          echo "Next version: $NEW_VERSION"
 
       - name: Check if PR exists
         id: check-pr
