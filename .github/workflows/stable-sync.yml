@@ -2,6 +2,11 @@ name: Stable Sync
 
 on:
   workflow_dispatch:
+    inputs:
+        semver-version:
+            required: true
+            type: string
+            description: 'The semantic version to use for the sync (e.g., x.x.x)'
 
 jobs:
   stable-sync:
@@ -24,33 +29,33 @@ jobs:
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              head: `${context.repo.owner}:stable-main-${process.env.NEXT_VERSION}`,
+              head: `${context.repo.owner}:stable-main-${process.env.SEMVER_VERSION}`,
               base: 'main'
             });
             return prs.length > 0;
         env:
-          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+          SEMVER_VERSION: ${{ inputs.semver-version }}
           
       - name: Run stable sync
         # if: steps.check-pr.outputs.result != 'true'
-        run: node .github/scripts/stable-sync.js "stable-main-${{ steps.version.outputs.next_version }}"
+        run: node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
 
       - name: Create Pull Request
         if: steps.check-pr.outputs.result != 'true'
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: sync stable to main for version ${{ steps.version.outputs.next_version }}"
-          title: "chore: sync stable to main for version ${{ steps.version.outputs.next_version }}"
+          author: "metamaskbot metamaskbot@users.noreply.github.com"
+          commit-message: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
+          title: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
           body: |
-            This PR syncs the stable branch to main for version ${{ steps.version.outputs.next_version }}.
+            This PR syncs the stable branch from main prior of version ${{ inputs.semver-version }}.
             
             Changes:
-            - Merged stable into main
-            - Preserved stable-specific files
-            - Updated version to ${{ steps.version.outputs.next_version }}
-          branch: "stable-main-${{ steps.version.outputs.next_version }}"
-          base: main
+            - Merged main into stable-main-${{ inputs.semver-version }}
+            - Preserved stable-specific files from main
+            - Updated version to ${{ inputs.semver-version }}
+          branch: "stable-main-${{ inputs.semver-version }}"
           labels: |
             sync
             stable 
