@@ -21,7 +21,7 @@ on:
       any_of_issue_labels:
         description: 'Comma-separated list of labels to check for issues'
         required: false
-        default: 'type-bug, needs-information, needs-reproduction'
+        default: 'needs-information, needs-reproduction'
         type: string
       exempt_issue_labels:
         description: 'Comma-separated list of labels that exempt issues from being marked as stale'
