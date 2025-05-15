@@ -26,7 +26,7 @@ on:
       exempt_issue_labels:
         description: 'Comma-separated list of labels that exempt issues from being marked as stale'
         required: false
-        default: 'type-security, feature-request, Sev1-high, needs-triage, external-contributor'
+        default: 'type-security, feature-request, Sev1-high, needs-triage'
         type: string
       days_before_issue_stale:
         description: 'Number of days of inactivity before an issue becomes stale'
