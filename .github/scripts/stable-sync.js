@@ -9,6 +9,9 @@
 //
 // Usage: node stable-sync.js [branch-name]
 // If no branch name is provided, defaults to 'stable-sync'
+// 
+// Environment variables:
+// CREATE_BRANCH - if set to 'true', will push the branch at the end
 
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
@@ -16,6 +19,9 @@ const exec = promisify(require('child_process').exec);
 async function runGitCommands() {
   // Get branch name from command line arguments or use default
   const branchName = process.argv[2] || 'stable-main';
+  
+  // Check if CREATE_BRANCH environment variable exists and is set to true
+  const shouldPushBranch = (process.env.CREATE_BRANCH || 'false').toLowerCase() === 'true';
 
   try {
     try {
@@ -111,11 +117,36 @@ async function runGitCommands() {
     await exec('git add .');
     console.log('Executed: git add .');
 
-    await exec(`git commit -m "Merge origin/main into ${branchName}" --no-verify`);
-    console.log('Executed: git commit');
+    try {
+      // Check if there are any changes to commit
+      const { stdout: status } = await exec('git status --porcelain');
+      if (!status.trim()) {
+        console.log('No changes to commit, skipping commit step');
+        return;
+      }
+
+      await exec(`git commit -m "Merge origin/main into ${branchName}" --no-verify`);
+      console.log('Executed: git commit');
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
 
     console.log(`Your local ${branchName} branch is now ready to become a PR.`);
-    console.log('You likely now need to do `git push --force`');
+    
+    // Push the branch if CREATE_BRANCH is true
+    if (shouldPushBranch) {
+      try {
+        console.log(`Pushing branch ${branchName} to remote...`);
+        await exec(`git push --set-upstream origin ${branchName}`);
+        console.log(`Successfully pushed branch ${branchName} to remote`);
+      } catch (error) {
+        console.error(`Error pushing branch: ${error.message}`);
+        process.exit(1);
+      }
+    } else {
+      console.log('You likely now need to do `git push --force`');
+    }
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
