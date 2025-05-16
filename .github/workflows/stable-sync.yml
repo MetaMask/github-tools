@@ -91,7 +91,6 @@ jobs:
             --title "chore: sync stable to main for version $VERSION" \
             --body "This PR syncs the stable branch to main for version $VERSION.
 
-
           *Synchronization Process:*
 
           - Fetches the latest changes from the remote repository
