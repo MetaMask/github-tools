@@ -49,7 +49,7 @@ jobs:
           
       - name: Run stable sync
         id: run-stable-sync
-        if: steps.check-pr.outputs.result != 'true'
+        # if: steps.check-pr.outputs.result != 'true'
         env:
           CREATE_BRANCH: 'false'
         run: |
