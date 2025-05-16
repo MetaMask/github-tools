@@ -69,10 +69,17 @@ jobs:
             --title "chore: sync stable to main for version $VERSION" \
             --body "This PR syncs the stable branch to main for version $VERSION.
 
-          Changes:
-          - Merged stable into main
-          - Preserved stable-specific files
-          - Updated version to $VERSION" \
+
+          Resets it to match the remote 'stable' branch exactly.
+          Lates 'main' branch is merged into this branch.
+          Handles potential merge conflicts.
+          Then performs a series of careful operations:
+           - Restores all files from 'main' first (git checkout origin/main -- .)
+          - Selectively restores specific files from 'stable' that should be preserved:
+            - CHANGELOG.md
+            - Mobile-specific files (bitrise.yml, android build files, iOS project files)
+            - package.json
+            - Indicates the next version candidate of main to $VERSION" \
             --base main \
             --head "$BRANCH_NAME"
             #--label "sync" \
