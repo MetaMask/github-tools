@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -59,13 +59,13 @@ jobs:
         run: |
           git config --global user.name "metamaskbot"
           git config --global user.email "metamaskbot@users.noreply.github.com"
-          
+
       - name: Run stable sync
         id: run-stable-sync
         # if: steps.check-pr.outputs.result != 'true'
         env:
           CREATE_BRANCH: 'false' # let the script handle the branch creation
-          REPO: ${{ inputs.repo-type }}  # Default to 'mobile' if not specified
+          REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
         run: |
           node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely
@@ -111,4 +111,4 @@ jobs:
             --base main \
             --head "$BRANCH_NAME"
             #--label "sync" \
-            #--label "stable" 
+            #--label "stable"
