@@ -51,7 +51,7 @@ jobs:
         id: run-stable-sync
         if: steps.check-pr.outputs.result != 'true'
         env:
-          CREATE_BRANCH: 'true'
+          CREATE_BRANCH: 'false'
         run: |
           node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Push the branch to origin using GitHub CLI
