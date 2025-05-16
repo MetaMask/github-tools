@@ -50,7 +50,10 @@ jobs:
       - name: Run stable sync
         id: run-stable-sync
         # if: steps.check-pr.outputs.result != 'true'
+        env:
+          CREATE_BRANCH: 'true'
         run: node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
+  
 
       # - name: Create Pull Request
       #   if: steps.check-pr.outputs.result != 'true' && steps.run-stable-sync.outputs.result != 'true'
