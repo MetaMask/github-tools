@@ -1,0 +1,114 @@
+name: Stable Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      semver-version:
+        required: true
+        type: string
+        description: 'The semantic version to use for the sync (e.g., x.x.x)'
+      repo-type:
+        required: false
+        type: choice
+        description: 'Type of repository (mobile or extension)'
+        options:
+          - mobile
+          - extension
+        default: 'mobile'
+  workflow_call:
+    inputs:
+      semver-version:
+        required: true
+        type: string
+        description: 'The semantic version to use for the sync (e.g., x.x.x)'
+      repo-type:
+        required: false
+        type: string
+        description: 'Type of repository (mobile or extension)'
+        default: 'mobile'
+
+jobs:
+  stable-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check if PR exists
+        id: check-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:stable-main-${process.env.SEMVER_VERSION}`,
+              base: 'main'
+            });
+            return prs.length > 0;
+        env:
+          SEMVER_VERSION: ${{ inputs.semver-version }}
+
+      - name: Set Git user and email
+        run: |
+          git config --global user.name "metamaskbot"
+          git config --global user.email "metamaskbot@users.noreply.github.com"
+
+      - name: Run stable sync
+        id: run-stable-sync
+        # if: steps.check-pr.outputs.result != 'true'
+        env:
+          CREATE_BRANCH: 'false' # let the script handle the branch creation
+          REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
+        run: |
+          node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
+          # Check if branch exists remotely
+          BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
+          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            git pull --rebase
+            echo "Branch $BRANCH_NAME exists remotely, pushing normally"
+            git push origin "$BRANCH_NAME" --force
+          else
+            echo "Branch $BRANCH_NAME doesn't exist remotely, pushing with --set-upstream"
+            git push --set-upstream origin "$BRANCH_NAME"
+          fi
+
+      - name: Create Pull Request
+        if: steps.check-pr.outputs.result != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: stable-main-${{ inputs.semver-version }}
+          VERSION: ${{ inputs.semver-version }}
+        run: |
+          # Create PR using GitHub CLI
+          gh pr create \
+            --title "chore: sync stable to main for version $VERSION" \
+            --body "This PR syncs the stable branch to main for version $VERSION.
+
+          *Synchronization Process:*
+
+          - Fetches the latest changes from the remote repository
+          - Resets the branch to match the stable branch
+          - Attempts to merge changes from main into the branch
+          - Handles merge conflicts if they occur
+
+          *File Preservation:*
+
+          Preserves specific files from the stable branch:
+            - CHANGELOG.md
+            - bitrise.yml
+            - android/app/build.gradle
+            - ios/MetaMask.xcodeproj/project.pbxproj
+            - package.json
+           
+            Indicates the next version candidate of main to $VERSION" \
+            --base main \
+            --head "$BRANCH_NAME"
+            #--label "sync" \
+            #--label "stable"
