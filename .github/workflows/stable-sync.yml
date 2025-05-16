@@ -50,14 +50,18 @@ jobs:
       - name: Run stable sync
         id: run-stable-sync
         if: steps.check-pr.outputs.result != 'true'
+        env:
+          CREATE_BRANCH: 'true'
         run: |
-          node .github/scripts/stable-sync.js "stable-main-${{ steps.version.outputs.next_version }}"
+          node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
+
+
       - name: Create Pull Request
         if: steps.check-pr.outputs.result != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH_NAME: stable-main-${{ steps.version.outputs.next_version }}
-          VERSION: ${{ steps.version.outputs.next_version }}
+          BRANCH_NAME: stable-main-${{ inputs.semver-version }}
+          VERSION: ${{ inputs.semver-version }}
         run: |
           # Create PR using GitHub CLI
           gh pr create \
@@ -69,6 +73,6 @@ jobs:
           - Preserved stable-specific files
           - Updated version to $VERSION" \
             --base main \
-            --head "$BRANCH_NAME" \
-            --label "sync" \
-            --label "stable" 
+            --head "$BRANCH_NAME"
+            #--label "sync" \
+            #--label "stable" 
