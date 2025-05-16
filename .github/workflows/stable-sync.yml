@@ -3,16 +3,29 @@ name: Stable Sync
 on:
   workflow_dispatch:
     inputs:
-        semver-version:
-            required: true
-            type: string
-            description: 'The semantic version to use for the sync (e.g., x.x.x)'
+      semver-version:
+        required: true
+        type: string
+        description: 'The semantic version to use for the sync (e.g., x.x.x)'
+      repo-type:
+        required: false
+        type: choice
+        description: 'Type of repository (mobile or extension)'
+        options:
+          - mobile
+          - extension
+        default: 'mobile'
   workflow_call:
     inputs:
       semver-version:
         required: true
         type: string
         description: 'The semantic version to use for the sync (e.g., x.x.x)'
+      repo-type:
+        required: false
+        type: string
+        description: 'Type of repository (mobile or extension)'
+        default: 'mobile'
 
 jobs:
   stable-sync:
@@ -51,7 +64,8 @@ jobs:
         id: run-stable-sync
         # if: steps.check-pr.outputs.result != 'true'
         env:
-          CREATE_BRANCH: 'false'
+          CREATE_BRANCH: 'false' # let the script handle the branch creation
+          REPO: ${{ inputs.repo-type }}  # Default to 'mobile' if not specified
         run: |
           node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely

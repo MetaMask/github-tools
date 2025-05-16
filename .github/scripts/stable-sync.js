@@ -27,11 +27,13 @@ async function runGitCommands() {
     try {
       // Check if the branch already exists
       const { stdout: branchExists } = await exec(
-        `git rev-parse --quiet --verify ${branchName}`,
+        //`git rev-parse --quiet --verify ${branchName}`,
+        `git ls-remote origin ${branchName}`,
       );
       if (branchExists.trim()) {
         // Branch exists, so simply check it out
         await exec(`git checkout ${branchName}`);
+        await exec(`git pull origin ${branchName}`);
         console.log(`Checked out branch: ${branchName}`);
       } else {
         throw new Error(
@@ -88,31 +90,39 @@ async function runGitCommands() {
     await exec('git checkout origin/stable -- CHANGELOG.md');
     console.log('Executed: git checkout origin/stable -- CHANGELOG.md');
 
-    // Mobile Only
-    await exec('git checkout origin/stable -- bitrise.yml');
-    console.log('Executed: git checkout origin/stable -- bitrise.yml');
+    // Execute mobile-specific commands if REPO is 'mobile'
+    if (process.env.REPO === 'mobile') {
+      console.log('Executing mobile-specific commands...');
+      
+      await exec('git checkout origin/stable -- bitrise.yml');
+      console.log('Executed: git checkout origin/stable -- bitrise.yml');
 
-    // Mobile Only
-    await exec('git checkout origin/stable -- android/app/build.gradle');
-    console.log('Executed: git checkout origin/stable -- android/app/build.gradle');
+      await exec('git checkout origin/stable -- android/app/build.gradle');
+      console.log('Executed: git checkout origin/stable -- android/app/build.gradle');
 
-    // Mobile Only
-    await exec('git checkout origin/stable -- ios/MetaMask.xcodeproj/project.pbxproj');
-    console.log('Executed: git checkout origin/stable -- ios/MetaMask.xcodeproj/project.pbxproj');
+      await exec('git checkout origin/stable -- ios/MetaMask.xcodeproj/project.pbxproj');
+      console.log('Executed: git checkout origin/stable -- ios/MetaMask.xcodeproj/project.pbxproj');
 
-    // Mobile Only
-    await exec('git checkout origin/stable -- package.json');
-    console.log('Executed: git checkout origin/stable -- package.json');
+      await exec('git checkout origin/stable -- package.json');
+      console.log('Executed: git checkout origin/stable -- package.json');
+    }
+    // Execute extension-specific commands if REPO is 'extension'
+    else if (process.env.REPO === 'extension') {
+      console.log('Executing extension-specific commands...');
+      
+      const { stdout: packageJsonContent } = await exec(
+        'git show origin/master:package.json',
+      );
+      const packageJson = JSON.parse(packageJsonContent);
+      const packageVersion = packageJson.version;
 
-    // Extension Only
-    // const { stdout: packageJsonContent } = await exec(
-    //   'git show origin/master:package.json',
-    // );
-    // const packageJson = JSON.parse(packageJsonContent);
-    // const packageVersion = packageJson.version;
-
-    // await exec(`yarn version "${packageVersion}"`);
-    // console.log('Executed: yarn version');
+      await exec(`yarn version "${packageVersion}"`);
+      console.log('Executed: yarn version');
+    }
+    // If REPO is not set or has an invalid value, skip both
+    else {
+      console.log('REPO environment variable not set or invalid. Skipping mobile/extension specific commands.');
+    }
 
     await exec('git add .');
     console.log('Executed: git add .');
@@ -137,8 +147,17 @@ async function runGitCommands() {
     // Push the branch if CREATE_BRANCH is true
     if (shouldPushBranch) {
       try {
-        console.log(`Pushing branch ${branchName} to remote...`);
-        await exec(`git push --set-upstream origin ${branchName}`);
+        console.log(`Checking if branch ${branchName} exists remotely...`);
+        const { stdout: remoteBranches } = await exec('git ls-remote --heads origin');
+        const branchExists = remoteBranches.includes(`refs/heads/${branchName}`);
+
+        if (branchExists) {
+          console.log(`Branch ${branchName} exists remotely, updating...`);
+          await exec(`git push origin ${branchName}`);
+        } else {
+          console.log(`Branch ${branchName} does not exist remotely, creating...`);
+          await exec(`git push --set-upstream origin ${branchName}`);
+        }
         console.log(`Successfully pushed branch ${branchName} to remote`);
       } catch (error) {
         console.error(`Error pushing branch: ${error.message}`);
