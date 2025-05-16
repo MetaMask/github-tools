@@ -55,8 +55,6 @@ jobs:
         run: |
           node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Push the branch to origin using GitHub CLI
-          gh auth login
-          gh auth status
           git push --set-upstream origin "stable-main-${{ inputs.semver-version }}"
 
       - name: Create Pull Request
