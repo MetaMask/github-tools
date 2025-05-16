@@ -48,25 +48,26 @@ jobs:
           git config --global user.email "metamaskbot@users.noreply.github.com"
           
       - name: Run stable sync
+        id: run-stable-sync
         # if: steps.check-pr.outputs.result != 'true'
         run: node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
 
-    #   - name: Create Pull Request
-    #     if: steps.check-pr.outputs.result != 'true'
-    #     uses: peter-evans/create-pull-request@v
-    #     with:
-    #       token: ${{ secrets.GITHUB_TOKEN }}
-    #       author: "metamaskbot metamaskbot@users.noreply.github.com"
-    #       commit-message: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
-    #       title: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
-    #       body: |
-    #         This PR syncs the stable branch from main prior of version ${{ inputs.semver-version }}.
+      - name: Create Pull Request
+        if: steps.check-pr.outputs.result != 'true' && steps.run-stable-sync.outputs.result != 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          author: "metamaskbot metamaskbot@users.noreply.github.com"
+          commit-message: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
+          title: "chore: sync stable branch with main for version ${{ inputs.semver-version }}"
+          body: |
+            This PR syncs the stable branch from main prior of version ${{ inputs.semver-version }}.
             
-    #         Changes:
-    #         - Merged main into stable-main-${{ inputs.semver-version }}
-    #         - Preserved stable-specific files from main
-    #         - Updated version to ${{ inputs.semver-version }}
-    #       branch: "stable-main-${{ inputs.semver-version }}"
-    #       labels: |
-    #         sync
-    #         stable 
+            Changes:
+            - Merged main into stable-main-${{ inputs.semver-version }}
+            - Preserved stable-specific files from main
+            - Updated version to ${{ inputs.semver-version }}
+          branch: "stable-main-${{ inputs.semver-version }}"
+          labels: |
+            sync
+            stable 
