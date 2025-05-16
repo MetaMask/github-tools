@@ -58,7 +58,7 @@ jobs:
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists remotely, pushing normally"
-            git push origin "$BRANCH_NAME" --force
+            git push origin "$BRANCH_NAME" --rebase
           else
             echo "Branch $BRANCH_NAME doesn't exist remotely, pushing with --set-upstream"
             git push --set-upstream origin "$BRANCH_NAME"
