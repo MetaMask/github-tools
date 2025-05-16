@@ -92,16 +92,23 @@ jobs:
             --body "This PR syncs the stable branch to main for version $VERSION.
 
 
-          Resets it to match the remote 'stable' branch exactly.
-          Lates 'main' branch is merged into this branch.
-          Handles potential merge conflicts.
-          Then performs a series of careful operations:
-           - Restores all files from 'main' first (git checkout origin/main -- .)
-          - Selectively restores specific files from 'stable' that should be preserved:
+          *Synchronization Process:*
+
+          - Fetches the latest changes from the remote repository
+          - Resets the branch to match the stable branch
+          - Attempts to merge changes from main into the branch
+          - Handles merge conflicts if they occur
+
+          *File Preservation:*
+
+          Preserves specific files from the stable branch:
             - CHANGELOG.md
-            - Mobile-specific files (bitrise.yml, android build files, iOS project files)
+            - bitrise.yml
+            - android/app/build.gradle
+            - ios/MetaMask.xcodeproj/project.pbxproj
             - package.json
-            - Indicates the next version candidate of main to $VERSION" \
+           
+            Indicates the next version candidate of main to $VERSION" \
             --base main \
             --head "$BRANCH_NAME"
             #--label "sync" \
