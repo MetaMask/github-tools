@@ -24,6 +24,21 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
+###############################################################################
+# Make a commit only when something is staged. Prevents git commit exit-1 when
+# the version you’re bumping is already present on the branch.
+###############################################################################
+commit_if_needed () {
+  local msg="$1"
+
+  # --cached = compare index to HEAD, not working tree
+  if git diff --cached --quiet; then
+    echo "Nothing to commit – skipping."
+  else
+    git commit -m "$msg"
+  fi
+}
+
 get_expected_changed_files() {
 
   local platform="$1"
@@ -128,9 +143,9 @@ git add $changed_files
 
 # Generate a commit based on PLATFORM
 if [ "$PLATFORM" = "mobile" ]; then
-    git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
+    commit_if_needed "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
 elif [ "$PLATFORM" = "extension" ]; then
-    git commit -m "bump semvar version to ${NEW_VERSION}"
+    commit_if_needed "bump semvar version to ${NEW_VERSION}"
 fi
 
 
