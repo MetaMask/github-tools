@@ -48,6 +48,7 @@ async function getTeam(repository, prNumber) {
 
     // Step 4: Return the team name or 'Unknown' if not found
     return team || 'Unknown';
+
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
@@ -59,6 +60,8 @@ async function getTeam(repository, prNumber) {
 
 // Function to filter commits based on unique commit messages and group by teams
 async function filterCommitsByTeam(platform, branchA, branchB) {
+
+  const MAX_COMMITS = 500; // Limit the number of commits to process
   console.log('Filtering commits by team...');
 
   var repository = '';
@@ -89,9 +92,13 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
     };
 
     const log = await git.log(logOptions);
+
+    console.log(`Total commits between ${branchA} and ${branchB}: ${log.total}`);
+    console.log(`Processing up to ${Math.min(log.all.length, MAX_COMMITS)} commits...`);
+
     const commitsByTeam = {};
 
-    const MAX_COMMITS = 500; // Limit the number of commits to process
+
 
     for (const commit of log.all) {
       const { author, message, hash } = commit;
@@ -121,7 +128,15 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
         });
       }
     }
+
+    // Count total processed commits after the loop
+    const totalProcessed = Object.values(commitsByTeam)
+      .reduce((sum, commits) => sum + commits.length, 0);
+
+    console.log(`Total commits eligible for commits.csv : ${totalProcessed}`);
+    
     return commitsByTeam;
+
   } catch (error) {
     console.error(error);
     return {};
