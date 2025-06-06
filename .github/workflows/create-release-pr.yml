@@ -55,6 +55,7 @@ on:
 
 jobs:
   create-release-pr:
+    name: Create Release Pull Request
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,7 +74,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: main
+          #ref: main
+          ref: ale/unify-create-release-mobile-extension
           path: github-tools
 
       # Step 3: Setup environment from github-tools
