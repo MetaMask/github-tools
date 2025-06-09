@@ -166,13 +166,17 @@ if ! git push --set-upstream origin "${RELEASE_BRANCH_NAME}"; then
 fi
 
 echo "Creating release PR.."
-gh pr create \
-  --draft \
-  --title "feat: ${NEW_VERSION}" \
-  --body "${RELEASE_BODY}" \
-  --head "${RELEASE_BRANCH_NAME}";
-
-echo "Release PR Created"
+# Check if PR already exists
+if gh pr list --search "head:${RELEASE_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
+    echo "PR for branch ${RELEASE_BRANCH_NAME} already exists"
+else
+    gh pr create \
+      --draft \
+      --title "feat: ${NEW_VERSION}" \
+      --body "${RELEASE_BODY}" \
+      --head "${RELEASE_BRANCH_NAME}"
+    echo "Release PR Created"
+fi
 
 # Changelog Branch Setup
 # ---------------------
