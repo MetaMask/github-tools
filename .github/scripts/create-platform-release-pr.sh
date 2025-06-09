@@ -142,15 +142,28 @@ git add $changed_files
 
 # Generate commit message based on platform
 if [ "$PLATFORM" = "mobile" ]; then
-    git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"
+    if ! git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"; then
+        echo "No changes to commit for mobile version bump"
+    fi
 elif [ "$PLATFORM" = "extension" ]; then
-    git commit -m "bump semvar version to ${NEW_VERSION}"
+    if ! git commit -m "bump semvar version to ${NEW_VERSION}"; then
+        echo "No changes to commit for extension version bump"
+    fi
 fi
 
 # Push Changes and Create Release PR
 # ---------------------------------
 echo "Pushing changes to the remote.."
-git push --set-upstream origin "${RELEASE_BRANCH_NAME}"
+if ! git push --set-upstream origin "${RELEASE_BRANCH_NAME}"; then
+    echo "No changes to push to ${RELEASE_BRANCH_NAME}"
+    # Check if branch exists remotely
+    if git ls-remote --heads origin "${RELEASE_BRANCH_NAME}" | grep -q "${RELEASE_BRANCH_NAME}"; then
+        echo "Branch ${RELEASE_BRANCH_NAME} already exists remotely"
+    else
+        echo "Error: Failed to push and branch doesn't exist remotely"
+        exit 1
+    fi
+fi
 
 echo "Creating release PR.."
 gh pr create \
