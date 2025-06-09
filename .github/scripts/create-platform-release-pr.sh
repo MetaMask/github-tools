@@ -184,7 +184,7 @@ yarn --cwd install
 echo "Generating test plan csv.."
 yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
 
-if [[ "${TEST_ONLY:-true}" != "true" ]]; then
+if [[ "${TEST_ONLY:-false}" == 'true' ]]; then
   echo "Updating release sheet.."
   # Create a new Release Sheet Page for the new version with our commits.csv content
   yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
