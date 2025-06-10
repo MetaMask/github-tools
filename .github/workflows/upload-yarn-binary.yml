@@ -18,9 +18,11 @@ jobs:
       - name: Set up variables
         id: vars
         run: |
-          echo "YARN_VERSION=${{ github.event.inputs.yarn_version }}" >> $GITHUB_ENV
-          echo "YARN_FILENAME=yarn-${{ github.event.inputs.yarn_version }}.js" >> $GITHUB_ENV
-          echo "RELEASE_TAG=v${{ github.event.inputs.yarn_version }}" >> $GITHUB_ENV
+          {
+            echo "YARN_VERSION=${{ github.event.inputs.yarn_version }}"
+            echo "YARN_FILENAME=yarn-${{ github.event.inputs.yarn_version }}.js"
+            echo "RELEASE_TAG=v${{ github.event.inputs.yarn_version }}"
+          } >> "$GITHUB_ENV"
 
       - name: Download yarn.js binary
         run: |
@@ -30,11 +32,6 @@ jobs:
       - name: Display SHA256 checksum
         run: |
           sha256sum "$YARN_FILENAME"
-
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install gh -y
 
       - name: Create or update GitHub Release
         env:
