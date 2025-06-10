@@ -14,47 +14,40 @@ jobs:
     permissions:
       contents: write
       packages: write
+    env:
+      YARN_VERSION: ${{ github.event.inputs.yarn_version }}
+      YARN_FILENAME: yarn-${{ github.event.inputs.yarn_version }}.js
+      RELEASE_TAG: v${{ github.event.inputs.yarn_version }}
+    outputs:
+      download_url: ${{ steps.output-url.outputs.download_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up variables
-        id: vars
-        run: |
-          {
-            echo "YARN_VERSION=${{ github.event.inputs.yarn_version }}"
-            echo "YARN_FILENAME=yarn-${{ github.event.inputs.yarn_version }}.js"
-            echo "RELEASE_TAG=v${{ github.event.inputs.yarn_version }}"
-          } >> "$GITHUB_ENV"
-
       - name: Download yarn.js binary
         run: |
-          curl -L -o "$YARN_FILENAME" "https://repo.yarnpkg.com/${YARN_VERSION}/packages/yarnpkg-cli/bin/yarn.js"
-          ls -lh "$YARN_FILENAME"
+          curl -L -o "${YARN_FILENAME}" "https://repo.yarnpkg.com/${YARN_VERSION}/packages/yarnpkg-cli/bin/yarn.js"
+          ls -lh "${YARN_FILENAME}"
 
       - name: Display SHA256 checksum
         run: |
-          sha256sum "$YARN_FILENAME"
+          sha256sum "${YARN_FILENAME}"
 
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create the release if it doesn't exist
-          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "Yarn $YARN_VERSION" --notes "Yarn CLI $YARN_VERSION binary."
+          gh release view "${RELEASE_TAG}" || gh release create "${RELEASE_TAG}" --title "Yarn ${YARN_VERSION}" --notes "Yarn CLI ${YARN_VERSION} binary."
 
       - name: Upload yarn.js to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "$RELEASE_TAG" "$YARN_FILENAME" --clobber
+          gh release upload "${RELEASE_TAG}" "${YARN_FILENAME}" --clobber
 
       - name: Output download URL
         id: output-url
         run: |
-          url="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${YARN_FILENAME}"
-          echo "Download URL: $url"
-          echo "download_url=$url" >> "$GITHUB_OUTPUT"
-
-    outputs:
-      download_url: ${{ steps.output-url.outputs.download_url }}
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${YARN_FILENAME}"
+          echo "Download URL: ${url}"
+          echo "download_url=${url}" >> "${GITHUB_OUTPUT}"
