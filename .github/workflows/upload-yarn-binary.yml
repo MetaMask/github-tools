@@ -47,5 +47,11 @@ jobs:
           gh release upload "$RELEASE_TAG" "$YARN_FILENAME" --clobber
 
       - name: Output download URL
+        id: output-url
         run: |
-          echo "Download URL: https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${YARN_FILENAME}" 
+          url="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${YARN_FILENAME}"
+          echo "Download URL: $url"
+          echo "download_url=$url" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      download_url: ${{ steps.output-url.outputs.download_url }}
