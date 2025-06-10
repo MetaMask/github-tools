@@ -180,9 +180,18 @@ fi
 
 # Changelog Branch Setup
 # ---------------------
-echo "Checking out ${CHANGELOG_BRANCH_NAME}"
-git checkout -b "${CHANGELOG_BRANCH_NAME}"
-echo "Changelog Branch Created"
+echo "Checking for existing changelog branch ${CHANGELOG_BRANCH_NAME}"
+
+# Check if branch exists locally or remotely
+if git show-ref --verify --quiet refs/heads/"${CHANGELOG_BRANCH_NAME}" || git ls-remote --heads origin "${CHANGELOG_BRANCH_NAME}" | grep -q "${CHANGELOG_BRANCH_NAME}"; then
+    echo "Branch ${CHANGELOG_BRANCH_NAME} already exists, checking it out"
+    git fetch origin "${CHANGELOG_BRANCH_NAME}"
+    git checkout "${CHANGELOG_BRANCH_NAME}"
+else
+    echo "Creating new branch ${CHANGELOG_BRANCH_NAME}"
+    git checkout -b "${CHANGELOG_BRANCH_NAME}"
+fi
+echo "Changelog Branch Ready"
 
 # Generate Changelog and Test Plan
 # ------------------------------
