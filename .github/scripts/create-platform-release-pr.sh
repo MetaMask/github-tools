@@ -129,9 +129,6 @@ echo "platform : ${PLATFORM}"
 echo "Running version update scripts.."
 ./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}" ${PLATFORM}
 
-if [[ "$PLATFORM" == "mobile" ]]; then
-  ./github-tools/.github/scripts/set-mobile-build-version.sh "${NEW_VERSION_NUMBER}"
-fi
 
 # Commit Changes
 # -------------

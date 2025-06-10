@@ -125,6 +125,19 @@ if ! [[ $SEMVER_VERSION =~ $SEMVER_REGEX ]]; then
   log_and_exit "$SEMVER_VERSION is invalid semver!"
 fi
 
+# Validate inputs for mobile platform
+if [[ $PLATFORM == "mobile" ]]; then
+  # Get current version numbers from bitrise.yml
+  CURRENT_VERSION_NUMBER=$(awk '/^\s+VERSION_NUMBER: /{print $2}' $BITRISE_YML_FILE);
+  CURRENT_FLASK_VERSION_NUMBER=$(awk '/^\s+FLASK_VERSION_NUMBER: /{print $2}' $BITRISE_YML_FILE);
+
+  # Ensure version number of main variant and flask are aligned
+  if [[ "$CURRENT_VERSION_NUMBER" != "$CURRENT_FLASK_VERSION_NUMBER" ]]; then
+    echo "VERSION_NUMBER $CURRENT_VERSION_NUMBER and FLASK_VERSION_NUMBER $CURRENT_FLASK_VERSION_NUMBER should be the same"
+    log_and_exit "Check why they are different and fix it before proceeding"
+  fi
+fi
+
 echo "SEMVER_VERSION is valid."
 echo -e "-------------------"
 echo "Updating files:"
