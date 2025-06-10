@@ -1,0 +1,54 @@
+name: Upload Yarn Binary to GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      yarn_version:
+        description: 'Yarn version to upload (e.g., 4.9.1)'
+        required: true
+        type: string
+
+jobs:
+  upload-yarn-binary:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Set up variables
+        id: vars
+        run: |
+          echo "YARN_VERSION=${{ github.event.inputs.yarn_version }}" >> $GITHUB_ENV
+          echo "YARN_FILENAME=yarn-${{ github.event.inputs.yarn_version }}.js" >> $GITHUB_ENV
+          echo "RELEASE_TAG=v${{ github.event.inputs.yarn_version }}" >> $GITHUB_ENV
+
+      - name: Download yarn.js binary
+        run: |
+          curl -L -o "$YARN_FILENAME" "https://repo.yarnpkg.com/${YARN_VERSION}/packages/yarnpkg-cli/bin/yarn.js"
+          ls -lh "$YARN_FILENAME"
+
+      - name: Display SHA256 checksum
+        run: |
+          sha256sum "$YARN_FILENAME"
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh -y
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create the release if it doesn't exist
+          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "Yarn $YARN_VERSION" --notes "Yarn CLI $YARN_VERSION binary."
+
+      - name: Upload yarn.js to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" "$YARN_FILENAME" --clobber
+
+      - name: Output download URL
+        run: |
+          echo "Download URL: https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${YARN_FILENAME}" 
