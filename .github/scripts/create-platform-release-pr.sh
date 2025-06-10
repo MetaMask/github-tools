@@ -237,11 +237,17 @@ git push --set-upstream origin "${CHANGELOG_BRANCH_NAME}"
 # Create Changelog PR
 # -----------------
 echo "Creating changelog PR.."
-gh pr create \
-  --draft \
-  --title "chore: ${CHANGELOG_BRANCH_NAME}" \
-  --body "${PR_BODY}" \
-  --base "${RELEASE_BRANCH_NAME}" \
-  --head "${CHANGELOG_BRANCH_NAME}";
+# Check if PR already exists
+if gh pr list --search "head:${CHANGELOG_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
+    echo "Changelog PR for branch ${CHANGELOG_BRANCH_NAME} already exists"
+else
+    gh pr create \
+      --draft \
+      --title "chore: ${CHANGELOG_BRANCH_NAME}" \
+      --body "${PR_BODY}" \
+      --base "${RELEASE_BRANCH_NAME}" \
+      --head "${CHANGELOG_BRANCH_NAME}"
+    echo "Changelog PR Created"
+fi
 
-echo "Changelog PR Created"
+echo "Changelog PR Ready"
