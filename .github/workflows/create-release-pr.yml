@@ -46,7 +46,6 @@ on:
         type: string
         description: 'The platform for which the release PR is being created.'
       github-tools-version:
-        required: true
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
         default: 'main'
@@ -79,8 +78,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          #ref: main
-          # ref: ale/unify-create-release-mobile-extension
           ref: ${{ inputs.github-tools-version }}
           path: github-tools
 
