@@ -167,7 +167,7 @@ fi
 
 echo "Creating release PR.."
 # Check if PR already exists
-if gh pr list --search "head:${RELEASE_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
+if gh pr list --head "${RELEASE_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
     echo "PR for branch ${RELEASE_BRANCH_NAME} already exists"
 else
     gh pr create \
