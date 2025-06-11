@@ -26,33 +26,22 @@ async function runGitCommands() {
   try {
     try {
       // Check if the branch already exists
-      const { stdout: branchExists } = await exec(
-        //`git rev-parse --quiet --verify ${branchName}`,
-        `git ls-remote origin ${branchName}`,
-      );
+      const { stdout: branchExists } = await exec(`git ls-remote origin ${branchName}`);
       if (branchExists.trim()) {
-        // Branch exists, so simply check it out
+        // Branch exists, check it out
         await exec(`git checkout ${branchName}`);
         await exec(`git pull origin ${branchName}`);
         console.log(`Checked out branch: ${branchName}`);
       } else {
-        throw new Error(
-          'git rev-parse --quiet --verify failed. Branch hash empty',
-        );
-      }
-    } catch (error) {
-      if (error.stdout === '') {
-        console.warn(
-          `Branch does not exist, creating new ${branchName} branch.`,
-        );
-
-        // Branch does not exist, create and check it out
+        // Branch doesn't exist, create it
+        console.warn(`Branch does not exist, creating new ${branchName} branch.`);
         await exec(`git checkout -b ${branchName}`);
         console.log(`Created and checked out branch: ${branchName}`);
-      } else {
-        console.error(`Error: ${error.message}`);
-        process.exit(1);
       }
+    } catch (error) {
+      // Handle actual git command errors
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
     }
 
     await exec('git fetch');
