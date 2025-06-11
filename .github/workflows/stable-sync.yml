@@ -35,10 +35,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js Mobile
+        if: ${{ inputs.repo-type == 'mobile' }}
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Setup Node.js Extension
+        if: ${{ inputs.repo-type == 'extension' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
 
       - name: Prepare Yarn
         if: ${{ inputs.repo-type == 'extension' }}
