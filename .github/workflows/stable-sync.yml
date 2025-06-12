@@ -15,6 +15,11 @@ on:
           - mobile
           - extension
         default: 'mobile'
+      stable-branch-name:
+        required: false
+        type: string
+        description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
+        default: 'stable'
   workflow_call:
     inputs:
       semver-version:
@@ -26,6 +31,11 @@ on:
         type: string
         description: 'Type of repository (mobile or extension)'
         default: 'mobile'
+      stable-branch-name:
+        required: false
+        type: string
+        description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
+        default: 'stable'
 
 jobs:
   stable-sync:
@@ -35,10 +45,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js Mobile
+        if: ${{ inputs.repo-type == 'mobile' }}
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Setup Node.js Extension
+        if: ${{ inputs.repo-type == 'extension' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.15'
+
+      - name: Prepare Yarn
+        if: ${{ inputs.repo-type == 'extension' }}
+        run: corepack prepare yarn@4.5.1 --activate
+
+      - name: Prepare Yarn - Enable corepack
+        if: ${{ inputs.repo-type == 'extension' }}
+        run: corepack enable
 
       - name: Check if PR exists
         id: check-pr
@@ -66,6 +91,7 @@ jobs:
         env:
           CREATE_BRANCH: 'false' # let the script handle the branch creation
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
+          BASE_BRANCH: ${{ inputs.stable-branch-name }}
         run: |
           node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely
