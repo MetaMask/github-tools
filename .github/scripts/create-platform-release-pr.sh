@@ -172,7 +172,7 @@ if gh pr list --head "${RELEASE_BRANCH_NAME}" --json number --jq 'length' | grep
 else
     gh pr create \
       --draft \
-      --title "feat: ${NEW_VERSION}" \
+      --title "release: ${NEW_VERSION}" \
       --body "${RELEASE_BODY}" \
       --head "${RELEASE_BRANCH_NAME}"
     echo "Release PR Created"

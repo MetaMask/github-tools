@@ -80,7 +80,6 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
   try {
     const git = simpleGit();
 
-
     const logOptions = {
       from: branchB,
       to: branchA,
@@ -151,7 +150,8 @@ function formatAsCSV(commitsByTeam) {
         stripDelimiter(commit.message, ','),
         stripDelimiter(commit.author, ','),
         commit.prLink,
-        stripDelimiter(team, ','),,
+        stripDelimiter(team, ','),
+        ,
         assignChangeType(commit.message),
       ];
       csvContent.push(row.join(','));
@@ -169,7 +169,6 @@ function stripDelimiter(inputString, delimiter) {
   return inputString.replace(regex, '');
 }
 
-
 // Helper function to escape CSV fields
 function escapeCSV(field) {
   if (field.includes(',') || field.includes('"') || field.includes('\n')) {
@@ -180,7 +179,12 @@ function escapeCSV(field) {
 // Helper function to create change type
 function assignChangeType(field) {
   if (field.includes('feat')) return 'Added';
-  else if (field.includes('cherry') || field.includes('bump')) return 'Ops';
+  else if (
+    field.includes('cherry') ||
+    field.includes('bump') ||
+    field.includes('release')
+  )
+    return 'Ops';
   else if (
     field.includes('chore') ||
     field.includes('test') ||
