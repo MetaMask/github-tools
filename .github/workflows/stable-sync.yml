@@ -64,7 +64,7 @@ jobs:
       - name: Prepare Yarn - Enable corepack
         if: ${{ inputs.repo-type == 'extension' }}
         run: corepack enable
-        
+
       - name: Check if PR exists
         id: check-pr
         uses: actions/github-script@v7
