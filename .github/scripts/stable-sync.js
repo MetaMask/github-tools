@@ -9,7 +9,7 @@
 //
 // Usage: node stable-sync.js [branch-name]
 // If no branch name is provided, defaults to 'stable-sync'
-// 
+//
 // Environment variables:
 // CREATE_BRANCH - if set to 'true', will push the branch at the end
 
@@ -19,29 +19,43 @@ const exec = promisify(require('child_process').exec);
 async function runGitCommands() {
   // Get branch name from command line arguments or use default
   const branchName = process.argv[2] || 'stable-main';
-  
+
+  // Get base stable branch from environment variable (defaults to 'master' for backward compatibility of extension)
+  const baseBranch = process.env.BASE_BRANCH || 'master';
+
   // Check if CREATE_BRANCH environment variable exists and is set to true
   const shouldPushBranch = (process.env.CREATE_BRANCH || 'false').toLowerCase() === 'true';
 
   try {
     try {
       // Check if the branch already exists
-      const { stdout: branchExists } = await exec(`git ls-remote origin ${branchName}`);
+      const { stdout: branchExists } = await exec(
+        //`git rev-parse --quiet --verify ${branchName}`,
+        `git ls-remote origin ${branchName}`,
+      );
       if (branchExists.trim()) {
-        // Branch exists, check it out
+        // Branch exists, so simply check it out
         await exec(`git checkout ${branchName}`);
         await exec(`git pull origin ${branchName}`);
         console.log(`Checked out branch: ${branchName}`);
       } else {
-        // Branch doesn't exist, create it
-        console.warn(`Branch does not exist, creating new ${branchName} branch.`);
-        await exec(`git checkout -b ${branchName}`);
-        console.log(`Created and checked out branch: ${branchName}`);
+        throw new Error(
+          'git rev-parse --quiet --verify failed. Branch hash empty',
+        );
       }
     } catch (error) {
-      // Handle actual git command errors
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
+      if (error.stdout === '') {
+        console.warn(
+          `Branch does not exist, creating new ${branchName} branch.`,
+        );
+
+        // Branch does not exist, create and check it out
+        await exec(`git checkout -b ${branchName}`);
+        console.log(`Created and checked out branch: ${branchName}`);
+      } else {
+        console.error(`Error: ${error.message}`);
+        process.exit(1);
+      }
     }
 
     await exec('git fetch');
@@ -71,7 +85,7 @@ async function runGitCommands() {
 
     await exec('git add .');
     await exec('git restore --source origin/main .');
-    console.log('Executed: it restore --source origin/main .');
+    console.log('Executed: git restore --source origin/main .');
 
     await exec('git checkout origin/main -- .');
     console.log('Executed: git checkout origin/main -- .');
@@ -82,7 +96,7 @@ async function runGitCommands() {
     // Execute mobile-specific commands if REPO is 'mobile'
     if (process.env.REPO === 'mobile') {
       console.log('Executing mobile-specific commands...');
-      
+
       await exec('git checkout origin/stable -- bitrise.yml');
       console.log('Executed: git checkout origin/stable -- bitrise.yml');
 
@@ -98,9 +112,9 @@ async function runGitCommands() {
     // Execute extension-specific commands if REPO is 'extension'
     else if (process.env.REPO === 'extension') {
       console.log('Executing extension-specific commands...');
-      
+
       const { stdout: packageJsonContent } = await exec(
-        'git show origin/master:package.json',
+        'git show origin/main:package.json',
       );
       const packageJson = JSON.parse(packageJsonContent);
       const packageVersion = packageJson.version;
@@ -132,7 +146,7 @@ async function runGitCommands() {
     }
 
     console.log(`Your local ${branchName} branch is now ready to become a PR.`);
-    
+
     // Push the branch if CREATE_BRANCH is true
     if (shouldPushBranch) {
       try {
