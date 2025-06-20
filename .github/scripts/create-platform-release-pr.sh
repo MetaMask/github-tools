@@ -74,8 +74,12 @@ get_release_branch_name() {
         return 0
     fi
 
-    # Use consistent release branch naming for all platforms
-    echo "release/${new_version}"
+    # Different release branch naming for different platforms
+    if [[ "$platform" == "mobile" ]]; then
+      echo "release/${new_version}"
+    elif [[ "$platform" == "extension" ]]; then
+      echo "Version-v${new_version}"
+    fi
 }
 
 # Main Script
