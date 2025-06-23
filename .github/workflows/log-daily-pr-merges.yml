@@ -51,18 +51,18 @@ jobs:
           # Get the repository name from GITHUB_REPOSITORY
           REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
           echo "Repository: $REPO_NAME"
-          
+
           # Count PRs merged yesterday into main branch
           # Using GitHub API to search for PRs merged on yesterday's date
           YESTERDAY="${{ steps.yesterday.outputs.yesterday }}"
-          
+
           # Search for PRs merged yesterday
           PR_COUNT=$(curl --silent \
             --header "Authorization: token $GITHUB_TOKEN" \
             --header "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/search/issues?q=repo:$GITHUB_REPOSITORY+is:pr+is:merged+merged:$YESTERDAY..$YESTERDAY+base:main" \
             | jq '.total_count')
-          
+
           echo "PRs merged yesterday: $PR_COUNT"
           echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
 
@@ -74,18 +74,18 @@ jobs:
         run: |
           YESTERDAY="${{ steps.yesterday.outputs.yesterday }}"
           PR_COUNT="${{ steps.count_prs.outputs.pr_count }}"
-          
+
           # Get OAuth token
           token=$(oauth2l fetch --scope https://www.googleapis.com/auth/spreadsheets)
-          
+
           # Read existing data to check if yesterday's row exists
           spreadsheet_data=$(curl --silent --header "Authorization: Bearer $token" \
             https://sheets.googleapis.com/v4/spreadsheets/"$SPREADSHEET_ID"/values/"$SHEET_NAME"!A:C)
-          
+
           # Check if yesterday's date exists in column A
           current_date_index=$(echo "$spreadsheet_data" | jq --arg yesterday "$YESTERDAY" \
             '(.values | map(.[0])) | (index($yesterday) | if . == null then null else . + 1 end)')
-          
+
           if [ "$current_date_index" == "null" ]; then
             # Date doesn't exist, append new row with PR count in column C
             curl --silent --header "Authorization: Bearer $token" \
@@ -102,4 +102,4 @@ jobs:
               --data "{\"values\":[[$PR_COUNT]]}" \
               https://sheets.googleapis.com/v4/spreadsheets/"$SPREADSHEET_ID"/values/"$SHEET_NAME"!C"$current_date_index":C"$current_date_index"?valueInputOption=USER_ENTERED
             echo "Updated row $current_date_index for $YESTERDAY with $PR_COUNT PRs merged"
-          fi 
+          fi
