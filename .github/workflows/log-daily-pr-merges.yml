@@ -40,7 +40,7 @@ jobs:
         run: |
           # Get yesterday's date in YYYY-MM-DD format
           YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
-          echo "yesterday=$YESTERDAY" >> $GITHUB_OUTPUT
+          echo "yesterday=$YESTERDAY" >> "$GITHUB_OUTPUT"
           echo "Yesterday's date: $YESTERDAY"
 
       - name: Count PRs merged yesterday
@@ -64,7 +64,7 @@ jobs:
             | jq '.total_count')
 
           echo "PRs merged yesterday: $PR_COUNT"
-          echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
+          echo "pr_count=$PR_COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Write data to google sheets
         env:
