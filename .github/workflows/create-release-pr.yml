@@ -94,6 +94,12 @@ jobs:
           echo "GitHub Ref: ${{ github.ref }}"
           echo "GitHub SHA: ${{ github.sha }}"
           echo "-------------"
+        
+      - name: Get current SHA of this workflow
+        run: |
+          WORKFLOW_SHA=$(git rev-parse HEAD)
+          echo "Current workflow SHA: $WORKFLOW_SHA"
+          echo "WORKFLOW_SHA=$WORKFLOW_SHA" >> $GITHUB_ENV
 
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
@@ -101,7 +107,7 @@ jobs:
         with:
           repository: MetaMask/github-tools
           # ref: ${{ inputs.github-tools-version }}
-          ref: ${{ github.action_ref}}
+          ref: ${{ env.WORKFLOW_SHA }}
           path: github-tools
 
       # Step 3: Setup environment from github-tools
