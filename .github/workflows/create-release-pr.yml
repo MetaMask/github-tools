@@ -67,10 +67,8 @@ jobs:
     steps:
       - name: Get current SHA of this workflow
         run: |
-          WORKFLOW_SHA=$(git rev-parse HEAD)
-          echo "Current workflow SHA: $WORKFLOW_SHA"
-          echo "WORKFLOW_SHA=$WORKFLOW_SHA" >> $GITHUB_ENV
-          
+          echo "GitHub Action Ref: ${{ github.action_ref }}"
+
       # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
       - name: Checkout invoking repository
         uses: actions/checkout@v4
