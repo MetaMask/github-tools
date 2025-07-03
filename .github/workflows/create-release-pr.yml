@@ -65,9 +65,10 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Get current SHA of this workflow
-        run: |
-          echo "GitHub Action Ref: ${{ github.action_ref }}"
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
 
       # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
       - name: Checkout invoking repository
