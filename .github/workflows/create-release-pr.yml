@@ -79,7 +79,7 @@ jobs:
         with:
           repository: MetaMask/github-tools
           # ref: ${{ inputs.github-tools-version }}
-          ref: ${{ github.ref}}
+          ref: ${{ github.sha}}
           path: github-tools
 
       # Step 3: Setup environment from github-tools
@@ -107,6 +107,7 @@ jobs:
           echo "GitHub Tools Version: ${{ inputs.github-tools-version }}"
           echo "GitHub Action Ref: ${{ github.action_ref }}"
           echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub SHA: ${{ github.sha }}"
           echo "-------------"
 
       # Step 5: Create Release PR
