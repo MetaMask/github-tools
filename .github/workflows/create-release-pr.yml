@@ -79,7 +79,7 @@ jobs:
         with:
           repository: MetaMask/github-tools
           # ref: ${{ inputs.github-tools-version }}
-          ref: ${{ github.sha}}
+          ref: ${{ github.action_ref}}
           path: github-tools
 
       # Step 3: Setup environment from github-tools
