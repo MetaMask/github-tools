@@ -65,6 +65,12 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Get current SHA of this workflow
+        run: |
+          WORKFLOW_SHA=$(git rev-parse HEAD)
+          echo "Current workflow SHA: $WORKFLOW_SHA"
+          echo "WORKFLOW_SHA=$WORKFLOW_SHA" >> $GITHUB_ENV
+          
       # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
       - name: Checkout invoking repository
         uses: actions/checkout@v4
@@ -94,12 +100,6 @@ jobs:
           echo "GitHub Ref: ${{ github.ref }}"
           echo "GitHub SHA: ${{ github.sha }}"
           echo "-------------"
-        
-      - name: Get current SHA of this workflow
-        run: |
-          WORKFLOW_SHA=$(git rev-parse HEAD)
-          echo "Current workflow SHA: $WORKFLOW_SHA"
-          echo "WORKFLOW_SHA=$WORKFLOW_SHA" >> $GITHUB_ENV
 
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
