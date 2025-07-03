@@ -73,6 +73,28 @@ jobs:
           ref: ${{ inputs.base-branch }}
           token: ${{ secrets.github-token }}
 
+      # Step 4: Print Input Values
+      - name: Print Input Values before
+        run: |
+          echo "Input Values:"
+          echo "-------------"
+          echo "Platform: ${{ inputs.platform }}"
+          echo "Base Branch: ${{ inputs.base-branch }}"
+          echo "Semver Version: ${{ inputs.semver-version }}"
+          echo "Previous Version Tag: ${{ inputs.previous-version-tag }}"
+          echo "Test Only Mode: ${{ inputs.test-only }}"
+          if [[ "${{ inputs.platform }}" == "mobile" ]]; then
+            echo "Mobile Build Version: ${{ inputs.mobile-build-version }}"
+          fi
+          echo "Mobile Template Sheet ID: ${{ inputs.mobile-template-sheet-id }}"
+          echo "Extension Template Sheet ID: ${{ inputs.extension-template-sheet-id }}"
+          echo "Release Sheet Google Document ID: ${{ inputs.release-sheet-google-document-id }}"
+          echo "GitHub Tools Version: ${{ inputs.github-tools-version }}"
+          echo "GitHub Action Ref: ${{ github.action_ref }}"
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub SHA: ${{ github.sha }}"
+          echo "-------------"
+
       # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
         uses: actions/checkout@v4
