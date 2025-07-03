@@ -78,7 +78,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
+          # ref: ${{ inputs.github-tools-version }}
+          ref: ${{ github.action_ref}}
           path: github-tools
 
       # Step 3: Setup environment from github-tools
@@ -128,3 +129,4 @@ jobs:
             ${{ inputs.previous-version-tag }} \
             ${{ inputs.semver-version }} \
             ${{ inputs.mobile-build-version }}
+

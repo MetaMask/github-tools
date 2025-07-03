@@ -72,14 +72,16 @@ get_release_branch_name() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "release-testing/${new_version}"
         return 0
+    elif
+      echo "${new_version}"
     fi
 
     # Different release branch naming for different platforms
-    if [[ "$platform" == "mobile" ]]; then
-      echo "release/${new_version}"
-    elif [[ "$platform" == "extension" ]]; then
-      echo "Version-v${new_version}"
-    fi
+    # if [[ "$platform" == "mobile" ]]; then
+    #   echo "release/${new_version}"
+    # elif [[ "$platform" == "extension" ]]; then
+    #   echo "Version-v${new_version}"
+    # fi
 }
 
 # Main Script
