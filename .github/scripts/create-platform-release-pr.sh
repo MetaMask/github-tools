@@ -32,11 +32,6 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
-if [[ -z $RELEASE_BRANCH_NAMING ]]; then
-  echo "Error: No release branch naming specified."
-  exit 1
-fi
-
 
 # Helper Functions
 # ---------------
@@ -78,9 +73,9 @@ get_release_branch_name() {
     fi
 
     # Use consistent release branch naming for all platforms
-    echo "$RELEASE_BRANCH_NAMING${new_version}"
+    echo "release/${new_version}"
 
-    # Different release branch naming for different platforms
+    # Different release branch naming for different platforms, commented in case of need it
     # if [[ "$platform" == "mobile" ]]; then
     #   echo "release/${new_version}"
     # elif [[ "$platform" == "extension" ]]; then
@@ -220,17 +215,23 @@ yarn --cwd install
 echo "Generating test plan csv.."
 yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
 
-# if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
-#   echo "Updating release sheet.."
-#   # Create a new Release Sheet Page for the new version with our commits.csv content
-#   yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
-# fi
+if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
+  echo "Updating release sheet.."
+  # Create a new Release Sheet Page for the new version with our commits.csv content
+  yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
+fi
 cd ../
 
 # Commit and Push Changelog Changes
 # -------------------------------
 echo "Adding and committing changes.."
-git add ./commits.csv
+# Add commits.csv file if it exists
+if [ -f "./commits.csv" ]; then
+    echo "commits.csv found, adding to git..."
+    git add ./commits.csv
+else
+    echo "--> commits.csv not found, skipping..."
+fi
 
 
 if ! (git commit -am "updated changelog and generated feature test plan");
