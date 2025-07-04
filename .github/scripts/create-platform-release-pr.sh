@@ -72,7 +72,7 @@ get_release_branch_name() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "release-testing/${new_version}"
         return 0
-    elif
+    else
       echo "${new_version}"
     fi
 
