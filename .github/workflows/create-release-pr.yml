@@ -49,7 +49,7 @@ on:
         required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
-        default: 'main'
+        default: ${{ github.action_ref }}
     secrets:
       github-token:
         required: true
