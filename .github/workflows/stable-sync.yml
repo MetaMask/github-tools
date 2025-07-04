@@ -20,6 +20,11 @@ on:
         type: string
         description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
         default: 'stable'
+      github-tools-version:
+        required: false
+        type: string
+        description: 'The version of github-tools to use. Defaults to main.'
+        default: ${{ github.action_ref }}
   workflow_call:
     inputs:
       semver-version:
@@ -44,6 +49,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: ${{ inputs.github-tools-version }}
+          path: github-tools
 
       - name: Setup Node.js Mobile
         if: ${{ inputs.repo-type == 'mobile' }}
@@ -93,7 +105,8 @@ jobs:
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
         run: |
-          node .github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
+          # Execute the script from github-tools
+          node .github_tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
