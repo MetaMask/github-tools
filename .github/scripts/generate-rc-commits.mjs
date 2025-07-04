@@ -98,7 +98,7 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
         console.log(`✓ Branch origin/${branchA} exists, using remote reference`);
         branchA = `origin/${branchA}`;
       } catch (remoteError) {
-        console.error(`✗ Branch ${branchA} does not exist remotely either`);
+        console.error(`✗ Branch ${branchA} does not exists remotely either`);
         throw new Error(`Branch ${branchA} not found locally or remotely`);
       }
     }
@@ -114,7 +114,7 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
         console.log(`✓ Branch origin/${branchB} exists, using remote reference`);
         branchB = `origin/${branchB}`;
       } catch (remoteError) {
-        console.error(`✗ Branch ${branchB} does not exist remotely either`);
+        console.error(`✗ Branch ${branchB} does not exists remotely either`);
         throw new Error(`Branch ${branchB} not found locally or remotely`);
       }
     }

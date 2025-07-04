@@ -110,7 +110,7 @@ jobs:
           echo "GitHub SHA: ${{ github.sha }}"
           echo "-------------"
 
-      # # Step 5: Create Release PR
+      # Step 5: Create Release PR
       - name: Create Release PR
         id: create-release-pr
         shell: bash
