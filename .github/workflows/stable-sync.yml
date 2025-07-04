@@ -111,7 +111,7 @@ jobs:
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
         run: |
           # Execute the script from github-tools
-          node .github_tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
+          node ./github_tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
