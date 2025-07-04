@@ -24,7 +24,7 @@ on:
         required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
-        default: ${{ github.action_ref }}
+        default: 'main'
   workflow_call:
     inputs:
       semver-version:
@@ -41,6 +41,11 @@ on:
         type: string
         description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
         default: 'stable'
+      github-tools-version:
+        required: false
+        type: string
+        description: 'The version of github-tools to use. Defaults to main.'
+        default: ${{ github.action_ref }}
 
 jobs:
   stable-sync:
