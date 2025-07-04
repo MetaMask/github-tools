@@ -32,7 +32,10 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
-
+if [[ -z $RELEASE_BRANCH_NAMING ]]; then
+  echo "Error: No release branch naming specified."
+  exit 1
+fi
 
 
 # Helper Functions
@@ -72,9 +75,10 @@ get_release_branch_name() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "release-testing/${new_version}"
         return 0
-    else
-      echo "${new_version}"
     fi
+
+    # Use consistent release branch naming for all platforms
+    echo "$RELEASE_BRANCH_NAMING${new_version}"
 
     # Different release branch naming for different platforms
     # if [[ "$platform" == "mobile" ]]; then

@@ -49,6 +49,11 @@ on:
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
         default: 'main'
+      release-branch-naming:
+        required: false
+        type: string
+        description: 'The naming convention for the release branch.'
+        default: 'release/'
     secrets:
       github-token:
         required: true
@@ -98,6 +103,7 @@ jobs:
           echo "Semver Version: ${{ inputs.semver-version }}"
           echo "Previous Version Tag: ${{ inputs.previous-version-tag }}"
           echo "Test Only Mode: ${{ inputs.test-only }}"
+          echo "Release Branch Naming: ${{ inputs.release-branch-naming }}"
           if [[ "${{ inputs.platform }}" == "mobile" ]]; then
             echo "Mobile Build Version: ${{ inputs.mobile-build-version }}"
           fi
@@ -119,6 +125,7 @@ jobs:
           BASE_BRANCH: ${{ inputs.base-branch }}
           GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
           TEST_ONLY: ${{ inputs.test-only }}
+          RELEASE_BRANCH_NAMING: ${{ inputs.release-branch-naming }}
           GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           NEW_VERSION: ${{ inputs.semver-version }}
