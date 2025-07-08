@@ -113,6 +113,8 @@ jobs:
           # Execute the script from github-tools
           node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           # Check if branch exists remotely
+          echo "Cleaning up github-tools"
+          rm -rf github-tools
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             git pull --rebase
