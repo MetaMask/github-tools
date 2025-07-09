@@ -92,16 +92,16 @@ runs:
     - name: Boot iOS Simulator (if not already booted)
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       run: |
-        echo "Looking for simulator named: ${{ inputs.ios-simulator-device }}"
+        echo "Looking for simulator named: ${{ inputs.ios-device }}"
 
-        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-simulator-device }}")
+        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-device }}")
         if [ -z "$SIMULATOR_LINE" ]; then
-          echo "No simulator found with name '${{ inputs.ios-simulator-device }}'"
+          echo "No simulator found with name '${{ inputs.ios-device }}'"
           exit 1
         fi
 
         SIMULATOR_ID=$(echo "$SIMULATOR_LINE" | awk -F '[()]' '{print $2}')
-        SIMULATOR_STATE=$(echo "$SIMULATOR_LINE" | awk -F '[()]' '{print $NF}')
+        SIMULATOR_STATE=$(echo "$SIMULATOR_LINE" | awk -F '[()]' '{print $(NF-1)}')
 
         echo "Simulator ID: $SIMULATOR_ID"
         echo "Simulator State: $SIMULATOR_STATE"
@@ -113,6 +113,7 @@ runs:
           xcrun simctl boot "$SIMULATOR_ID"
         fi
       shell: bash
+
 
 
 
