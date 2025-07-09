@@ -214,7 +214,24 @@ async function analyzePackageJsonChanges(
       };
     }
 
-    const versionAddedMatch = stdout.match(/^\+\s*"version":\s*"([^"]+)"/mu);
+    const versionLines: string[] = [];
+    const nonVersionLines: string[] = [];
+
+    for (const line of lines) {
+      if (/^[+-]\s*"version":\s*"[^"]+"\s*,?\s*$/mu.test(line)) {
+        versionLines.push(line);
+      } else {
+        nonVersionLines.push(line);
+      }
+    }
+
+    // Check for version changes first
+    const versionAddedLine = versionLines.find(
+      (line) => line.startsWith('+') && line.includes('"version":'),
+    );
+    const versionAddedMatch = versionAddedLine?.match(
+      /^\+\s*"version":\s*"([^"]+)"/u,
+    );
     const newVersion = versionAddedMatch?.[1] ?? null;
     const hasVersionChange = newVersion !== null;
 
@@ -228,11 +245,6 @@ async function analyzePackageJsonChanges(
         newVersion,
       };
     }
-
-    // Filter out version lines to check the rest
-    const nonVersionLines = lines.filter(
-      (line) => !/^[+-]\s*"version":\s*"[^"]+"\s*,?\s*$/mu.test(line),
-    );
 
     // Check if all non-version lines are in devDependencies
     const allNonVersionLinesAreDevDeps = nonVersionLines.every((line) =>
@@ -319,15 +331,13 @@ async function checkChangelogFile(
     // Otherwise, check the Unreleased section
     let releaseSection = 'Unreleased';
     if (packageVersion) {
-      // Check if this might be a release PR by looking for the version in changelog
-      try {
-        const versionChanges = changelogData.getReleaseChanges(packageVersion);
-        if (versionChanges && Object.keys(versionChanges).length > 0) {
-          releaseSection = packageVersion;
-        }
-      } catch {
-        // If version section doesn't exist, fallback to Unreleased
-        releaseSection = 'Unreleased';
+      const versionChanges = changelogData.getReleaseChanges(packageVersion);
+      if (versionChanges) {
+        releaseSection = packageVersion;
+      } else {
+        throw new Error(
+          `Could not find section for version '${packageVersion}' in changelog`,
+        );
       }
     }
 
@@ -339,7 +349,7 @@ async function checkChangelogFile(
         .some((entry) => entry.includes(`[#${prNumber}]`))
     ) {
       throw new Error(
-        "One or more changelogs might be out of date. If the changes you've introduced to a package are user-facing, please update its changelog by adding one or more entries for the changes to the Unreleased section, making sure to link the entries to the current PR. If your changes are not user-facing, you can bypass this check by adding the 'no-changelog' label to the PR.",
+        `There are changes made to this package that may not be reflected in the changelog ("${changelogPath}"). If the changes you've introduced are user-facing, please document them under the "${releaseSection}" section, making sure to link the entries to the current PR. If the changelog is up to date, you can bypass this check by adding the 'no-changelog' label to the PR.`,
       );
     }
   } catch (error) {
@@ -368,12 +378,12 @@ async function getChangedPackages(
   {
     base: string;
     package: string;
-    newVersion?: string;
+    newVersion?: string | undefined;
   }[]
 > {
   const changedPackages = new Map<
     string,
-    { base: string; package: string; newVersion?: string }
+    { base: string; package: string; newVersion?: string | undefined }
   >();
   const privatePackageCache = new Map<string, boolean>();
 
@@ -420,13 +430,6 @@ async function getChangedPackages(
             continue;
           }
 
-          if (packageJsonChanges.newVersion) {
-            newVersion = packageJsonChanges.newVersion;
-            console.log(
-              `Detected version change to ${packageJsonChanges.newVersion} in ${packageInfo.package}`,
-            );
-          }
-
           if (packageJsonChanges.isVersionOnly) {
             console.log(
               `Skipping package.json in ${packageInfo.package} as it only contains version changes`,
@@ -447,15 +450,16 @@ async function getChangedPackages(
             );
             continue;
           }
+
+          if (packageJsonChanges.newVersion) {
+            newVersion = packageJsonChanges.newVersion;
+          }
         }
 
         const existingPackage = changedPackages.get(packageInfo.package);
         const packageData = {
           ...packageInfo,
-          ...(newVersion ? { newVersion } : {}),
-          ...(existingPackage?.newVersion
-            ? { newVersion: existingPackage.newVersion }
-            : {}),
+          newVersion: existingPackage?.newVersion ?? newVersion,
         };
         changedPackages.set(packageInfo.package, packageData);
       }
