@@ -17,6 +17,10 @@ inputs:
     description: Name of iOS simulator device to boot (e.g., "iPhone 15")
     required: false
     default: "iPhone 15"
+  bundler-version:
+    description: 'Bundler version to use (only for iOS)'
+    required: false
+    default: '2.5.8'
   cache-prefix:
     description: 'Cache key prefix'
     required: false
@@ -54,18 +58,30 @@ runs:
 ## IOS Setup ##
     - name: Setup Ruby
       if: ${{ inputs.platform == 'ios' }}
-      uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@e851ebd3adcc861aa9e9763c26a9025811f77cd9 # ( v1.245.0 )
       with:
         ruby-version: ${{ inputs.ruby-version }}
+
+    - name: Install bundler
+      if: ${{ inputs.platform == 'ios' }}
+      run: gem install bundler -v ${{ inputs.bundler-version }}
+      shell: bash
 
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
       run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
       shell: bash
 
-    - name: Install CocoaPods
+    - name: Install Ruby gems via bundler
       if: ${{ inputs.platform == 'ios' }}
-      run: sudo gem install cocoapods
+      run: bundle install
+      working-directory: ios
+      shell: bash
+
+    - name: Install CocoaPods via bundler
+      if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
+      run: bundle exec pod install
+      working-directory: ios
       shell: bash
 
     - name: Install applesimutils
