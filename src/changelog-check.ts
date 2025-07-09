@@ -112,52 +112,67 @@ async function getChangedFiles(
 }
 
 /**
- * Checks if a specific change line is in the devDependencies section.
+ * Extracts lines that are within devDependencies sections from the diff output.
  *
- * @param changeLine - The specific change line to check.
- * @param diffOutput - The full diff output for context.
- * @returns True if the line is in devDependencies, false otherwise.
+ * @param diffOutput - The full diff output.
+ * @param nonVersionLines - The non-version change lines to filter.
+ * @returns Array of lines that are within devDependencies sections.
  */
-const isLineInDevDependencies = (
-  changeLine: string,
+const getDevDependencyLines = (
   diffOutput: string,
-): boolean => {
+  nonVersionLines: string[],
+): string[] => {
   const allLines = diffOutput.split('\n');
-  const changeLineIndex = allLines.findIndex((line) => line === changeLine);
+  const devDependencyLines: string[] = [];
 
-  if (changeLineIndex === -1) {
-    return false;
-  }
+  const devDepSectionBoundaries: { start: number; end: number }[] = [];
 
-  // Look backwards from the change line to find the nearest section header
-  for (let i = changeLineIndex; i >= 0; i--) {
+  for (let i = 0; i < allLines.length; i++) {
     const line = allLines[i];
 
-    if (!line) {
-      continue;
-    }
+    if (line?.includes('"devDependencies"') && line.includes(':')) {
+      const startIndex = i;
+      let endIndex = allLines.length - 1;
 
-    // If we find devDependencies section, we're in it
-    if (line.includes('"devDependencies"') && line.includes(':')) {
-      return true;
-    }
+      // Find the end of this section (next section or closing brace)
+      for (let j = i + 1; j < allLines.length; j++) {
+        const nextLine = allLines[j];
+        if (
+          nextLine &&
+          (nextLine.includes('"dependencies"') ||
+            nextLine.includes('"peerDependencies"') ||
+            nextLine.includes('"scripts"') ||
+            nextLine.includes('"engines"') ||
+            nextLine.includes('"main"') ||
+            nextLine.includes('"types"') ||
+            nextLine.includes('"files"')) &&
+          nextLine.includes(':')
+        ) {
+          endIndex = j - 1;
+          break;
+        }
+      }
 
-    // If we find any other section first, we're not in devDependencies
-    if (
-      (line.includes('"dependencies"') ||
-        line.includes('"peerDependencies"') ||
-        line.includes('"scripts"') ||
-        line.includes('"engines"') ||
-        line.includes('"main"') ||
-        line.includes('"types"') ||
-        line.includes('"files"')) &&
-      line.includes(':')
-    ) {
-      return false;
+      devDepSectionBoundaries.push({ start: startIndex, end: endIndex });
     }
   }
 
-  return false;
+  // Check which nonVersionLines fall within devDependencies sections
+  for (const changeLine of nonVersionLines) {
+    const lineIndex = allLines.findIndex((line) => line === changeLine);
+    if (lineIndex !== -1) {
+      // Check if this line falls within any devDependencies section
+      const isInDevDeps = devDepSectionBoundaries.some(
+        (section) => lineIndex >= section.start && lineIndex <= section.end,
+      );
+
+      if (isInDevDeps) {
+        devDependencyLines.push(changeLine);
+      }
+    }
+  }
+
+  return devDependencyLines;
 };
 
 /**
@@ -235,8 +250,8 @@ async function analyzePackageJsonChanges(
     const newVersion = versionAddedMatch?.[1] ?? null;
     const hasVersionChange = newVersion !== null;
 
-    // Check if only version was changed (exactly 2 lines: one addition, one removal)
-    if (lines.length === 2 && hasVersionChange) {
+    // Check if only version was changed
+    if (nonVersionLines.length === 0) {
       return {
         hasChanges: true,
         isVersionOnly: true,
@@ -247,9 +262,9 @@ async function analyzePackageJsonChanges(
     }
 
     // Check if all non-version lines are in devDependencies
-    const allNonVersionLinesAreDevDeps = nonVersionLines.every((line) =>
-      isLineInDevDependencies(line, stdout),
-    );
+    const devDependencyLines = getDevDependencyLines(stdout, nonVersionLines);
+    const allNonVersionLinesAreDevDeps =
+      devDependencyLines.length === nonVersionLines.length;
 
     return {
       hasChanges: true,
@@ -332,7 +347,7 @@ async function checkChangelogFile(
     let releaseSection = 'Unreleased';
     if (packageVersion) {
       const versionChanges = changelogData.getReleaseChanges(packageVersion);
-      if (versionChanges) {
+      if (versionChanges && Object.keys(versionChanges).length > 0) {
         releaseSection = packageVersion;
       } else {
         throw new Error(
