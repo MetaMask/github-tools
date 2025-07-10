@@ -392,7 +392,7 @@ async function checkChangelogFile(
         releaseSection = packageVersion;
       } else {
         throw new Error(
-          `Could not find section for version '${packageVersion}' in changelog`,
+          `Could not find section for version '${packageVersion}' in the changelog ("${changelogPath}").`,
         );
       }
     }
@@ -585,16 +585,13 @@ async function main() {
     const checkResults = await Promise.all(
       changedPackages.map(async (pkgInfo) => {
         try {
-          await checkChangelogFile(
-            path.join(
-              fullRepoPath,
-              pkgInfo.base,
-              pkgInfo.package,
-              'CHANGELOG.md',
-            ),
-            prNumber,
-            pkgInfo.newVersion,
+          const changelogPath = path.join(
+            fullRepoPath,
+            pkgInfo.base,
+            pkgInfo.package,
+            'CHANGELOG.md',
           );
+          await checkChangelogFile(changelogPath, prNumber, pkgInfo.newVersion);
           console.log(
             `CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
           );
