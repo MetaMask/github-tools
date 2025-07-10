@@ -115,11 +115,11 @@ runs:
     - name: Boot iOS Simulator (if not already booted)
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       run: |
-        echo "Looking for simulator named: ${{ inputs.ios-device }}"
+        echo "Looking for simulator named: ${{ inputs.ios-simulator-device }}"
 
-        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-device }}")
+        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-simulator-device }}")
         if [ -z "$SIMULATOR_LINE" ]; then
-          echo "No simulator found with name '${{ inputs.ios-device }}'"
+          echo "No simulator found with name '${{ inputs.ios-simulator-device }}'"
           exit 1
         fi
 
