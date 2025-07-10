@@ -2,6 +2,7 @@ import { parseChangelog } from '@metamask/auto-changelog';
 import { execa } from 'execa';
 import fs from 'fs/promises';
 import path from 'path';
+import { SemVer } from 'semver';
 
 type PackageJson = {
   workspaces: string[];
@@ -176,6 +177,20 @@ const getDevDependencyLines = (
 };
 
 /**
+ * Checks if a version change is a downgrade (revert).
+ *
+ * @param oldVersion - The old version from the diff.
+ * @param newVersion - The new version from the diff.
+ * @returns True if this is a version downgrade, false otherwise.
+ */
+const isVersionDowngrade = (
+  oldVersion: string,
+  newVersion: string,
+): boolean => {
+  return new SemVer(newVersion).compare(new SemVer(oldVersion)) <= 0;
+};
+
+/**
  * Analyzes all changes in a package.json file and returns structured information.
  *
  * @param repoPath - The path to the repository.
@@ -192,6 +207,7 @@ async function analyzePackageJsonChanges(
   isVersionOnly: boolean;
   isDevDependencyOnly: boolean;
   isVersionAndDevDependencyOnly: boolean;
+  isVersionDowngrade: boolean;
   newVersion: string | null;
 }> {
   try {
@@ -209,6 +225,7 @@ async function analyzePackageJsonChanges(
         isVersionOnly: false,
         isDevDependencyOnly: false,
         isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: false,
         newVersion: null,
       };
     }
@@ -225,6 +242,7 @@ async function analyzePackageJsonChanges(
         isVersionOnly: false,
         isDevDependencyOnly: false,
         isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: false,
         newVersion: null,
       };
     }
@@ -248,7 +266,27 @@ async function analyzePackageJsonChanges(
       /^\+\s*"version":\s*"([^"]+)"/u,
     );
     const newVersion = versionAddedMatch?.[1] ?? null;
-    const hasVersionChange = newVersion !== null;
+
+    const versionRemovedLine = versionLines.find(
+      (line) => line.startsWith('-') && line.includes('"version":'),
+    );
+    const versionRemovedMatch = versionRemovedLine?.match(
+      /^-\s*"version":\s*"([^"]+)"/u,
+    );
+    const oldVersion = versionRemovedMatch?.[1] ?? null;
+
+    const hasNewVersion = newVersion !== null;
+
+    if (!hasNewVersion && oldVersion) {
+      throw new Error(
+        `Could not find new version for version change in ${filePath}`,
+      );
+    }
+
+    const isDowngrade =
+      oldVersion && newVersion
+        ? isVersionDowngrade(oldVersion, newVersion)
+        : false;
 
     // Check if only version was changed
     if (nonVersionLines.length === 0) {
@@ -257,6 +295,7 @@ async function analyzePackageJsonChanges(
         isVersionOnly: true,
         isDevDependencyOnly: false,
         isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: isDowngrade,
         newVersion,
       };
     }
@@ -269,9 +308,10 @@ async function analyzePackageJsonChanges(
     return {
       hasChanges: true,
       isVersionOnly: false,
-      isDevDependencyOnly: !hasVersionChange && allNonVersionLinesAreDevDeps,
+      isDevDependencyOnly: !hasNewVersion && allNonVersionLinesAreDevDeps,
       isVersionAndDevDependencyOnly:
-        hasVersionChange && allNonVersionLinesAreDevDeps,
+        hasNewVersion && allNonVersionLinesAreDevDeps,
+      isVersionDowngrade: isDowngrade,
       newVersion,
     };
   } catch (error) {
@@ -285,6 +325,7 @@ async function analyzePackageJsonChanges(
       isVersionOnly: false,
       isDevDependencyOnly: false,
       isVersionAndDevDependencyOnly: false,
+      isVersionDowngrade: false,
       newVersion: null,
     };
   }
@@ -448,6 +489,13 @@ async function getChangedPackages(
           if (packageJsonChanges.isVersionOnly) {
             console.log(
               `Skipping package.json in ${packageInfo.package} as it only contains version changes`,
+            );
+            continue;
+          }
+
+          if (packageJsonChanges.isVersionDowngrade) {
+            console.log(
+              `Skipping package.json in ${packageInfo.package} as it contains a version downgrade (revert)`,
             );
             continue;
           }
