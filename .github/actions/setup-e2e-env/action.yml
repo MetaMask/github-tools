@@ -58,7 +58,7 @@ runs:
 ## IOS Setup ##
     - name: Setup Ruby
       if: ${{ inputs.platform == 'ios' }}
-      uses: ruby/setup-ruby@e851ebd3adcc861aa9e9763c26a9025811f77cd9 # ( v1.245.0 )
+      uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
       with:
         ruby-version: ${{ inputs.ruby-version }}
 
@@ -113,6 +113,11 @@ runs:
           xcrun simctl boot "$SIMULATOR_ID"
         fi
       shell: bash
+
+## Android Setup
+    - name: Setup Java
+      if: ${{ inputs.platform == 'android' }}
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
 
 
 
