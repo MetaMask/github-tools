@@ -8,6 +8,10 @@ inputs:
     description: 'Node.js version'
     required: false
     default: '20.18.0'
+  yarn-version:
+    description: Yarn version to use with Corepack
+    required: false
+    default: '1.22.22'
   setup-simulator:
     description: 'Whether to setup simulator/emulator'
     required: false
@@ -46,24 +50,23 @@ runs:
 ## Yarn Setup & Cache Management
 
     - name: Install Yarn
-      run: corepack enable && corepack prepare yarn@stable --activate
+      run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
       shell: bash
+
 
     - name: Restore Yarn cache
       uses: actions/cache@v4
       with:
         path: |
-          **/node_modules
+          node_modules
         key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
-    # Step 3: Install JS deps (fast if node_modules is cached)
     - name: Install JavaScript dependencies
       if: ${{ inputs.platform == 'ios' }}
       run: yarn install --frozen-lockfile
       shell: bash
-
 
     - name: Install Detox CLI
       run: yarn global add detox-cli
@@ -74,31 +77,40 @@ runs:
       shell: bash
 
 ## IOS Setup ##
+
+## Ruby Setup & Cache Management
     - name: Setup Ruby
       if: ${{ inputs.platform == 'ios' }}
       uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
       with:
         ruby-version: ${{ inputs.ruby-version }}
 
-    - name: Install JavaScript dependencies
-      if: ${{ inputs.platform == 'ios' }}
-      run: yarn install --frozen-lockfile
-      shell: bash
-    
+    # Install Bundler first
     - name: Install bundler
       if: ${{ inputs.platform == 'ios' }}
       run: gem install bundler -v ${{ inputs.bundler-version }}
       shell: bash
 
+    # Restore cached Ruby gems
+    - name: Restore Bundler cache
+      if: ${{ inputs.platform == 'ios' }}
+      uses: actions/cache@v4
+      with:
+        path: ios/vendor/bundle
+        key: ${{ inputs.cache-prefix }}-bundler-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Gemfile.lock') }}
+        restore-keys: |
+          ${{ inputs.cache-prefix }}-bundler-${{ inputs.platform }}-${{ runner.os }}-
+
+    # Install Ruby gems into ios/vendor/bundle ( cache management & awareness )
+    - name: Install Ruby gems via bundler
+      if: ${{ inputs.platform == 'ios' }}
+      run: bundle install --path=vendor/bundle
+      working-directory: ios
+      shell: bash
+
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
       run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
-      shell: bash
-
-    - name: Install Ruby gems via bundler
-      if: ${{ inputs.platform == 'ios' }}
-      run: bundle install
-      working-directory: ios
       shell: bash
 
     - name: Install CocoaPods via bundler
