@@ -187,7 +187,7 @@ const isVersionDowngrade = (
   oldVersion: string,
   newVersion: string,
 ): boolean => {
-  return new SemVer(newVersion).compare(new SemVer(oldVersion)) <= 0;
+  return new SemVer(newVersion).compare(new SemVer(oldVersion)) < 0;
 };
 
 /**
