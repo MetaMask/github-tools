@@ -62,6 +62,11 @@ runs:
       with:
         ruby-version: ${{ inputs.ruby-version }}
 
+    - name: Install JavaScript dependencies
+      if: ${{ inputs.platform == 'ios' }}
+      run: yarn install --frozen-lockfile
+      shell: bash
+    
     - name: Install bundler
       if: ${{ inputs.platform == 'ios' }}
       run: gem install bundler -v ${{ inputs.bundler-version }}
