@@ -50,7 +50,7 @@ runs:
       shell: bash
 
     - name: Restore Yarn cache
-      uses: actions/cache@8d5c5ea20e39b25cfe73e20a7e3cc8232c7a80e8
+      uses: actions/cache@v4
       with:
         path: |
           **/node_modules
