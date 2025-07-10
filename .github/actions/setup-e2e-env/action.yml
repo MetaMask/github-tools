@@ -43,9 +43,27 @@ runs:
     - run: echo "Setup E2E Environment started"
       shell: bash
 
+## Yarn Setup & Cache Management
+
     - name: Install Yarn
       run: corepack enable && corepack prepare yarn@stable --activate
       shell: bash
+
+    - name: Restore Yarn cache
+      uses: actions/cache@8d5c5ea20e39b25cfe73e20a7e3cc8232c7a80e8
+      with:
+        path: |
+          **/node_modules
+        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
+
+    # Step 3: Install JS deps (fast if node_modules is cached)
+    - name: Install JavaScript dependencies
+      if: ${{ inputs.platform == 'ios' }}
+      run: yarn install --frozen-lockfile
+      shell: bash
+
 
     - name: Install Detox CLI
       run: yarn global add detox-cli
