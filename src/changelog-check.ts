@@ -126,36 +126,25 @@ const getDevDependencyLines = (
   const allLines = diffOutput.split('\n');
   const devDependencyLines: string[] = [];
 
-  const devDepSectionBoundaries: { start: number; end: number }[] = [];
+  let devDependencySectionStart: number | undefined;
+  let devDependencySectionEnd: number | undefined;
 
   for (let i = 0; i < allLines.length; i++) {
-    const line = allLines[i];
+    const line = allLines[i] as string;
 
-    if (line?.includes('"devDependencies"') && line.includes(':')) {
-      const startIndex = i;
-      let endIndex = allLines.length - 1;
-
-      // Find the end of this section (next section or closing brace)
-      for (let j = i + 1; j < allLines.length; j++) {
-        const nextLine = allLines[j];
-        if (
-          nextLine &&
-          (nextLine.includes('"dependencies"') ||
-            nextLine.includes('"peerDependencies"') ||
-            nextLine.includes('"scripts"') ||
-            nextLine.includes('"engines"') ||
-            nextLine.includes('"main"') ||
-            nextLine.includes('"types"') ||
-            nextLine.includes('"files"')) &&
-          nextLine.includes(':')
-        ) {
-          endIndex = j - 1;
-          break;
-        }
-      }
-
-      devDepSectionBoundaries.push({ start: startIndex, end: endIndex });
+    if (line.includes('"devDependencies":')) {
+      devDependencySectionStart = i;
+    } else if (devDependencySectionStart && /^\s*\}/u.test(line)) {
+      devDependencySectionEnd = i;
+      break;
     }
+  }
+
+  if (
+    devDependencySectionStart === undefined ||
+    devDependencySectionEnd === undefined
+  ) {
+    return [];
   }
 
   // Check which nonVersionLines fall within devDependencies sections
@@ -163,9 +152,9 @@ const getDevDependencyLines = (
     const lineIndex = allLines.findIndex((line) => line === changeLine);
     if (lineIndex !== -1) {
       // Check if this line falls within any devDependencies section
-      const isInDevDeps = devDepSectionBoundaries.some(
-        (section) => lineIndex >= section.start && lineIndex <= section.end,
-      );
+      const isInDevDeps =
+        lineIndex >= devDependencySectionStart &&
+        lineIndex <= devDependencySectionEnd;
 
       if (isInDevDeps) {
         devDependencyLines.push(changeLine);
@@ -208,7 +197,7 @@ async function analyzePackageJsonChanges(
   isDevDependencyOnly: boolean;
   isVersionAndDevDependencyOnly: boolean;
   isVersionDowngrade: boolean;
-  newVersion: string | null;
+  newVersion: string | undefined;
 }> {
   try {
     const { stdout } = await execa(
@@ -226,7 +215,7 @@ async function analyzePackageJsonChanges(
         isDevDependencyOnly: false,
         isVersionAndDevDependencyOnly: false,
         isVersionDowngrade: false,
-        newVersion: null,
+        newVersion: undefined,
       };
     }
 
@@ -243,44 +232,31 @@ async function analyzePackageJsonChanges(
         isDevDependencyOnly: false,
         isVersionAndDevDependencyOnly: false,
         isVersionDowngrade: false,
-        newVersion: null,
+        newVersion: undefined,
       };
     }
 
-    const versionLines: string[] = [];
+    const versionLines: { type: 'added' | 'removed'; version: string }[] = [];
     const nonVersionLines: string[] = [];
+    let oldVersion: string | undefined;
+    let newVersion: string | undefined;
 
     for (const line of lines) {
-      if (/^[+-]\s*"version":\s*"[^"]+"\s*,?\s*$/mu.test(line)) {
-        versionLines.push(line);
+      const match = line.match(/^([+-])\s*"version":\s*"([^"]+)"\s*,?\s*$/u);
+      if (match) {
+        const type = match[1] === '+' ? 'added' : 'removed';
+        const version = match[2] as string;
+        versionLines.push({ type, version });
       } else {
         nonVersionLines.push(line);
       }
     }
-
-    // Check for version changes first
-    const versionAddedLine = versionLines.find(
-      (line) => line.startsWith('+') && line.includes('"version":'),
-    );
-    const versionAddedMatch = versionAddedLine?.match(
-      /^\+\s*"version":\s*"([^"]+)"/u,
-    );
-    const newVersion = versionAddedMatch?.[1] ?? null;
-
-    const versionRemovedLine = versionLines.find(
-      (line) => line.startsWith('-') && line.includes('"version":'),
-    );
-    const versionRemovedMatch = versionRemovedLine?.match(
-      /^-\s*"version":\s*"([^"]+)"/u,
-    );
-    const oldVersion = versionRemovedMatch?.[1] ?? null;
-
-    const hasNewVersion = newVersion !== null;
-
-    if (!hasNewVersion && oldVersion) {
-      throw new Error(
-        `Could not find new version for version change in ${filePath}`,
-      );
+    if (
+      versionLines?.[0]?.type === 'removed' &&
+      versionLines?.[1]?.type === 'added'
+    ) {
+      oldVersion = versionLines[0].version;
+      newVersion = versionLines[1].version;
     }
 
     const isDowngrade =
@@ -308,9 +284,9 @@ async function analyzePackageJsonChanges(
     return {
       hasChanges: true,
       isVersionOnly: false,
-      isDevDependencyOnly: !hasNewVersion && allNonVersionLinesAreDevDeps,
+      isDevDependencyOnly: !newVersion && allNonVersionLinesAreDevDeps,
       isVersionAndDevDependencyOnly:
-        hasNewVersion && allNonVersionLinesAreDevDeps,
+        newVersion !== undefined && allNonVersionLinesAreDevDeps,
       isVersionDowngrade: isDowngrade,
       newVersion,
     };
@@ -326,7 +302,7 @@ async function analyzePackageJsonChanges(
       isDevDependencyOnly: false,
       isVersionAndDevDependencyOnly: false,
       isVersionDowngrade: false,
-      newVersion: null,
+      newVersion: undefined,
     };
   }
 }
