@@ -283,6 +283,13 @@ runs:
         echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
       shell: bash
 
+    - name: Add NDK toolchain to PATH
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+          NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
+      shell : bash
+
     - name: Check Installed NDK Versions
       run: |
         echo "Installed NDKs:"
