@@ -61,7 +61,8 @@ runs:
 
 ## Yarn Setup & Cache Management
 
-    - name: Install Yarn
+    - name: Corepack
+      id: corepack
       run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
       shell: bash
 
@@ -76,17 +77,21 @@ runs:
           ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
     - name: Install JavaScript dependencies
+      id: yarn-install
       if: ${{ inputs.platform == 'ios' }}
       run: yarn install --frozen-lockfile
       shell: bash
 
     - name: Install Detox CLI
+      id: install-detox-cli
       run: yarn global add detox-cli
       shell: bash
 
     - name: Install Foundry
+      id: install-foundry
       shell: bash
       run: |
+        echo "Installing Foundry..."
         mkdir -p ~/.foundry
         curl -L https://foundry.paradigm.xyz | bash
         ~/.foundry/bin/foundryup --quiet
