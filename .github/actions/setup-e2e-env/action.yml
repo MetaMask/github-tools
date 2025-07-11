@@ -49,6 +49,11 @@ inputs:
     description: NDK version to use (only for Android)
     required: false
     default: "26.1.10909125"
+  foundry-version:
+    description: Foundry version to install
+    required: false
+    default: "v1.2.3"
+
 
 
 runs:
@@ -90,11 +95,15 @@ runs:
     - name: Install Foundry
       shell: bash
       run: |
-        echo "Installing Foundry..."
+        echo "Installing Foundry version: ${{ inputs.foundry-version }}"
+
         mkdir -p ~/.foundry/bin
-        curl -sL https://foundry.paradigm.xyz/foundryup -o ~/.foundry/bin/foundryup
+
+        curl -sL "https://github.com/foundry-rs/foundry/releases/download/${{ inputs.foundry-version }}/foundryup" -o ~/.foundry/bin/foundryup
         chmod +x ~/.foundry/bin/foundryup
-        ~/.foundry/bin/foundryup --quiet
+        ~/.foundry/bin/foundryup --version ${{ inputs.foundry-version }}
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+
 
 
 
