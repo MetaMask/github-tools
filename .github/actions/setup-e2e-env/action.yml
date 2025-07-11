@@ -101,10 +101,17 @@ runs:
         restore-keys: |
           ${{ inputs.cache-prefix }}-bundler-${{ inputs.platform }}-${{ runner.os }}-
 
+    # Configure bundler to use a specific path for gem installation
+    - name: Configure bundler install path
+      if: ${{ inputs.platform == 'ios' }}
+      run: bundle config set path 'vendor/bundle'
+      working-directory: ios
+      shell: bash
+
     # Install Ruby gems into ios/vendor/bundle ( cache management & awareness )
     - name: Install Ruby gems via bundler
       if: ${{ inputs.platform == 'ios' }}
-      run: bundle install --path=vendor/bundle
+      run: bundle install
       working-directory: ios
       shell: bash
 
@@ -112,6 +119,16 @@ runs:
       if: ${{ inputs.platform == 'ios' }}
       run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
       shell: bash
+
+    - name: Restore CocoaPods cache
+      if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: ios/Pods
+        key: ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+        restore-keys: |
+          ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-
+
 
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
