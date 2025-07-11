@@ -248,11 +248,13 @@ runs:
       shell: bash
 
 
-    - name: Accept Android SDK Licenses
+    - name: Accept Android SDK licenses
       if: ${{ inputs.platform == 'android' }}
       run: |
-        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+        echo "Accepting Android SDK licenses..."
+        printf 'y\n%.0s' {1..20} | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
       shell: bash
+
 
     - name: Install Android SDK Packages
       if: ${{ inputs.platform == 'android' }}
