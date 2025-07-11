@@ -68,7 +68,7 @@ inputs:
   android-abi:
     description: 'System architecture ABI for the Android system image (e.g. x86_64, arm64-v8a, armeabi-v7a)'
     required: false
-    default: 'arm64-v8a'
+    default: 'x86_64'
 
 
 runs:
