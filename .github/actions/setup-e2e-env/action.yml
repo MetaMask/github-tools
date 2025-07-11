@@ -239,9 +239,14 @@ runs:
       run: |
         echo "ANDROID_HOME: $ANDROID_HOME"
         echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-        echo "Available sdkmanager paths:"
-        find "$ANDROID_HOME" -type f -name sdkmanager || true
+        
+        echo "Searching for sdkmanager under cmdline-tools..."
+        find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager || echo "sdkmanager not found"
+        
+        echo "Listing directories under cmdline-tools for visibility:"
+        ls -R "$ANDROID_HOME/cmdline-tools" || echo "cmdline-tools directory missing"
       shell: bash
+
 
     - name: Accept Android SDK Licenses
       if: ${{ inputs.platform == 'android' }}
