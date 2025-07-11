@@ -338,17 +338,28 @@ async function isPrivatePackage(
 /**
  * Reads and validates a changelog file.
  *
- * @param changelogPath - The path to the changelog file to check.
- * @param prNumber - The pull request number.
- * @param packageVersion - The package version to check for release PRs.
+ * @param params - The parameters for the changelog file check.
+ * @param params.repoPath - The path to the repository.
+ * @param params.changelogPath - The path to the changelog file to check.
+ * @param params.prNumber - The pull request number.
+ * @param params.packageVersion - The package version to check for release PRs.
  */
-async function checkChangelogFile(
-  changelogPath: string,
-  prNumber: string,
-  packageVersion?: string | null,
-): Promise<void> {
+async function checkChangelogFile({
+  repoPath,
+  changelogPath,
+  prNumber,
+  packageVersion,
+}: {
+  repoPath: string;
+  changelogPath: string;
+  prNumber: string;
+  packageVersion?: string | null;
+}): Promise<void> {
   try {
-    const changelogContent = await fs.readFile(changelogPath, 'utf-8');
+    const changelogContent = await fs.readFile(
+      path.join(repoPath, changelogPath),
+      'utf-8',
+    );
 
     if (!changelogContent) {
       throw new Error('CHANGELOG.md is empty or missing');
@@ -562,12 +573,16 @@ async function main() {
       changedPackages.map(async (pkgInfo) => {
         try {
           const changelogPath = path.join(
-            fullRepoPath,
             pkgInfo.base,
             pkgInfo.package,
             'CHANGELOG.md',
           );
-          await checkChangelogFile(changelogPath, prNumber, pkgInfo.newVersion);
+          await checkChangelogFile({
+            repoPath: fullRepoPath,
+            changelogPath,
+            prNumber,
+            packageVersion: pkgInfo.newVersion ?? null,
+          });
           console.log(
             `CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
           );
@@ -592,7 +607,11 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(path.join(fullRepoPath, 'CHANGELOG.md'), prNumber);
+    await checkChangelogFile({
+      repoPath: fullRepoPath,
+      changelogPath: 'CHANGELOG.md',
+      prNumber,
+    });
     console.log('CHANGELOG.md has been correctly updated.');
   }
 }
