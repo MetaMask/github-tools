@@ -319,7 +319,7 @@ runs:
     # Launch Android Emulator
     - name: Launch Android Emulator
       if: ${{ inputs.platform == 'android' }} && ${{ inputs.setup-simulator == 'true' }}
-      run: nohup $ANDROID_HOME/emulator/emulator -avd ${{ inputs.android-avd-name }} -no-window -no-audio -no-boot-anim > /dev/null 2>&1 &
+      run: $ANDROID_HOME/emulator/emulator -avd test_e2e_avd -no-audio -no-boot-anim -no-window -verbose
       shell: bash
 
     ## Wait for Emulator to Boot
