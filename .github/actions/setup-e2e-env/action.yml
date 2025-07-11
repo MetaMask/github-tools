@@ -299,7 +299,7 @@ runs:
     ## Launch AVD
 
     - name: Install Android system image
-      if: ${{ inputs.platform == 'android' }} ${{ inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
         echo "Installing system image: $IMAGE"
@@ -307,11 +307,11 @@ runs:
       shell: bash
 
     - name: Create Android Virtual Device (AVD)
-      if: ${{ inputs.platform == 'android' }} ${{ inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
         echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
-          --name ${{ inputs.android-avd-name }} \
+          --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
           --device "${{ inputs.android-device }}"
       shell: bash
@@ -324,7 +324,7 @@ runs:
 
     ## Wait for Emulator to Boot
     - name: Wait for Android Emulator to Boot
-      if: ${{ inputs.platform == 'android' }}
+      if: ${{ inputs.platform == 'android' }} && ${{ inputs.setup-simulator == 'true' }}
       run: |
         echo "Waiting for emulator to be ready..."
         adb wait-for-device
