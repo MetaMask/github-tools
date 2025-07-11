@@ -234,23 +234,38 @@ runs:
 
  ## NDK Setup
 
-    - name: Ensure sdkmanager is available
+    - name: Debug Android SDK Paths
+      if: ${{ inputs.platform == 'android' }}
       run: |
-        yes | "${ANDROID_SDK_ROOT}/cmdline-tools/11.0/bin/sdkmanager" --licenses
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        echo "Available sdkmanager paths:"
+        find "$ANDROID_HOME" -type f -name sdkmanager || true
       shell: bash
 
+    - name: Accept Android SDK Licenses
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+      shell: bash
+
+    - name: Install Android SDK Packages
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+          "platform-tools" \
+          "platforms;android-34" \
+          "build-tools;34.0.0" \
+          "emulator" \
+          "system-images;android-34;google_apis;x86_64"
+      shell: bash
 
     - name: Install Android NDK
       if: ${{ inputs.platform == 'android' }}
       run: |
-        "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
       shell: bash
 
-
-    - name: Set ANDROID_NDK_HOME
-      if: ${{ inputs.platform == 'android' }}
-      run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> $GITHUB_ENV
-      shell: bash
 
 
 
