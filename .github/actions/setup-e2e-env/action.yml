@@ -233,10 +233,19 @@ runs:
 
 
  ## NDK Setup
+
+    - name: Ensure sdkmanager is available
+      run: |
+        yes | "${ANDROID_SDK_ROOT}/cmdline-tools/11.0/bin/sdkmanager" --licenses
+      shell: bash
+
+
     - name: Install Android NDK
       if: ${{ inputs.platform == 'android' }}
-      run: sdkmanager "ndk;${{ inputs.ndk-version }}"
+      run: |
+        "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
       shell: bash
+
 
     - name: Set ANDROID_NDK_HOME
       if: ${{ inputs.platform == 'android' }}
