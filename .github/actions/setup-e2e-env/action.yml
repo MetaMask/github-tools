@@ -17,10 +17,10 @@ inputs:
     required: false
     default: 'false'
   # See https://github.com/actions/runner-images/blob/main/images/macos/macos-14-Readme.md#installed-simulators
-  ios-simulator-device: 
+  ios-simulator-device:
     description: Name of iOS simulator device to boot (e.g., "iPhone 15")
     required: false
-    default: "iPhone 15"
+    default: 'iPhone 15'
   bundler-version:
     description: 'Bundler version to use (only for iOS)'
     required: false
@@ -32,45 +32,41 @@ inputs:
   ruby-version:
     description: Ruby version to use (only for iOS)
     required: false
-    default: "3.1"
+    default: '3.1'
   xcode-version:
     description: Xcode version to select (e.g., 16.2)
     required: false
-    default: "16.2"
+    default: '16.2'
   jdk-version:
     description: JDK version to use (only for Android)
     required: false
-    default: "17"
+    default: '17'
   jdk-distribution:
     description: JDK distribution to use (only for Android)
     required: false
-    default: "temurin"
+    default: 'temurin'
   ndk-version:
     description: NDK version to use (only for Android)
     required: false
-    default: "26.1.10909125"
+    default: '26.1.10909125'
   foundry-version:
     description: Foundry version to install
     required: false
-    default: "v1.2.3"
-
-
+    default: 'v1.2.3'
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-
-## Common Setup ##
+    ## Common Setup ##
     - run: echo "Setup E2E Environment started"
       shell: bash
 
-## Yarn Setup & Cache Management
+    ## Yarn Setup & Cache Management
 
     - name: Corepack
       id: corepack
       run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
       shell: bash
-
 
     - name: Restore Yarn cache
       uses: actions/cache@v4
@@ -83,7 +79,6 @@ runs:
 
     - name: Install JavaScript dependencies
       id: yarn-install
-      if: ${{ inputs.platform == 'ios' }}
       run: yarn install --frozen-lockfile
       shell: bash
       env:
@@ -98,7 +93,7 @@ runs:
       shell: bash
       run: |
         echo "Installing Foundry via foundryup..."
-        
+
         export FOUNDRY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/.foundry"
         export FOUNDRY_BIN="$FOUNDRY_DIR/bin"
 
@@ -111,12 +106,9 @@ runs:
 
         "$FOUNDRY_BIN/foundryup"
 
+    ## IOS Setup ##
 
-
-
-## IOS Setup ##
-
-## Ruby Setup & Cache Management
+    ## Ruby Setup & Cache Management
     - name: Setup Ruby
       if: ${{ inputs.platform == 'ios' }}
       uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
@@ -206,10 +198,9 @@ runs:
         fi
       shell: bash
 
+    ## Android Setup ##
 
-## Android Setup ##
-
-## JDK Setup
+    ## JDK Setup
     - name: Setup Java
       if: ${{ inputs.platform == 'android' }}
       uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
@@ -217,7 +208,7 @@ runs:
         java-version: ${{ inputs.jdk-version }}
         distribution: ${{ inputs.jdk-distribution }}
 
-## Android SDK Setup
+    ## Android SDK Setup
 
     - name: Install required emulator dependencies
       if: ${{ inputs.platform == 'android' }}
@@ -244,8 +235,7 @@ runs:
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
       shell: bash
 
-
- ## NDK Setup
+    ## NDK Setup
 
     - name: Debug Android SDK Paths
       if: ${{ inputs.platform == 'android' }}
@@ -254,14 +244,12 @@ runs:
         echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
       shell: bash
 
-
     - name: Accept Android SDK licenses
       if: ${{ inputs.platform == 'android' }}
       run: |
         echo "Accepting Android SDK licenses..."
         bash -c 'yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses' || true
       shell: bash
-
 
     - name: Install Android SDK Packages
       if: ${{ inputs.platform == 'android' }}
@@ -291,7 +279,7 @@ runs:
     - name: Add NDK related toolchains to PATH
       if: ${{ inputs.platform == 'android' }}
       run: |
-          NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
-          echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
-      shell : bash
+        NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+        echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
+        echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
+      shell: bash
