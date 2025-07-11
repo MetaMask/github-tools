@@ -298,6 +298,8 @@ runs:
 
     ## Launch AVD
 
+## Launch AVD
+
     - name: Install Android system image
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
@@ -306,25 +308,40 @@ runs:
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "$IMAGE"
       shell: bash
 
+    - name: Set ANDROID_AVD_HOME for downstream steps
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      shell: bash
+      run: |
+        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
+        mkdir -p "$HOME/.android/avd"
+
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+        echo "Creating AVD with image: $IMAGE"
         echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
           --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
           --device "${{ inputs.android-device }}"
       shell: bash
 
+    - name: List available AVDs
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      run: |
+        echo "✅ Available AVDs:"
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" list avd || true
+
     # Launch Android Emulator
     - name: Launch Android Emulator
-      if: ${{ inputs.platform == 'android' }} && ${{ inputs.setup-simulator == 'true' }}
-      run: $ANDROID_HOME/emulator/emulator -avd test_e2e_avd -no-audio -no-boot-anim -no-window -verbose
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      run: |
+        "$ANDROID_HOME/emulator/emulator" -avd "${{ inputs.android-avd-name }}" -no-audio -no-boot-anim -no-window -verbose
       shell: bash
 
     ## Wait for Emulator to Boot
     - name: Wait for Android Emulator to Boot
-      if: ${{ inputs.platform == 'android' }} && ${{ inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
         echo "Waiting for emulator to be ready..."
         adb wait-for-device
@@ -349,4 +366,5 @@ runs:
         echo "❌ Timeout waiting for emulator to boot"
         exit 1
       shell: bash
+
 
