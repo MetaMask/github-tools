@@ -328,6 +328,7 @@ runs:
 
     - name: List available AVDs
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      shell: bash
       run: |
         echo "✅ Available AVDs:"
         "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" list avd || true
