@@ -17,8 +17,8 @@ inputs:
     required: false
     default: 'false'
   # See https://github.com/actions/runner-images/blob/main/images/macos/macos-14-Readme.md#installed-simulators
-  ios-simulator-device:
-    description: Name of iOS simulator device to boot (e.g., "iPhone 15")
+  ios-device:
+    description: Name of iOS device to boot (e.g., "iPhone 15")
     required: false
     default: 'iPhone 15'
   bundler-version:
@@ -53,6 +53,18 @@ inputs:
     description: Foundry version to install
     required: false
     default: 'v1.2.3'
+  android-avd-name:
+    description: 'Name of AVD to create and boot (for Android)'
+    required: false
+    default: 'test_e2e_avd'
+  android-device:
+    description: 'AVD device profile (e.g. "pixel")'
+    required: false
+    default: 'pixel'
+  android-api-level:
+    description: 'Android API level to use (e.g. "34")'
+    required: false
+    default: '34'
 
 runs:
   using: 'composite'
@@ -176,11 +188,11 @@ runs:
     - name: Boot iOS Simulator (if not already booted)
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       run: |
-        echo "Looking for simulator named: ${{ inputs.ios-simulator-device }}"
+        echo "Looking for simulator named: ${{ inputs.ios-device }}"
 
-        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-simulator-device }}")
+        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-device }}")
         if [ -z "$SIMULATOR_LINE" ]; then
-          echo "No simulator found with name '${{ inputs.ios-simulator-device }}'"
+          echo "No simulator found with name '${{ inputs.ios-device }}'"
           exit 1
         fi
 
@@ -256,10 +268,10 @@ runs:
       run: |
         "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
           "platform-tools" \
-          "platforms;android-34" \
+          "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-34;google_apis;x86_64"
+          "system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
       shell: bash
 
     - name: Install Android NDK
@@ -282,4 +294,28 @@ runs:
         NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
         echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
         echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
+      shell: bash
+
+    ## Launch AVD
+    - name: Install Android system image
+      if: ${{ inputs.platform == 'android' }} ${{ inputs.setup-simulator == 'true' }}
+      run: |
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+        echo "Installing system image: $IMAGE"
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "$IMAGE"
+      shell: bash
+
+    - name: Create Android Virtual Device (AVD)
+      if: ${{ inputs.platform == 'android' }} ${{ inputs.setup-simulator == 'true' }}
+      run: |
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+        echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
+          --name ${{ inputs.android-avd-name }} \
+          --package "$IMAGE" \
+          --device ${ inputs.android-device }
+      shell: bash
+
+    - name: Launch Android Emulator
+      if: ${{ inputs.platform == 'android' }} && ${{ inputs.setup-simulator == 'true' }}
+      run: nohup $ANDROID_HOME/emulator/emulator -avd ${{ inputs.android-avd-name }} -no-window -no-audio -no-boot-anim > /dev/null 2>&1 &
       shell: bash
