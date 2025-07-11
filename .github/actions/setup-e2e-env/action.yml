@@ -93,19 +93,15 @@ runs:
       shell: bash
 
     - name: Install Foundry
+      id: install-foundry
       shell: bash
       run: |
         echo "Installing Foundry version: ${{ inputs.foundry-version }}"
-
         mkdir -p ~/.foundry/bin
-
-        curl -sL "https://github.com/foundry-rs/foundry/releases/download/${{ inputs.foundry-version }}/foundryup" -o ~/.foundry/bin/foundryup
+        curl -sL "https://raw.githubusercontent.com/foundry-rs/foundry/${{ inputs.foundry-version }}/foundryup/install" | bash
         chmod +x ~/.foundry/bin/foundryup
-        ~/.foundry/bin/foundryup --version ${{ inputs.foundry-version }}
-        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-
-
-
+        foundryup --version ${{ inputs.foundry-version }}
+        echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
 
 ## IOS Setup ##
 
