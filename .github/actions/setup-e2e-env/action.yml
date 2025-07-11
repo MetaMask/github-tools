@@ -99,7 +99,7 @@ runs:
         echo "Installing Foundry version: ${{ inputs.foundry-version }}"
         mkdir -p ~/.foundry/bin
         curl -sL "https://raw.githubusercontent.com/foundry-rs/foundry/${{ inputs.foundry-version }}/foundryup/install" | bash
-        foundryup --version ${{ inputs.foundry-version }}
+        ~/.foundry/foundryup --version ${{ inputs.foundry-version }}
         echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
 
 ## IOS Setup ##
