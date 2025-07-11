@@ -213,6 +213,14 @@ runs:
         distribution: ${{ inputs.jdk-distribution }}
 
 ## Android SDK Setup
+
+    - name: Install required emulator dependencies
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpulse0 libglu1-mesa
+      shell: bash
+
     - name: Install Android SDK packages
       if: ${{ inputs.platform == 'android' }}
       run: |
@@ -275,19 +283,8 @@ runs:
         echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
       shell: bash
 
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-    
+    - name: Check Installed NDK Versions
+      run: |
+        echo "Installed NDKs:"
+        ls -la "$ANDROID_SDK_ROOT/ndk" || echo "No NDK installed"
+      shell: bash
