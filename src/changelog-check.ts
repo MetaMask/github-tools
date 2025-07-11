@@ -2,10 +2,12 @@ import { parseChangelog } from '@metamask/auto-changelog';
 import { execa } from 'execa';
 import fs from 'fs/promises';
 import path from 'path';
+import { SemVer } from 'semver';
 
 type PackageJson = {
   workspaces: string[];
   private?: boolean;
+  version: string;
 };
 
 /**
@@ -111,31 +113,110 @@ async function getChangedFiles(
 }
 
 /**
- * Checks if a package.json file only has version changes by comparing the diff output.
- * Returns true if the diff contains exactly two lines (one addition and one removal)
- * and both lines are version changes with the same format (with or without trailing comma).
+ * Extracts lines that are within devDependencies sections from the diff output.
+ *
+ * @param diffOutput - The full diff output.
+ * @param nonVersionLines - The non-version change lines to filter.
+ * @returns Array of lines that are within devDependencies sections.
+ */
+const getDevDependencyLines = (
+  diffOutput: string,
+  nonVersionLines: string[],
+): string[] => {
+  const allLines = diffOutput.split('\n');
+  const devDependencyLines: string[] = [];
+
+  let devDependencySectionStart: number | undefined;
+  let devDependencySectionEnd: number | undefined;
+
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i] as string;
+
+    if (line.includes('"devDependencies":')) {
+      devDependencySectionStart = i;
+    } else if (devDependencySectionStart && /^\s*\}/u.test(line)) {
+      devDependencySectionEnd = i;
+      break;
+    }
+  }
+
+  if (
+    devDependencySectionStart === undefined ||
+    devDependencySectionEnd === undefined
+  ) {
+    return [];
+  }
+
+  // Check which nonVersionLines fall within devDependencies sections
+  for (const changeLine of nonVersionLines) {
+    const lineIndex = allLines.findIndex((line) => line === changeLine);
+    if (lineIndex !== -1) {
+      // Check if this line falls within any devDependencies section
+      const isInDevDeps =
+        lineIndex >= devDependencySectionStart &&
+        lineIndex <= devDependencySectionEnd;
+
+      if (isInDevDeps) {
+        devDependencyLines.push(changeLine);
+      }
+    }
+  }
+
+  return devDependencyLines;
+};
+
+/**
+ * Checks if a version change is a downgrade (revert).
+ *
+ * @param oldVersion - The old version from the diff.
+ * @param newVersion - The new version from the diff.
+ * @returns True if this is a version downgrade, false otherwise.
+ */
+const isVersionDowngrade = (
+  oldVersion: string,
+  newVersion: string,
+): boolean => {
+  return new SemVer(newVersion).compare(new SemVer(oldVersion)) < 0;
+};
+
+/**
+ * Analyzes all changes in a package.json file and returns structured information.
  *
  * @param repoPath - The path to the repository.
  * @param filePath - The path to the package.json file.
  * @param baseRef - The base reference to compare against.
- * @returns Promise that resolves to true if only version was changed, false otherwise.
+ * @returns Promise that resolves to an object with all change information.
  */
-async function isVersionOnlyChange(
+async function analyzePackageJsonChanges(
   repoPath: string,
   filePath: string,
   baseRef: string,
-): Promise<boolean> {
+): Promise<{
+  hasChanges: boolean;
+  isVersionOnly: boolean;
+  isDevDependencyOnly: boolean;
+  isVersionAndDevDependencyOnly: boolean;
+  isVersionDowngrade: boolean;
+  newVersion: string | undefined;
+}> {
   try {
     const { stdout } = await execa(
       'git',
-      ['diff', `origin/${baseRef}...HEAD`, '--', filePath],
+      ['diff', '-U20', `origin/${baseRef}...HEAD`, '--', filePath],
       {
         cwd: repoPath,
       },
     );
 
     if (!stdout) {
-      return false;
+      return {
+        hasChanges: false,
+        isVersionOnly: false,
+        isDevDependencyOnly: false,
+        isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: false,
+        newVersion: undefined,
+      };
     }
 
     // Split the diff into lines and filter out the diff header lines (+++ and ---)
@@ -144,20 +225,85 @@ async function isVersionOnlyChange(
       .filter((line) => line.startsWith('+') || line.startsWith('-'))
       .filter((line) => !line.startsWith('+++') && !line.startsWith('---'));
 
-    // If we have exactly 2 lines (one addition and one removal) and they both contain version changes
-    if (lines.length === 2) {
-      const versionRegex = /^[+-]\s*"version":\s*"[^"]+"\s*,?\s*$/mu;
-      return lines.every((line) => versionRegex.test(line));
+    if (lines.length === 0) {
+      return {
+        hasChanges: false,
+        isVersionOnly: false,
+        isDevDependencyOnly: false,
+        isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: false,
+        newVersion: undefined,
+      };
     }
 
-    return false;
+    const versionLines: { type: 'added' | 'removed'; version: string }[] = [];
+    const nonVersionLines: string[] = [];
+    let oldVersion: string | undefined;
+    let newVersion: string | undefined;
+
+    for (const line of lines) {
+      const match = line.match(/^([+-])\s*"version":\s*"([^"]+)"\s*,?\s*$/u);
+      if (match) {
+        const type = match[1] === '+' ? 'added' : 'removed';
+        const version = match[2] as string;
+        versionLines.push({ type, version });
+      } else {
+        nonVersionLines.push(line);
+      }
+    }
+    if (
+      versionLines[0]?.type === 'removed' &&
+      versionLines[1]?.type === 'added'
+    ) {
+      oldVersion = versionLines[0].version;
+      newVersion = versionLines[1].version;
+    }
+
+    const isDowngrade =
+      oldVersion && newVersion
+        ? isVersionDowngrade(oldVersion, newVersion)
+        : false;
+
+    // Check if only version was changed
+    if (nonVersionLines.length === 0) {
+      return {
+        hasChanges: true,
+        isVersionOnly: true,
+        isDevDependencyOnly: false,
+        isVersionAndDevDependencyOnly: false,
+        isVersionDowngrade: isDowngrade,
+        newVersion,
+      };
+    }
+
+    // Check if all non-version lines are in devDependencies
+    const devDependencyLines = getDevDependencyLines(stdout, nonVersionLines);
+    const allNonVersionLinesAreDevDeps =
+      devDependencyLines.length === nonVersionLines.length;
+
+    return {
+      hasChanges: true,
+      isVersionOnly: false,
+      isDevDependencyOnly: !newVersion && allNonVersionLinesAreDevDeps,
+      isVersionAndDevDependencyOnly:
+        newVersion !== undefined && allNonVersionLinesAreDevDeps,
+      isVersionDowngrade: isDowngrade,
+      newVersion,
+    };
   } catch (error) {
     logError(
-      `Failed to check ${filePath} changes: ${
+      `Failed to analyze package.json changes in ${filePath}: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
-    return false;
+    return {
+      hasChanges: false,
+      isVersionOnly: false,
+      isDevDependencyOnly: false,
+      isVersionAndDevDependencyOnly: false,
+      isVersionDowngrade: false,
+      newVersion: undefined,
+    };
   }
 }
 
@@ -192,32 +338,61 @@ async function isPrivatePackage(
 /**
  * Reads and validates a changelog file.
  *
- * @param changelogPath - The path to the changelog file to check.
- * @param prNumber - The pull request number.
+ * @param params - The parameters for the changelog file check.
+ * @param params.repoPath - The path to the repository.
+ * @param params.changelogPath - The path to the changelog file to check.
+ * @param params.prNumber - The pull request number.
+ * @param params.packageVersion - The package version to check for release PRs.
  */
-async function checkChangelogFile(
-  changelogPath: string,
-  prNumber: string,
-): Promise<void> {
+async function checkChangelogFile({
+  repoPath,
+  changelogPath,
+  prNumber,
+  packageVersion,
+}: {
+  repoPath: string;
+  changelogPath: string;
+  prNumber: string;
+  packageVersion?: string | null;
+}): Promise<void> {
   try {
-    const changelogContent = await fs.readFile(changelogPath, 'utf-8');
+    const changelogContent = await fs.readFile(
+      path.join(repoPath, changelogPath),
+      'utf-8',
+    );
 
     if (!changelogContent) {
       throw new Error('CHANGELOG.md is empty or missing');
     }
 
-    const changelogUnreleasedChanges = parseChangelog({
+    const changelogData = parseChangelog({
       changelogContent,
-      repoUrl: '', // Not needed as we're only parsing unreleased changes
-    }).getReleaseChanges('Unreleased');
+      repoUrl: '', // Not needed as we're only parsing changes
+    });
+
+    // For release PRs with version changes, check the version section
+    // Otherwise, check the Unreleased section
+    let releaseSection = 'Unreleased';
+    if (packageVersion) {
+      const versionChanges = changelogData.getReleaseChanges(packageVersion);
+      if (versionChanges && Object.keys(versionChanges).length > 0) {
+        releaseSection = packageVersion;
+      } else {
+        throw new Error(
+          `Could not find section for version '${packageVersion}' in the changelog ("${changelogPath}").`,
+        );
+      }
+    }
+
+    const changelogChanges = changelogData.getReleaseChanges(releaseSection);
 
     if (
-      !Object.values(changelogUnreleasedChanges)
+      !Object.values(changelogChanges)
         .flat()
         .some((entry) => entry.includes(`[#${prNumber}]`))
     ) {
       throw new Error(
-        "This PR contains changes that might require documentation in the changelog. If these changes aren't user-facing, consider adding the 'no-changelog' label instead.",
+        `There are changes made to this package that may not be reflected in the changelog ("${changelogPath}"). If the changes you've introduced are user-facing, please document them under the "${releaseSection}" section, making sure to link the entries to the current PR. If the changelog is up to date, you can bypass this check by adding the 'no-changelog' label to the PR.`,
       );
     }
   } catch (error) {
@@ -246,9 +421,13 @@ async function getChangedPackages(
   {
     base: string;
     package: string;
+    newVersion?: string | undefined;
   }[]
 > {
-  const changedPackages = new Map<string, { base: string; package: string }>();
+  const changedPackages = new Map<
+    string,
+    { base: string; package: string; newVersion?: string | undefined }
+  >();
   const privatePackageCache = new Map<string, boolean>();
 
   for (const file of files) {
@@ -281,18 +460,58 @@ async function getChangedPackages(
         !file.includes('/docs/') &&
         !file.endsWith('CHANGELOG.md')
       ) {
-        // If the file is package.json, check if it's only a version change
+        let newVersion: string | undefined;
+
         if (file.endsWith('package.json')) {
-          const isVersionOnly = await isVersionOnlyChange(
+          const packageJsonChanges = await analyzePackageJsonChanges(
             repoPath,
             file,
             baseRef,
           );
-          if (isVersionOnly) {
+
+          if (!packageJsonChanges.hasChanges) {
             continue;
           }
+
+          if (packageJsonChanges.isVersionOnly) {
+            console.log(
+              `Skipping package.json in ${packageInfo.package} as it only contains version changes`,
+            );
+            continue;
+          }
+
+          if (packageJsonChanges.isVersionDowngrade) {
+            console.log(
+              `Skipping package.json in ${packageInfo.package} as it contains a version downgrade (revert)`,
+            );
+            continue;
+          }
+
+          if (packageJsonChanges.isDevDependencyOnly) {
+            console.log(
+              `Skipping package.json in ${packageInfo.package} as it only contains dev dependency changes`,
+            );
+            continue;
+          }
+
+          if (packageJsonChanges.isVersionAndDevDependencyOnly) {
+            console.log(
+              `Skipping package.json in ${packageInfo.package} as it only contains version and dev dependency changes`,
+            );
+            continue;
+          }
+
+          if (packageJsonChanges.newVersion) {
+            newVersion = packageJsonChanges.newVersion;
+          }
         }
-        changedPackages.set(packageInfo.package, packageInfo);
+
+        const existingPackage = changedPackages.get(packageInfo.package);
+        const packageData = {
+          ...packageInfo,
+          newVersion: existingPackage?.newVersion ?? newVersion,
+        };
+        changedPackages.set(packageInfo.package, packageData);
       }
     }
   }
@@ -353,15 +572,17 @@ async function main() {
     const checkResults = await Promise.all(
       changedPackages.map(async (pkgInfo) => {
         try {
-          await checkChangelogFile(
-            path.join(
-              fullRepoPath,
-              pkgInfo.base,
-              pkgInfo.package,
-              'CHANGELOG.md',
-            ),
-            prNumber,
+          const changelogPath = path.join(
+            pkgInfo.base,
+            pkgInfo.package,
+            'CHANGELOG.md',
           );
+          await checkChangelogFile({
+            repoPath: fullRepoPath,
+            changelogPath,
+            prNumber,
+            packageVersion: pkgInfo.newVersion ?? null,
+          });
           console.log(
             `CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
           );
@@ -386,7 +607,11 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(path.join(fullRepoPath, 'CHANGELOG.md'), prNumber);
+    await checkChangelogFile({
+      repoPath: fullRepoPath,
+      changelogPath: 'CHANGELOG.md',
+      prNumber,
+    });
     console.log('CHANGELOG.md has been correctly updated.');
   }
 }
