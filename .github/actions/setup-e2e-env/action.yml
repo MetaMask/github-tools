@@ -34,9 +34,9 @@ inputs:
     required: false
     default: "3.1"
   xcode-version:
-    description: Xcode version to select (e.g., 16.0)
+    description: Xcode version to select (e.g., 16.2)
     required: false
-    default: "15.0"
+    default: "16.2"
   jdk-version:
     description: JDK version to use (only for Android)
     required: false
@@ -151,11 +151,13 @@ runs:
       working-directory: ios
       shell: bash
 
+    # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
       run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
       shell: bash
 
+    # Restore CocoaPods cache
     - name: Restore CocoaPods cache
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       uses: actions/cache@v4
@@ -165,7 +167,7 @@ runs:
         restore-keys: |
           ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-
 
-
+    # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       run: bundle exec pod install
@@ -202,7 +204,8 @@ runs:
         fi
       shell: bash
 
-## Android Setup
+
+## Android Setup ##
 
 ## JDK Setup
     - name: Setup Java
@@ -290,9 +293,3 @@ runs:
           echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
           echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
       shell : bash
-
-    - name: Check Installed NDK Versions
-      run: |
-        echo "Installed NDKs:"
-        ls -la "$ANDROID_SDK_ROOT/ndk" || echo "No NDK installed"
-      shell: bash
