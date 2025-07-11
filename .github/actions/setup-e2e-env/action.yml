@@ -192,17 +192,21 @@ runs:
     - name: Install Android SDK packages
       if: ${{ inputs.platform == 'android' }}
       run: |
-        yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
+        echo "Accepting SDK licenses..."
+        printf 'y\n%.0s' {1..10} | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-        sdkmanager --install \
+        echo "Installing Android SDK components..."
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
           "platform-tools" \
           "platforms;android-34" \
           "build-tools;34.0.0" \
           "emulator" \
           "system-images;android-34;google_apis;x86_64"
 
-        sdkmanager --update
+        echo "Updating SDK packages..."
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
       shell: bash
+
 
  ## NDK Setup
     - name: Install Android NDK
