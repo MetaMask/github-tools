@@ -252,8 +252,8 @@ async function analyzePackageJsonChanges(
       }
     }
     if (
-      versionLines?.[0]?.type === 'removed' &&
-      versionLines?.[1]?.type === 'added'
+      versionLines[0]?.type === 'removed' &&
+      versionLines[1]?.type === 'added'
     ) {
       oldVersion = versionLines[0].version;
       newVersion = versionLines[1].version;
