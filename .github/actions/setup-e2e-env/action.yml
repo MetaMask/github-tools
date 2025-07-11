@@ -94,7 +94,7 @@ runs:
         echo "Installing Foundry..."
         mkdir -p ~/.foundry
         curl -L https://foundry.paradigm.xyz | bash
-        ~/.foundry/bin/foundryup --quiet
+        ~/.foundry/bin/foundryup
 
 
 ## IOS Setup ##
