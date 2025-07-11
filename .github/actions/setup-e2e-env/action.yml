@@ -250,7 +250,6 @@ runs:
       shell: bash
 
 
-
     - name: Install Android SDK Packages
       if: ${{ inputs.platform == 'android' }}
       run: |
@@ -267,6 +266,15 @@ runs:
       run: |
         "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
       shell: bash
+
+    - name: Add Android tools to PATH
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+        echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+      shell: bash
+
 
 
 
