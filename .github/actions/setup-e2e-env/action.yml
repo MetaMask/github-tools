@@ -59,7 +59,7 @@ runs:
       with:
         path: |
           node_modules
-        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
         restore-keys: |
           ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
