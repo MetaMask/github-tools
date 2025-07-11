@@ -313,7 +313,7 @@ runs:
         echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
           --name ${{ inputs.android-avd-name }} \
           --package "$IMAGE" \
-          --device ${ inputs.android-device }
+          --device "${{ inputs.android-device }}"
       shell: bash
 
     # Launch Android Emulator
