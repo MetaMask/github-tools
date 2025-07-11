@@ -33,8 +33,6 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
 fi
 
 
-
-
 # Helper Functions
 # ---------------
 
@@ -74,12 +72,15 @@ get_release_branch_name() {
         return 0
     fi
 
-    # Different release branch naming for different platforms
-    if [[ "$platform" == "mobile" ]]; then
-      echo "release/${new_version}"
-    elif [[ "$platform" == "extension" ]]; then
-      echo "Version-v${new_version}"
-    fi
+    # Use consistent release branch naming for all platforms
+    echo "release/${new_version}"
+
+    # Different release branch naming for different platforms, commented in case of need it
+    # if [[ "$platform" == "mobile" ]]; then
+    #   echo "release/${new_version}"
+    # elif [[ "$platform" == "extension" ]]; then
+    #   echo "Version-v${new_version}"
+    # fi
 }
 
 # Main Script
@@ -224,7 +225,13 @@ cd ../
 # Commit and Push Changelog Changes
 # -------------------------------
 echo "Adding and committing changes.."
-git add ./commits.csv
+# Add commits.csv file if it exists
+if [ -f "./commits.csv" ]; then
+    echo "commits.csv found, adding to git..."
+    git add ./commits.csv
+else
+    echo "--> commits.csv not found, skipping..."
+fi
 
 
 if ! (git commit -am "updated changelog and generated feature test plan");
