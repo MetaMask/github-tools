@@ -86,6 +86,8 @@ runs:
       if: ${{ inputs.platform == 'ios' }}
       run: yarn install --frozen-lockfile
       shell: bash
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
 
     - name: Install Detox CLI
       id: install-detox-cli
