@@ -227,12 +227,12 @@ runs:
 
     ## Android SDK Setup
 
-    - name: Install required emulator dependencies
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libpulse0 libglu1-mesa
-      shell: bash
+    # - name: Install required emulator dependencies
+    #   if: ${{ inputs.platform == 'android' }}
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install -y libpulse0 libglu1-mesa
+    #   shell: bash
 
     - name: Install Android SDK packages
       if: ${{ inputs.platform == 'android' }}
