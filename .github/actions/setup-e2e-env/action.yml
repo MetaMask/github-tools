@@ -37,6 +37,18 @@ inputs:
     description: Xcode version to select (e.g., 16.0)
     required: false
     default: "15.0"
+  jdk-version:
+    description: JDK version to use (only for Android)
+    required: false
+    default: "17"
+  jdk-distribution:
+    description: JDK distribution to use (only for Android)
+    required: false
+    default: "temurin"
+  ndk-version:
+    description: NDK version to use (only for Android)
+    required: false
+    default: "26.1.10909125"
 
 
 runs:
@@ -167,9 +179,33 @@ runs:
       shell: bash
 
 ## Android Setup
+
+## JDK Setup
     - name: Setup Java
       if: ${{ inputs.platform == 'android' }}
       uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+      with:
+        java-version: ${{ inputs.jdk-version }}
+        distribution: ${{ inputs.jdk-distribution }}
+
+## Android SDK Setup
+    - name: Install Android SDK packages
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
+
+        sdkmanager --install \
+          "platform-tools" \
+          "platforms;android-34" \
+          "build-tools;34.0.0" \
+          "emulator" \
+          "system-images;android-34;google_apis;x86_64"
+
+        sdkmanager --update
+      shell: bash
+
+
+
 
 
 
