@@ -94,12 +94,14 @@ runs:
 
     - name: Install Foundry
       shell: bash
-      id: install-foundry
       run: |
         echo "Installing Foundry via foundryup..."
-        curl -L https://foundry.paradigm.xyz | bash
+        mkdir -p ~/.foundry/bin
+        curl -sL https://raw.githubusercontent.com/foundry-rs/foundry/master/foundryup/foundryup -o ~/.foundry/bin/foundryup
+        chmod +x ~/.foundry/bin/foundryup
         echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
         ~/.foundry/bin/foundryup
+
 
 
 ## IOS Setup ##
