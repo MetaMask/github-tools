@@ -49,6 +49,8 @@ on:
         required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
+        # `action_ref` of the reusable workflow can only be captured as an input parameter default
+        # value due to a GitHub Actions bug. Context: https://github.com/actions/runner/issues/2473#issuecomment-1776029708
         default: ${{ github.action_ref }}
     secrets:
       github-token:
