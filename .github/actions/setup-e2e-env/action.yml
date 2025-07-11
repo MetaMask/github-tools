@@ -65,6 +65,11 @@ inputs:
     description: 'Android API level to use (e.g. "34")'
     required: false
     default: '34'
+  android-abi:
+    description: 'System architecture ABI for the Android system image (e.g. x86_64, arm64-v8a, armeabi-v7a)'
+    required: false
+    default: 'arm64-v8a'
+
 
 runs:
   using: 'composite'
@@ -238,10 +243,10 @@ runs:
         echo "Installing Android SDK components..."
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
           "platform-tools" \
-          "platforms;android-34" \
+          "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-34;google_apis;x86_64"
+          "system-images;android-34;google_apis;${{ inputs.android-abi }}" \
 
         echo "Updating SDK packages..."
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
@@ -271,7 +276,7 @@ runs:
           "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
       shell: bash
 
     - name: Install Android NDK
@@ -303,7 +308,7 @@ runs:
     - name: Install Android system image
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Installing system image: $IMAGE"
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "$IMAGE"
       shell: bash
@@ -318,7 +323,7 @@ runs:
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;x86_64"
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Creating AVD with image: $IMAGE"
         echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
           --name "${{ inputs.android-avd-name }}" \
