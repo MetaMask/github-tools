@@ -85,8 +85,12 @@ runs:
       shell: bash
 
     - name: Install Foundry
-      run: curl -L https://foundry.paradigm.xyz | bash && ~/.foundry/bin/foundryup
       shell: bash
+      run: |
+        mkdir -p ~/.foundry
+        curl -L https://foundry.paradigm.xyz | bash
+        ~/.foundry/bin/foundryup --quiet
+
 
 ## IOS Setup ##
 
