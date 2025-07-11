@@ -204,6 +204,19 @@ runs:
         sdkmanager --update
       shell: bash
 
+ ## NDK Setup
+    - name: Install Android NDK
+      if: ${{ inputs.platform == 'android' }}
+      run: sdkmanager "ndk;${{ inputs.ndk-version }}"
+      shell: bash
+
+    - name: Set ANDROID_NDK_HOME
+      if: ${{ inputs.platform == 'android' }}
+      run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> $GITHUB_ENV
+      shell: bash
+
+
+
 
 
 
