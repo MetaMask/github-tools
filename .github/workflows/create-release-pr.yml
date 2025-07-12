@@ -168,11 +168,11 @@ jobs:
           CURRENT_VERSION="${{ inputs.semver-version }}"
           NEXT_VERSION=$(node -e "
             const semver = require('semver');
-            const current = '$CURRENT_VERSION';
+            const current = \"$CURRENT_VERSION\";
             const next = semver.inc(current, 'minor');
             console.log(next);
           ")
-          echo "next-version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "next-version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
           echo "Next version will be: $NEXT_VERSION"
 
       # Step 5: Create version bump branch
@@ -181,7 +181,7 @@ jobs:
           BRANCH_NAME="bump-main-version-${{ steps.calc-version.outputs.next-version }}"
 
           # Check if branch already exists locally or remotely
-          if git show-ref --verify --quiet refs/heads/"$BRANCH_NAME" || git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+          if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" || git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME already exists, checking it out"
             if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
               git fetch origin "$BRANCH_NAME"
@@ -194,7 +194,7 @@ jobs:
             git checkout -b "$BRANCH_NAME"
           fi
 
-          echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "branch-name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
         id: create-branch
 
       # Step 6: Update version using set-semvar-version.sh
@@ -227,10 +227,10 @@ jobs:
       # Step 8: Push branch
       - name: Push version bump branch
         run: |
-          if ! git push --set-upstream origin ${{ steps.create-branch.outputs.branch-name }}; then
+          if ! git push --set-upstream origin "${{ steps.create-branch.outputs.branch-name }}"; then
             echo "No changes to push to ${{ steps.create-branch.outputs.branch-name }}"
             # Check if branch exists remotely
-            if git ls-remote --heads origin ${{ steps.create-branch.outputs.branch-name }} | grep -q ${{ steps.create-branch.outputs.branch-name }}; then
+            if git ls-remote --heads origin "${{ steps.create-branch.outputs.branch-name }}" | grep -q "${{ steps.create-branch.outputs.branch-name }}"; then
               echo "Branch ${{ steps.create-branch.outputs.branch-name }} already exists remotely"
             else
               echo "Error: Failed to push and branch doesn't exist remotely"
@@ -244,7 +244,7 @@ jobs:
           GH_TOKEN: ${{ secrets.github-token }}
         run: |
           # Check if PR already exists
-          if gh pr list --head ${{ steps.create-branch.outputs.branch-name }} --json number --jq 'length' | grep -q "1"; then
+          if gh pr list --head "${{ steps.create-branch.outputs.branch-name }}" --json number --jq 'length' | grep -q "1"; then
             echo "PR for branch ${{ steps.create-branch.outputs.branch-name }} already exists"
           else
             gh pr create \
@@ -275,7 +275,7 @@ jobs:
             ---
             *This PR was automatically created by the \`create-release-pr\` workflow.*" \
               --base main \
-              --head ${{ steps.create-branch.outputs.branch-name }} \
+              --head "${{ steps.create-branch.outputs.branch-name }}" \
               --label "release-management" \
               --label "version-bump" \
               --assignee @me
