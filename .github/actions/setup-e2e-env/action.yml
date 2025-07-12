@@ -70,7 +70,6 @@ inputs:
     required: false
     default: 'x86_64'
 
-
 runs:
   using: 'composite'
   steps:
@@ -303,7 +302,7 @@ runs:
 
     ## Launch AVD
 
-## Launch AVD
+    ## Launch AVD
 
     - name: Install Android system image
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
@@ -377,5 +376,3 @@ runs:
         echo "❌ Timeout waiting for emulator to boot"
         exit 1
       shell: bash
-
-
