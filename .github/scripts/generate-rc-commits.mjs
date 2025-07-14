@@ -80,45 +80,6 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
   try {
     const git = simpleGit();
 
-    // Fetch all branches from remote to ensure we have the latest references
-    console.log('Fetching branches from remote...');
-    await git.fetch('origin', ['--all']);
-
-    // Check if branches exist
-    console.log(`Checking if branches exist: ${branchA} and ${branchB}`);
-    
-    try {
-      await git.revparse(['--verify', branchA]);
-      console.log(`✓ Branch ${branchA} exists`);
-    } catch (error) {
-      console.error(`✗ Branch ${branchA} does not exist locally`);
-      // Try to check if it exists remotely
-      try {
-        await git.revparse(['--verify', `origin/${branchA}`]);
-        console.log(`✓ Branch origin/${branchA} exists, using remote reference`);
-        branchA = `origin/${branchA}`;
-      } catch (remoteError) {
-        console.error(`✗ Branch ${branchA} does not exists remotely either`);
-        throw new Error(`Branch ${branchA} not found locally or remotely`);
-      }
-    }
-
-    try {
-      await git.revparse(['--verify', branchB]);
-      console.log(`✓ Branch ${branchB} exists`);
-    } catch (error) {
-      console.error(`✗ Branch ${branchB} does not exist locally`);
-      // Try to check if it exists remotely
-      try {
-        await git.revparse(['--verify', `origin/${branchB}`]);
-        console.log(`✓ Branch origin/${branchB} exists, using remote reference`);
-        branchB = `origin/${branchB}`;
-      } catch (remoteError) {
-        console.error(`✗ Branch ${branchB} does not exists remotely either`);
-        throw new Error(`Branch ${branchB} not found locally or remotely`);
-      }
-    }
-
     const logOptions = {
       from: branchB,
       to: branchA,
