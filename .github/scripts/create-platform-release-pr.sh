@@ -82,15 +82,171 @@ get_release_branch_name() {
     fi
 }
 
-# Main Script
-# ----------
+# Calculate next version for main branch bump
+get_next_version() {
+    local current_version="$1"
 
-# Initialize branch names
-RELEASE_BRANCH_NAME=$(get_release_branch_name $PLATFORM $NEW_VERSION)
-CHANGELOG_BRANCH_NAME="chore/${NEW_VERSION}-Changelog"
+    # Parse semantic version (major.minor.patch)
+    if [[ ! $current_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+        echo "Error: Invalid semantic version format: $current_version" >&2
+        exit 1
+    fi
 
-# Prepare release PR body with team sign-off checklist
-RELEASE_BODY="This is the release candidate for version ${NEW_VERSION}. The changelog will be found in another PR ${CHANGELOG_BRANCH_NAME}.
+    local major="${BASH_REMATCH[1]}"
+    local minor="${BASH_REMATCH[2]}"
+    local patch="${BASH_REMATCH[3]}"
+
+    # Increment minor version and reset patch to 0
+    local next_minor=$((minor + 1))
+    echo "${major}.${next_minor}.0"
+}
+
+# Returns the version bump branch name based on version and test mode
+get_version_bump_branch_name() {
+    local next_version="$1"
+
+    # Use appropriate prefix based on test mode
+    if [ "$TEST_ONLY" == "true" ]; then
+        echo "version-bump-testing/${next_version}"
+    else
+        echo "version-bump/${next_version}"
+    fi
+}
+
+# Main workflow functions
+# -----------------------
+
+# Helper function to check if branch exists and checkout/create it
+checkout_or_create_branch() {
+    local branch_name="$1"
+    local base_branch="${2:-}" # Optional base branch for new branches
+
+    echo "Checking for existing branch ${branch_name}"
+
+    if git show-ref --verify --quiet "refs/heads/${branch_name}" || git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
+        echo "Branch ${branch_name} already exists, checking it out"
+        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
+            git fetch origin "${branch_name}"
+            git checkout "${branch_name}"
+        else
+            git checkout "${branch_name}"
+        fi
+    else
+        echo "Creating new branch ${branch_name}"
+        if [[ -n "$base_branch" ]]; then
+            git checkout "$base_branch"
+            git pull origin "$base_branch"
+        fi
+        git checkout -b "${branch_name}"
+    fi
+
+    echo "Branch ${branch_name} ready"
+}
+
+# Helper function to push branch with error handling
+push_branch_with_handling() {
+    local branch_name="$1"
+
+    echo "Pushing changes to the remote.."
+    if ! git push --set-upstream origin "${branch_name}"; then
+        echo "No changes to push to ${branch_name}"
+        # Check if branch exists remotely
+        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
+            echo "Branch ${branch_name} already exists remotely"
+        else
+            echo "Error: Failed to push and branch doesn't exist remotely"
+            exit 1
+        fi
+    fi
+}
+
+# Helper function to create PR if it doesn't exist
+create_pr_if_not_exists() {
+    local branch_name="$1"
+    local title="$2"
+    local body="$3"
+    local base_branch="${4:-main}"
+    local labels="${5:-}"
+    local search_method="${6:-head}" # "head" or "search"
+
+    echo "Creating PR for ${branch_name}.."
+
+    # Check if PR already exists using different methods
+    local pr_exists=false
+    if [[ "$search_method" == "search" ]]; then
+        if gh pr list --search "head:${branch_name}" --json number --jq 'length' | grep -q "1"; then
+            pr_exists=true
+        fi
+    else
+        if gh pr list --head "${branch_name}" --json number --jq 'length' | grep -q "1"; then
+            pr_exists=true
+        fi
+    fi
+
+    if $pr_exists; then
+        echo "PR for branch ${branch_name} already exists"
+    else
+        local gh_cmd="gh pr create --draft --title \"${title}\" --body \"${body}\" --base \"${base_branch}\" --head \"${branch_name}\""
+
+        if [[ -n "$labels" ]]; then
+            gh_cmd="${gh_cmd} --label \"${labels}\""
+        fi
+
+        eval "$gh_cmd"
+        echo "PR Created: ${title}"
+    fi
+}
+
+# Configure git for automation
+configure_git() {
+    echo "Configuring git.."
+    git config user.name metamaskbot
+    git config user.email metamaskbot@users.noreply.github.com
+
+    echo "Fetching from remote..."
+    git fetch
+}
+
+# Create release branch, update versions, and create PR
+create_release_pr() {
+    local platform="$1"
+    local new_version="$2"
+    local new_version_number="$3"
+    local release_branch_name="$4"
+    local changelog_branch_name="$5"
+
+    echo "Checking out the release branch: ${release_branch_name}"
+    git checkout "${release_branch_name}"
+
+    echo "Release Branch Checked Out"
+    echo "version : ${new_version}"
+    echo "platform : ${platform}"
+
+    # Version Updates
+    echo "Running version update scripts.."
+    ./github-tools/.github/scripts/set-semvar-version.sh "${new_version}" "${platform}"
+
+    # Commit Changes
+    local changed_files
+    changed_files=$(get_expected_changed_files "$platform")
+    echo "Files to be staged for commit: $changed_files"
+
+    echo "Adding and committing changes.."
+    git add $changed_files
+
+    # Generate commit message based on platform
+    if [ "$platform" = "mobile" ]; then
+        if ! git commit -m "bump semvar version to ${new_version} && build version to ${new_version_number}"; then
+            echo "No changes to commit for mobile version bump"
+        fi
+    elif [ "$platform" = "extension" ]; then
+        if ! git commit -m "bump semvar version to ${new_version}"; then
+            echo "No changes to commit for extension version bump"
+        fi
+    fi
+
+    # Prepare release PR body with team sign-off checklist
+    local release_body="This is the release candidate for version ${new_version}. The changelog will be found in another PR ${changelog_branch_name}.
 
   # Team sign-off checklist
   - [ ] team-accounts
@@ -109,149 +265,179 @@ RELEASE_BODY="This is the release candidate for version ${NEW_VERSION}. The chan
   # Reference
   - Testing plan sheet - https://docs.google.com/spreadsheets/d/1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ/edit?gid=404070372#gid=404070372"
 
-# Git Configuration
-# ----------------
-echo "Configuring git.."
-git config user.name metamaskbot
-git config user.email metamaskbot@users.noreply.github.com
+    # Push and create PR using helper functions
+    push_branch_with_handling "${release_branch_name}"
+    create_pr_if_not_exists "${release_branch_name}" "release: ${new_version}" "${release_body}" "main" "" "head"
+}
 
-echo "Fetching from remote..."
-git fetch
+# Create changelog branch and generate changelog
+create_changelog_pr() {
+    local platform="$1"
+    local new_version="$2"
+    local previous_version="$3"
+    local release_branch_name="$4"
+    local changelog_branch_name="$5"
 
-# Release Branch Setup
-# -------------------
-echo "Checking out the release branch: ${RELEASE_BRANCH_NAME}"
-git checkout "${RELEASE_BRANCH_NAME}"
+    # Use helper function for branch checkout/creation
+    checkout_or_create_branch "${changelog_branch_name}"
 
-echo "Release Branch Checked Out"
+    # Generate Changelog and Test Plan
+    echo "Generating changelog via auto-changelog.."
+    npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
 
-echo "version : ${NEW_VERSION}"
-echo "platform : ${PLATFORM}"
+    # Need to run from .github-tools context to inherit it's dependencies/environment
+    echo "Current Directory: $(pwd)"
+    PROJECT_GIT_DIR=$(pwd)
+    cd ./github-tools/
+    ls -ltra
+    corepack prepare yarn@4.5.1 --activate
+    # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
+    yarn --cwd install
 
-# Version Updates
-# --------------
-echo "Running version update scripts.."
-./github-tools/.github/scripts/set-semvar-version.sh "${NEW_VERSION}" ${PLATFORM}
+    echo "Generating test plan csv.."
+    yarn run gen:commits "${platform}" "${previous_version}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
 
-
-# Commit Changes
-# -------------
-changed_files=$(get_expected_changed_files "$PLATFORM")
-echo "Files to be staged for commit: $changed_files"
-
-echo "Adding and committing changes.."
-
-# Track our changes
-git add $changed_files
-
-# Generate commit message based on platform
-if [ "$PLATFORM" = "mobile" ]; then
-    if ! git commit -m "bump semvar version to ${NEW_VERSION} && build version to ${NEW_VERSION_NUMBER}"; then
-        echo "No changes to commit for mobile version bump"
+    if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
+      echo "Updating release sheet.."
+      # Create a new Release Sheet Page for the new version with our commits.csv content
+      yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
     fi
-elif [ "$PLATFORM" = "extension" ]; then
-    if ! git commit -m "bump semvar version to ${NEW_VERSION}"; then
-        echo "No changes to commit for extension version bump"
-    fi
-fi
+    cd ../
 
-# Push Changes and Create Release PR
-# ---------------------------------
-echo "Pushing changes to the remote.."
-if ! git push --set-upstream origin "${RELEASE_BRANCH_NAME}"; then
-    echo "No changes to push to ${RELEASE_BRANCH_NAME}"
-    # Check if branch exists remotely
-    if git ls-remote --heads origin "${RELEASE_BRANCH_NAME}" | grep -q "${RELEASE_BRANCH_NAME}"; then
-        echo "Branch ${RELEASE_BRANCH_NAME} already exists remotely"
-    else
-        echo "Error: Failed to push and branch doesn't exist remotely"
+    # Commit and Push Changelog Changes
+    echo "Adding and committing changes.."
+    git add ./commits.csv
+
+    if ! (git commit -am "updated changelog and generated feature test plan"); then
+        echo "Error: No changes detected."
         exit 1
     fi
+
+    local pr_body="This PR updates the change log for ${new_version} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${changelog_branch_name}/commits.csv)"
+
+    # Use helper functions for push and PR creation
+    push_branch_with_handling "${changelog_branch_name}"
+    create_pr_if_not_exists "${changelog_branch_name}" "chore: ${changelog_branch_name}" "${pr_body}" "${release_branch_name}" "" "search"
+
+    echo "Changelog PR Ready"
+}
+
+# Create version bump PR for main branch
+create_version_bump_pr() {
+    local platform="$1"
+    local new_version="$2"
+    local next_version="$3"
+    local version_bump_branch_name="$4"
+    local release_branch_name="$5"
+    local main_branch="${6:-main}"  # Default to 'main' if not provided
+
+    echo "Creating main version bump PR.."
+
+    # Use helper function for branch checkout/creation with base branch
+    checkout_or_create_branch "${version_bump_branch_name}" "${main_branch}"
+
+    # Update version files on main branch
+    echo "Running version update scripts for ${main_branch} branch.."
+    ./github-tools/.github/scripts/set-semvar-version.sh "${next_version}" "${platform}"
+
+    # Commit version bump changes
+    echo "Committing version bump changes.."
+    local changed_files
+    changed_files=$(get_expected_changed_files "$platform")
+    git add $changed_files
+
+    if git diff --staged --quiet; then
+        echo "No changes to commit for version bump"
+    else
+        git commit -m "Bump version to ${next_version} after release ${new_version}
+
+This automated version bump ensures that:
+- ${main_branch} branch version is ahead of the release branch
+- Future nightly builds will have correct versioning
+
+Release version: ${new_version}
+New ${main_branch} version: ${next_version}
+Platform: ${platform}"
+        echo "Version bump committed"
+    fi
+
+    local version_bump_body="## Version Bump After Release
+
+This PR bumps the ${main_branch} branch version from ${new_version} to ${next_version} after cutting the release branch.
+
+### Why this is needed:
+- **Nightly builds**: Each nightly build needs to be one minor version ahead of the current release candidate
+- **Version conflicts**: Prevents conflicts between nightlies and release candidates
+- **Platform alignment**: Maintains version alignment between MetaMask mobile and extension
+- **Update systems**: Ensures nightlies are accepted by app stores and browser update systems
+
+### What changed:
+- Version bumped from \\\`${new_version}\\\` to \\\`${next_version}\\\`
+- Platform: \\\`${platform}\\\`
+- Files updated by \\\`set-semvar-version.sh\\\` script
+
+### Next steps:
+This PR should be **manually reviewed and merged by the release manager** to maintain proper version flow.
+
+### Related:
+- Release version: ${new_version}
+- Release branch: ${release_branch_name}
+- Platform: ${platform}
+- Test mode: ${TEST_ONLY}
+
+---
+*This PR was automatically created by the \\\`create-platform-release-pr.sh\\\` script.*"
+
+    # Use helper functions for push and PR creation
+    push_branch_with_handling "${version_bump_branch_name}"
+    create_pr_if_not_exists "${version_bump_branch_name}" "Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "release-management,version-bump" "head"
+
+    echo "Version bump PR ready"
+}
+
+# Main orchestration function
+main() {
+    # Calculate next version for main branch bump
+    local next_version
+    next_version=$(get_next_version "$NEW_VERSION")
+
+    # Initialize branch names
+    local release_branch_name changelog_branch_name version_bump_branch_name
+    release_branch_name=$(get_release_branch_name "$PLATFORM" "$NEW_VERSION")
+    changelog_branch_name="chore/${NEW_VERSION}-Changelog"
+    version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
+    configure_git
+
+    # Step 1: Create release branch and PR
+    create_release_pr "$PLATFORM" "$NEW_VERSION" "$NEW_VERSION_NUMBER" "$release_branch_name" "$changelog_branch_name"
+
+    # Step 2: Create changelog PR (skip in test mode)
+    if [ "$TEST_ONLY" == "true" ]; then
+        echo "Skipping changelog generation in test mode"
+    else
+        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION" "$release_branch_name" "$changelog_branch_name"
+    fi
+
+    # Step 3: Create version bump PR for main branch
+    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
+
+    # Final summary
+    echo ""
+    echo "========================================="
+    echo "Release automation complete!"
+    echo "========================================="
+    echo "Created PRs:"
+    echo "1. Release PR: release: ${NEW_VERSION}"
+    if [ "$TEST_ONLY" != "true" ]; then
+        echo "2. Changelog PR: chore: ${changelog_branch_name}"
+        echo "3. Version bump PR: Bump main version to ${next_version}"
+    else
+        echo "2. Version bump PR: Bump main version to ${next_version} (test mode - changelog skipped)"
+    fi
+    echo "========================================="
+}
+
+# Execute main function only if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
 fi
-
-echo "Creating release PR.."
-# Check if PR already exists
-if gh pr list --head "${RELEASE_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
-    echo "PR for branch ${RELEASE_BRANCH_NAME} already exists"
-else
-    gh pr create \
-      --draft \
-      --title "release: ${NEW_VERSION}" \
-      --body "${RELEASE_BODY}" \
-      --head "${RELEASE_BRANCH_NAME}"
-    echo "Release PR Created"
-fi
-
-# Changelog Branch Setup
-# ---------------------
-echo "Checking for existing changelog branch ${CHANGELOG_BRANCH_NAME}"
-
-# Check if branch exists locally or remotely
-if git show-ref --verify --quiet refs/heads/"${CHANGELOG_BRANCH_NAME}" || git ls-remote --heads origin "${CHANGELOG_BRANCH_NAME}" | grep -q "${CHANGELOG_BRANCH_NAME}"; then
-    echo "Branch ${CHANGELOG_BRANCH_NAME} already exists, checking it out"
-    git fetch origin "${CHANGELOG_BRANCH_NAME}"
-    git checkout "${CHANGELOG_BRANCH_NAME}"
-else
-    echo "Creating new branch ${CHANGELOG_BRANCH_NAME}"
-    git checkout -b "${CHANGELOG_BRANCH_NAME}"
-fi
-echo "Changelog Branch Ready"
-
-# Generate Changelog and Test Plan
-# ------------------------------
-echo "Generating changelog via auto-changelog.."
-npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${NEW_VERSION}" --autoCategorize
-
-# Need to run from .github-tools context to inherit it's dependencies/environment
-echo "Current Directory: $(pwd)"
-PROJECT_GIT_DIR=$(pwd)
-cd ./github-tools/
-ls -ltra
-corepack prepare yarn@4.5.1 --activate
-# This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
-yarn --cwd install
-
-echo "Generating test plan csv.."
-yarn run gen:commits "${PLATFORM}" "${PREVIOUS_VERSION}" "${RELEASE_BRANCH_NAME}" "${PROJECT_GIT_DIR}"
-
-if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
-  echo "Updating release sheet.."
-  # Create a new Release Sheet Page for the new version with our commits.csv content
-  yarn run update-release-sheet "${PLATFORM}" "${NEW_VERSION}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
-fi
-cd ../
-
-# Commit and Push Changelog Changes
-# -------------------------------
-echo "Adding and committing changes.."
-git add ./commits.csv
-
-
-if ! (git commit -am "updated changelog and generated feature test plan");
-then
-    echo "Error: No changes detected."
-    exit 1
-fi
-
-PR_BODY="This PR updates the change log for ${NEW_VERSION} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${CHANGELOG_BRANCH_NAME}/commits.csv)"
-
-echo "Pushing changes to the remote.."
-git push --set-upstream origin "${CHANGELOG_BRANCH_NAME}"
-
-# Create Changelog PR
-# -----------------
-echo "Creating changelog PR.."
-# Check if PR already exists
-if gh pr list --search "head:${CHANGELOG_BRANCH_NAME}" --json number --jq 'length' | grep -q "1"; then
-    echo "Changelog PR for branch ${CHANGELOG_BRANCH_NAME} already exists"
-else
-    gh pr create \
-      --draft \
-      --title "chore: ${CHANGELOG_BRANCH_NAME}" \
-      --body "${PR_BODY}" \
-      --base "${RELEASE_BRANCH_NAME}" \
-      --head "${CHANGELOG_BRANCH_NAME}"
-    echo "Changelog PR Created"
-fi
-
-echo "Changelog PR Ready"
