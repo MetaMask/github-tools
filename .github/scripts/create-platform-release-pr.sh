@@ -390,9 +390,9 @@ This PR bumps the ${main_branch} branch version from ${new_version} to ${next_ve
 - **Update systems**: Ensures nightlies are accepted by app stores and browser update systems
 
 ### What changed:
-- Version bumped from \\\`${new_version}\\\` to \\\`${next_version}\\\`
-- Platform: \\\`${platform}\\\`
-- Files updated by \\\`set-semvar-version.sh\\\` script
+- Version bumped from \`${new_version}\` to \`${next_version}\`
+- Platform: \`${platform}\`
+- Files updated by \`set-semvar-version.sh\` script
 
 ### Next steps:
 This PR should be **manually reviewed and merged by the release manager** to maintain proper version flow.
@@ -404,7 +404,7 @@ This PR should be **manually reviewed and merged by the release manager** to mai
 - Test mode: ${TEST_ONLY}
 
 ---
-*This PR was automatically created by the \\\`create-platform-release-pr.sh\\\` script.*"
+*This PR was automatically created by the \`create-platform-release-pr.sh\` script.*"
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${version_bump_branch_name}"
