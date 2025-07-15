@@ -186,13 +186,17 @@ create_pr_if_not_exists() {
     if $pr_exists; then
         echo "PR for branch ${branch_name} already exists"
     else
-        local gh_cmd="gh pr create --draft --title \"${title}\" --body \"${body}\" --base \"${base_branch}\" --head \"${branch_name}\""
+        # Build command array with conditional label inclusion
+        local gh_cmd=(gh pr create --draft --title "${title}" --body "${body}" --base "${base_branch}" --head "${branch_name}")
 
-        if [[ -n "$labels" ]]; then
-            gh_cmd="${gh_cmd} --label \"${labels}\""
+        # Add labels only if provided (GitHub CLI doesn't accept empty label values)
+        if [[ -n "${labels:-}" ]]; then
+            gh_cmd+=(--label "${labels}")
         fi
 
-        eval "$gh_cmd"
+        # Execute the command
+        # echo "Executing: ${gh_cmd[@]}"
+        "${gh_cmd[@]}"
         echo "PR Created: ${title}"
     fi
 }
