@@ -46,17 +46,14 @@ on:
         type: string
         description: 'The platform for which the release PR is being created.'
       github-tools-version:
-        required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
         default: 'main'
       git-user-name:
-        required: false
         type: string
         description: 'Git user name for commits. Defaults to metamaskbot.'
         default: 'metamaskbot'
       git-user-email:
-        required: false
         type: string
         description: 'Git user email for commits. Defaults to metamaskbot@users.noreply.github.com.'
         default: 'metamaskbot@users.noreply.github.com'

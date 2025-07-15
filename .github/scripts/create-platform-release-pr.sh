@@ -408,7 +408,7 @@ This PR should be **manually reviewed and merged by the release manager** to mai
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${version_bump_branch_name}"
-    create_pr_if_not_exists "${version_bump_branch_name}" "Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "release-management,version-bump" "head"
+    create_pr_if_not_exists "${version_bump_branch_name}" "Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "" "head"
 
     echo "Version bump PR ready"
 }
