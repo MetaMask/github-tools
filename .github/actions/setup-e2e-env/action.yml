@@ -226,12 +226,12 @@ runs:
 
     ## Android SDK Setup
 
-    # - name: Install required emulator dependencies
-    #   if: ${{ inputs.platform == 'android' }}
-    #   run: |
-    #     sudo apt-get update
-    #     sudo apt-get install -y libpulse0 libglu1-mesa
-    #   shell: bash
+    - name: Install required emulator dependencies
+      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpulse0 libglu1-mesa
+      shell: bash
 
     - name: Install Android SDK packages
       if: ${{ inputs.platform == 'android' }}
@@ -302,10 +302,8 @@ runs:
 
     ## Launch AVD
 
-    ## Launch AVD
-
     - name: Install Android system image
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android' }}
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Installing system image: $IMAGE"
@@ -313,14 +311,14 @@ runs:
       shell: bash
 
     - name: Set ANDROID_AVD_HOME for downstream steps
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android'}}
       shell: bash
       run: |
         echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
         mkdir -p "$HOME/.android/avd"
 
     - name: Create Android Virtual Device (AVD)
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+      if: ${{ inputs.platform == 'android'}}
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Creating AVD with image: $IMAGE"
@@ -329,13 +327,6 @@ runs:
           --package "$IMAGE" \
           --device "${{ inputs.android-device }}"
       shell: bash
-
-    - name: List available AVDs
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
-      shell: bash
-      run: |
-        echo "✅ Available AVDs:"
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" list avd || true
 
     # Launch Android Emulator
     - name: Launch Android Emulator
