@@ -46,9 +46,20 @@ on:
         type: string
         description: 'The platform for which the release PR is being created.'
       github-tools-version:
+        required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
         default: 'main'
+      git-user-name:
+        required: false
+        type: string
+        description: 'Git user name for commits. Defaults to metamaskbot.'
+        default: 'metamaskbot'
+      git-user-email:
+        required: false
+        type: string
+        description: 'Git user email for commits. Defaults to metamaskbot@users.noreply.github.com.'
+        default: 'metamaskbot@users.noreply.github.com'
     secrets:
       github-token:
         required: true
@@ -104,6 +115,8 @@ jobs:
           echo "Extension Template Sheet ID: ${{ inputs.extension-template-sheet-id }}"
           echo "Release Sheet Google Document ID: ${{ inputs.release-sheet-google-document-id }}"
           echo "GitHub Tools Version: ${{ inputs.github-tools-version }}"
+          echo "Git User Name: ${{ inputs.git-user-name }}"
+          echo "Git User Email: ${{ inputs.git-user-email }}"
           echo "-------------"
 
       # Step 5: Create Release PR
@@ -127,4 +140,6 @@ jobs:
             ${{ inputs.platform }} \
             ${{ inputs.previous-version-tag }} \
             ${{ inputs.semver-version }} \
-            ${{ inputs.mobile-build-version }}
+            ${{ inputs.mobile-build-version }} \
+            ${{ inputs.git-user-name }} \
+            ${{ inputs.git-user-email }}

@@ -2,9 +2,21 @@
 
 # Script to create platform release PRs for MetaMask
 # This script handles the creation of release PRs for both mobile and extension platforms
-# It creates two PRs:
+# It creates three PRs:
 # 1. A release PR with version updates
-# 2. A changelog PR with updated changelog and test plan
+# 2. A changelog PR with updated changelog and test plan (skipped in test mode)
+# 3. A version bump PR for the main branch
+#
+# Usage:
+#   create-platform-release-pr.sh <platform> <previous_version> <new_version> [new_version_number] [git_user_name] [git_user_email]
+#
+# Parameters:
+#   platform           - 'mobile' or 'extension'
+#   previous_version    - Previous release version tag (e.g., v7.7.0)
+#   new_version         - New semantic version (e.g., 7.8.0)
+#   new_version_number  - Build version for mobile platform (optional, required for mobile)
+#   git_user_name       - Git user name for commits (optional, defaults to 'metamaskbot')
+#   git_user_email      - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
 
 set -e
 set -u
@@ -15,6 +27,8 @@ PLATFORM="${1}"
 PREVIOUS_VERSION="${2}"
 NEW_VERSION="${3}"
 NEW_VERSION_NUMBER="${4:-}"
+GIT_USER_NAME="${5:-metamaskbot}"
+GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
 
 # Validate required parameters
 if [[ -z $PLATFORM ]]; then
@@ -204,8 +218,8 @@ create_pr_if_not_exists() {
 # Configure git for automation
 configure_git() {
     echo "Configuring git.."
-    git config user.name metamaskbot
-    git config user.email metamaskbot@users.noreply.github.com
+    git config user.name "${GIT_USER_NAME}"
+    git config user.email "${GIT_USER_EMAIL}"
 
     echo "Fetching from remote..."
     git fetch
