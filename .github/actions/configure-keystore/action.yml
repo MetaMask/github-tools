@@ -1,0 +1,40 @@
+name: "Configure Keystore"
+description: "Assume an AWS role and fetch a secret into environment variables"
+inputs:
+  aws-role-to-assume:
+    description: "The AWS IAM role to assume"
+    required: true
+  aws-region:
+    description: "The AWS region where the secret is stored"
+    required: true
+  secret-name:
+    description: "The name of the secret in AWS Secrets Manager"
+    required: true
+  platform:
+    description: "The platform for which the keystore is being configured (e.g., ios, android)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Fetch secret and export as environment variables
+      shell: bash
+      run: |
+        secret_json=$(aws secretsmanager get-secret-value \
+          --region "${{ inputs.aws-region }}" \
+          --secret-id "${{ inputs.secret-name }}" \
+          --query SecretString \
+          --output text)
+
+        keys=$(echo "$secret_json" | jq -r 'keys[]')
+        for key in $keys; do
+          value=$(echo "$secret_json" | jq -r --arg k "$key" '.[$k]')
+          echo "::add-mask::$value"
+          echo "$key=$value" >> "$GITHUB_ENV"
+        done
