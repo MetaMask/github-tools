@@ -235,7 +235,7 @@ runs:
           libglu1-mesa \
           libnss3 \
           libxss1
-        
+
         echo "✅ Linux dependencies installed successfully"
       shell: bash
 
@@ -255,7 +255,7 @@ runs:
 
         echo "Updating SDK packages..."
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
-        
+
         echo "✅ Android SDK packages installed successfully"
       shell: bash
 
@@ -332,20 +332,20 @@ runs:
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
         echo "Waiting for emulator to be ready on $RUNNER_OS..."
-        
+
         # Wait for device to be detected by ADB
         echo "Waiting for ADB to detect device..."
         adb wait-for-device
-        
+
         # Additional wait for emulator to stabilize
         sleep 10
-        
+
         # Check emulator status
         echo "Checking emulator processes..."
         if [ "$RUNNER_OS" = "Linux" ]; then
           ps aux | grep emulator || echo "No emulator processes found"
         fi
-        
+
         # Wait for boot to complete
         bootanim=""
         timeout=600  # 10 minutes for initial boot (Linux might be slower)
@@ -375,12 +375,12 @@ runs:
         done
 
         echo "❌ Timeout waiting for emulator to boot"
-        
+
         # Debug information on failure
         echo "Debug: ADB devices:"
         adb devices
         echo "Debug: Emulator processes:"
         ps aux | grep emulator || echo "No emulator processes found"
-        
+
         exit 1
-      shell: bash 
+      shell: bash
