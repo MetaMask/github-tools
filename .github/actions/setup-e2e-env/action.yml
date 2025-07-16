@@ -230,7 +230,13 @@ runs:
       if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
       run: |
         sudo apt-get update
-        sudo apt-get install -y libpulse0 libglu1-mesa
+        sudo apt-get install -y \
+          libpulse0 \
+          libglu1-mesa \
+          libnss3 \
+          libxss1
+        
+        echo "✅ Linux dependencies installed successfully"
       shell: bash
 
     - name: Install Android SDK packages
@@ -245,10 +251,12 @@ runs:
           "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-34;google_apis;${{ inputs.android-abi }}" \
+          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}" \
 
         echo "Updating SDK packages..."
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
+        
+        echo "✅ Android SDK packages installed successfully"
       shell: bash
 
     ## NDK Setup
@@ -258,24 +266,6 @@ runs:
       run: |
         echo "ANDROID_HOME: $ANDROID_HOME"
         echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-      shell: bash
-
-    - name: Accept Android SDK licenses
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "Accepting Android SDK licenses..."
-        bash -c 'yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses' || true
-      shell: bash
-
-    - name: Install Android SDK Packages
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-          "platform-tools" \
-          "platforms;android-${{ inputs.android-api-level }}" \
-          "build-tools;34.0.0" \
-          "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
       shell: bash
 
     - name: Install Android NDK
@@ -295,20 +285,16 @@ runs:
     - name: Add NDK related toolchains to PATH
       if: ${{ inputs.platform == 'android' }}
       run: |
-        NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+        else
+          NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+        fi
         echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
         echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
       shell: bash
 
     ## Launch AVD
-
-    - name: Install Android system image
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
-        echo "Installing system image: $IMAGE"
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "$IMAGE"
-      shell: bash
 
     - name: Set ANDROID_AVD_HOME for downstream steps
       if: ${{ inputs.platform == 'android'}}
@@ -332,11 +318,16 @@ runs:
     - name: Launch Android Emulator
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
+        # Linux with KVM hardware acceleration
         nohup "$ANDROID_HOME/emulator/emulator" \
           -avd "${{ inputs.android-avd-name }}" \
           -no-audio \
           -no-boot-anim \
           -no-window \
+          -gpu swiftshader_indirect \
+          -no-snapshot \
+          -wipe-data \
+          -accel on \
           -verbose > /dev/null 2>&1 &
       shell: bash
 
@@ -344,26 +335,56 @@ runs:
     - name: Wait for Android Emulator to Boot
       if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
       run: |
-        echo "Waiting for emulator to be ready..."
+        echo "Waiting for emulator to be ready on $RUNNER_OS..."
+        
+        # Wait for device to be detected by ADB
+        echo "Waiting for ADB to detect device..."
         adb wait-for-device
-
+        
+        # Additional wait for emulator to stabilize
+        sleep 10
+        
+        # Check emulator status
+        echo "Checking emulator processes..."
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          ps aux | grep emulator || echo "No emulator processes found"
+        fi
+        
+        # Wait for boot to complete
         bootanim=""
-        timeout=300  # 5 minutes in seconds
+        timeout=600  # 10 minutes for initial boot (Linux might be slower)
         elapsed=0
 
         while [[ "$elapsed" -lt "$timeout" ]]; do
           bootanim=$(adb shell getprop init.svc.bootanim 2>/dev/null || echo "unknown")
-          echo "Waiting for emulator... ($bootanim) (${elapsed}s elapsed)"
+          sys_boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null || echo "0")
+          
+          echo "Waiting for emulator... bootanim: $bootanim, boot_completed: $sys_boot_completed (${elapsed}s elapsed)"
 
-          if [[ "$bootanim" == *"stopped"* ]]; then
+          if [[ "$bootanim" == *"stopped"* ]] && [[ "$sys_boot_completed" == "1" ]]; then
             echo "✅ Emulator booted successfully"
+            
+            # Unlock screen and disable animations for testing
+            adb shell input keyevent 82  # Unlock
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            
+            echo "✅ Emulator is ready for testing"
             exit 0
           fi
 
-          sleep 5
-          elapsed=$((elapsed + 5))
+          sleep 10
+          elapsed=$((elapsed + 10))
         done
 
         echo "❌ Timeout waiting for emulator to boot"
+        
+        # Debug information on failure
+        echo "Debug: ADB devices:"
+        adb devices
+        echo "Debug: Emulator processes:"
+        ps aux | grep emulator || echo "No emulator processes found"
+        
         exit 1
-      shell: bash
+      shell: bash 
