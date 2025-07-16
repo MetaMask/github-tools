@@ -1,5 +1,6 @@
 name: "Configure Keystore"
 description: "Assume an AWS role and fetch a secret into environment variables"
+
 inputs:
   aws-role-to-assume:
     description: "The AWS IAM role to assume"
@@ -13,10 +14,33 @@ inputs:
   platform:
     description: "The platform for which the keystore is being configured (e.g., ios, android)"
     required: true
+  environment:
+    description: "The environment for which the keystore is being configured (e.g., qa, flask, main)"
+    required: true
 
 runs:
   using: "composite"
   steps:
+    - name: Determine signing secret name
+      shell: bash
+      run: |
+        case "${{ inputs.environment }}" in
+          qa)
+            SECRET_NAME="metamask-mobile-qa-signing-certificates"
+            ;;
+          flask)
+            SECRET_NAME="metamask-mobile-flask-signing-certificates"
+            ;;
+          main)
+            SECRET_NAME="metamask-mobile-main-signing-certificates"
+            ;;
+          *)
+            echo "❌ Unknown environment: ${{ inputs.environment }}"
+            exit 1
+            ;;
+        esac
+        echo "AWS_SIGNING_CERT_SECRET_NAME=$SECRET_NAME" >> "$GITHUB_ENV"
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -28,7 +52,7 @@ runs:
       run: |
         secret_json=$(aws secretsmanager get-secret-value \
           --region "${{ inputs.aws-region }}" \
-          --secret-id "${{ inputs.secret-name }}" \
+          --secret-id "${AWS_SIGNING_CERT_SECRET_NAME}" \
           --query SecretString \
           --output text)
 
@@ -36,5 +60,5 @@ runs:
         for key in $keys; do
           value=$(echo "$secret_json" | jq -r --arg k "$key" '.[$k]')
           echo "::add-mask::$value"
-          echo "$key=$value" >> "$GITHUB_ENV"
+          echo "$key=$(printf '%s' "$value")" >> "$GITHUB_ENV"
         done
