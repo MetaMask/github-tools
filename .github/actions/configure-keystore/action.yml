@@ -61,4 +61,5 @@ runs:
           value=$(echo "$secret_json" | jq -r --arg k "$key" '.[$k]')
           echo "::add-mask::$value"
           echo "$key=$(printf '%s' "$value")" >> "$GITHUB_ENV"
+          echo "✅ Set secret for key: $key"
         done
