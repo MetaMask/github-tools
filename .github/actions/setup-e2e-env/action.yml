@@ -184,7 +184,7 @@ runs:
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
-      run: bundle exec pod install
+      run: bundle exec pod install --repo-update
       working-directory: ios
       shell: bash
 
