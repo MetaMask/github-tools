@@ -189,29 +189,31 @@ runs:
       run: brew tap wix/brew && brew install applesimutils
       shell: bash
 
-    - name: Boot iOS Simulator (if not already booted)
+    - name: Boot iOS Simulator
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
       run: |
-        echo "Looking for simulator named: ${{ inputs.ios-device }}"
-
-        SIMULATOR_LINE=$(xcrun simctl list devices | grep -m1 "${{ inputs.ios-device }}")
-        if [ -z "$SIMULATOR_LINE" ]; then
-          echo "No simulator found with name '${{ inputs.ios-device }}'"
+        # Find and boot simulator
+        SIMULATOR_ID=$(xcrun simctl list devices | grep "${{ inputs.ios-device }}" | \
+          grep -oE '\([A-F0-9-]{36}\)' | tr -d '()' | head -1)
+        
+        if [ -z "$SIMULATOR_ID" ]; then
+          echo "Simulator not found"
           exit 1
         fi
-
-        SIMULATOR_ID=$(echo "$SIMULATOR_LINE" | awk -F '[()]' '{print $2}')
-        SIMULATOR_STATE=$(echo "$SIMULATOR_LINE" | awk -F '[()]' '{print $(NF-1)}')
-
-        echo "Simulator ID: $SIMULATOR_ID"
-        echo "Simulator State: $SIMULATOR_STATE"
-
-        if [ "$SIMULATOR_STATE" = "Booted" ]; then
-          echo "Simulator is already booted. Skipping boot step."
-        else
+        
+        # Shutdown other simulators (key performance win)
+        xcrun simctl shutdown all 2>/dev/null || true
+        
+        # Boot if needed
+        if ! xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -q "(Booted)"; then
           echo "Booting simulator..."
           xcrun simctl boot "$SIMULATOR_ID"
         fi
+        
+        # Essential performance settings
+        xcrun simctl status_bar "$SIMULATOR_ID" override \
+          --time "9:41" --batteryState charged --batteryLevel 100
+        
       shell: bash
 
     ## Android Setup ##
@@ -321,9 +323,14 @@ runs:
           -no-boot-anim \
           -no-window \
           -gpu swiftshader_indirect \
-          -no-snapshot \
-          -wipe-data \
+          -memory 6144 \
+          -cores 4 \
+          -partition-size 4096 \
+          -data-partition-size 4096 \
+          -snapshot-save \
+          -no-snapshot-load \
           -accel on \
+          -qemu -smp 4 \
           -verbose > /dev/null 2>&1 &
       shell: bash
 
