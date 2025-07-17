@@ -50,6 +50,7 @@ runs:
     - name: Fetch secret and export as environment variables
       shell: bash
       run: |
+        echo "🔐 Fetching secret from Secrets Manager..."
         secret_json=$(aws secretsmanager get-secret-value \
           --region "${{ inputs.aws-region }}" \
           --secret-id "${AWS_SIGNING_CERT_SECRET_NAME}" \
@@ -63,3 +64,19 @@ runs:
           echo "$key=$(printf '%s' "$value")" >> "$GITHUB_ENV"
           echo "✅ Set secret for key: $key"
         done
+
+    - name: Configure Android Keystore
+      if: inputs.platform == 'android'
+      shell: bash
+      run: |
+        echo "📦 Configuring Android keystore..."
+        if [[ -z "$ANDROID_KEYSTORE" ]]; then
+          echo "⚠️ ANDROID_KEYSTORE is not set. Skipping keystore decoding."
+          exit 1
+        fi
+
+        # Use provided path if set, fallback to default
+        KEYSTORE_PATH="${ANDROID_KEYSTORE_PATH:-/tmp/android.keystore}"
+        echo "$ANDROID_KEYSTORE" | base64 --decode > "$KEYSTORE_PATH"
+        echo "✅ Android keystore written to $KEYSTORE_PATH"
+
