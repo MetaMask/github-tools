@@ -249,7 +249,7 @@ runs:
       if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
       uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
       with:
-        #aws-role-to-assume: 'arn:aws:iam::722264665990:role/metamask-mobile-build-signing-certificate-manager'
+        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'
         platform: 'android'
         environment: ${{ inputs.environment }}
