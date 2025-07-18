@@ -190,6 +190,7 @@ runs:
       shell: bash
 
     - name: Check simutils
+      if: ${{ inputs.platform == 'ios' }}
       run: xcrun simctl list devices
       shell: bash
 
