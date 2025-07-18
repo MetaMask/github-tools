@@ -65,7 +65,7 @@ runs:
           echo "✅ Set secret for key: $key"
         done
 
-    - name: Configure Android Keystore
+    - name: Configure Android Signing Certificates
       if: inputs.platform == 'android'
       shell: bash
       run: |
@@ -79,4 +79,36 @@ runs:
         KEYSTORE_PATH="${ANDROID_KEYSTORE_PATH:-/tmp/android.keystore}"
         echo "$ANDROID_KEYSTORE" | base64 --decode > "$KEYSTORE_PATH"
         echo "✅ Android keystore written to $KEYSTORE_PATH"
+
+    - name: Configure iOS Signing Certificates
+      if: inputs.platform == 'ios'
+      shell: bash
+      run: |
+        echo "📦 Configuring iOS code signing..."
+
+        # Create paths
+        CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+        PROFILE_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+        KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+        CERT_PW="${IOS_SIGNING_KEYSTORE_PASSWORD}"
+
+        # Decode base64 files
+        echo "$IOS_SIGNING_KEYSTORE" | base64 --decode > "$CERT_PATH"
+        echo "$IOS_SIGNING_PROFILE" | base64 --decode > "$PROFILE_PATH"
+        echo "✅ Decoded .p12 and provisioning profile"
+
+        # Create and unlock keychain
+        security create-keychain -p "$CERT_PW" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$CERT_PW" "$KEYCHAIN_PATH"
+
+        # Import cert
+        security import "$CERT_PATH" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH"
+        security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+        # Install provisioning profile
+        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+        cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+        echo "✅ Installed provisioning profile"
 
