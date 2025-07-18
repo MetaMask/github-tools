@@ -189,6 +189,10 @@ runs:
       run: brew tap wix/brew && brew install applesimutils
       shell: bash
 
+    - name: Check simutils
+      run: xcrun simctl list devices
+      shell: bash
+
     #- name: Boot iOS Simulator
     #  if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
     #  run: |
