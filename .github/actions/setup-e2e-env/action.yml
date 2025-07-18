@@ -69,6 +69,10 @@ inputs:
     description: 'System architecture ABI for the Android system image (e.g. x86_64, arm64-v8a, armeabi-v7a)'
     required: false
     default: 'x86_64'
+  configure-keystores:
+    description: 'Whether to configure keystores for E2E tests'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -180,7 +184,7 @@ runs:
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
-      run: bundle exec pod install
+      run: bundle exec pod install --repo-update
       working-directory: ios
       shell: bash
 
