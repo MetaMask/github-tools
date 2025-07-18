@@ -200,7 +200,7 @@ runs:
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios'}}
-      run: bundle exec pod install--repo-update --verbose
+      run: bundle exec pod install --repo-update --verbose
       working-directory: ios
       shell: bash
 
