@@ -89,6 +89,11 @@ runs:
     - run: echo "Setup E2E Environment started"
       shell: bash
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
     ## Yarn Setup & Cache Management
 
     - name: Corepack
