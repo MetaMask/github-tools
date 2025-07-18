@@ -105,7 +105,6 @@ runs:
         # Import cert
         security import "$CERT_PATH" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
         security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH"
-        security list-keychain -d user -s "$KEYCHAIN_PATH"
 
         # Install provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
