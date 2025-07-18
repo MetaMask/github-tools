@@ -1,25 +1,25 @@
-name: "Configure Keystore"
-description: "Assume an AWS role and fetch a secret into environment variables"
+name: 'Configure Keystore'
+description: 'Assume an AWS role and fetch a secret into environment variables'
 
 inputs:
   aws-role-to-assume:
-    description: "The AWS IAM role to assume"
+    description: 'The AWS IAM role to assume'
     required: true
   aws-region:
-    description: "The AWS region where the secret is stored"
+    description: 'The AWS region where the secret is stored'
     required: true
   secret-name:
-    description: "The name of the secret in AWS Secrets Manager"
+    description: 'The name of the secret in AWS Secrets Manager'
     required: true
   platform:
-    description: "The platform for which the keystore is being configured (e.g., ios, android)"
+    description: 'The platform for which the keystore is being configured (e.g., ios, android)'
     required: true
   environment:
-    description: "The environment for which the keystore is being configured (e.g., qa, flask, main)"
+    description: 'The environment for which the keystore is being configured (e.g., qa, flask, main)'
     required: true
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Determine signing secret name
       shell: bash
@@ -112,4 +112,3 @@ runs:
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
         echo "✅ Installed provisioning profile"
-

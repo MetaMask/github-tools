@@ -73,6 +73,10 @@ inputs:
     description: 'Whether to configure keystores for E2E tests'
     required: false
     default: 'true'
+  environment:
+    description: 'Environment for which the keystore is being configured (e.g., qa, flask, main)'
+    required: false
+    default: 'qa'
 
 runs:
   using: 'composite'
@@ -127,6 +131,14 @@ runs:
         "$FOUNDRY_BIN/foundryup"
 
     ## IOS Setup ##
+    - name: Configure iOS Signing Certificates
+      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      with:
+        aws-role-to-assume: 'arn:aws:iam::722264665990:role/metamask-mobile-build-signing-certificate-manager'
+        aws-region: 'us-east-2'
+        platform: 'ios'
+        environment: ${{ inputs.environment }}
 
     ## Ruby Setup & Cache Management
     - name: Setup Ruby
@@ -227,6 +239,16 @@ runs:
       with:
         java-version: ${{ inputs.jdk-version }}
         distribution: ${{ inputs.jdk-distribution }}
+
+    ## Android Certificate Setup
+    - name: Configure Android Signing Certificates
+      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      with:
+        aws-role-to-assume: 'arn:aws:iam::722264665990:role/metamask-mobile-build-signing-certificate-manager'
+        aws-region: 'us-east-2'
+        platform: 'android'
+        environment: ${{ inputs.environment }}
 
     ## Android SDK Setup
 
