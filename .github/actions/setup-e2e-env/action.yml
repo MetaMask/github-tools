@@ -189,32 +189,32 @@ runs:
       run: brew tap wix/brew && brew install applesimutils
       shell: bash
 
-    - name: Boot iOS Simulator
-      if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
-      run: |
-        # Find and boot simulator
-        SIMULATOR_ID=$(xcrun simctl list devices | grep "${{ inputs.ios-device }}" | \
-          grep -oE '\([A-F0-9-]{36}\)' | tr -d '()' | head -1)
-        
-        if [ -z "$SIMULATOR_ID" ]; then
-          echo "Simulator not found"
-          exit 1
-        fi
-        
-        # Shutdown other simulators (key performance win)
-        xcrun simctl shutdown all 2>/dev/null || true
-        
-        # Boot if needed
-        if ! xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -q "(Booted)"; then
-          echo "Booting simulator..."
-          xcrun simctl boot "$SIMULATOR_ID"
-        fi
-        
-        # Essential performance settings
-        xcrun simctl status_bar "$SIMULATOR_ID" override \
-          --time "9:41" --batteryState charged --batteryLevel 100
-        
-      shell: bash
+    #- name: Boot iOS Simulator
+    #  if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
+    #  run: |
+    #    # Find and boot simulator
+    #    SIMULATOR_ID=$(xcrun simctl list devices | grep "${{ inputs.ios-device }}" | \
+    #      grep -oE '\([A-F0-9-]{36}\)' | tr -d '()' | head -1)
+    #    
+    #    if [ -z "$SIMULATOR_ID" ]; then
+    #      echo "Simulator not found"
+    #      exit 1
+    #    fi
+    #    
+    #    # Shutdown other simulators (key performance win)
+    #    xcrun simctl shutdown all 2>/dev/null || true
+    #    
+    #    # Boot if needed
+    #    if ! xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -q "(Booted)"; then
+    #      echo "Booting simulator..."
+    #      xcrun simctl boot "$SIMULATOR_ID"
+    #    fi
+    #    
+    #    # Essential performance settings
+    #    xcrun simctl status_bar "$SIMULATOR_ID" override \
+    #      --time "9:41" --batteryState charged --batteryLevel 100
+    #    
+    #  shell: bash
 
     ## Android Setup ##
 
@@ -313,81 +313,81 @@ runs:
       shell: bash
 
     # Launch Android Emulator
-    - name: Launch Android Emulator
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
-      run: |
-        # Linux with KVM hardware acceleration
-        nohup "$ANDROID_HOME/emulator/emulator" \
-          -avd "${{ inputs.android-avd-name }}" \
-          -no-audio \
-          -no-boot-anim \
-          -no-window \
-          -gpu swiftshader_indirect \
-          -memory 6144 \
-          -cores 4 \
-          -partition-size 4096 \
-          -data-partition-size 4096 \
-          -snapshot-save \
-          -no-snapshot-load \
-          -accel on \
-          -qemu -smp 4 \
-          -verbose > /dev/null 2>&1 &
-      shell: bash
+    #- name: Launch Android Emulator
+    #  if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+    #  run: |
+    #    # Linux with KVM hardware acceleration
+    #    nohup "$ANDROID_HOME/emulator/emulator" \
+    #      -avd "${{ inputs.android-avd-name }}" \
+    #      -no-audio \
+    #      -no-boot-anim \
+    #      -no-window \
+    #      -gpu swiftshader_indirect \
+    #      -memory 6144 \
+    #      -cores 4 \
+    #      -partition-size 4096 \
+    #      -data-partition-size 4096 \
+    #      -snapshot-save \
+    #      -no-snapshot-load \
+    #      -accel on \
+    #      -qemu -smp 4 \
+    #      -verbose > /dev/null 2>&1 &
+    #  shell: bash
 
     ## Wait for Emulator to Boot
-    - name: Wait for Android Emulator to Boot
-      if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
-      run: |
-        echo "Waiting for emulator to be ready on $RUNNER_OS..."
-
-        # Wait for device to be detected by ADB
-        echo "Waiting for ADB to detect device..."
-        adb wait-for-device
-
-        # Additional wait for emulator to stabilize
-        sleep 10
-
-        # Check emulator status
-        echo "Checking emulator processes..."
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          ps aux | grep emulator || echo "No emulator processes found"
-        fi
-
-        # Wait for boot to complete
-        bootanim=""
-        timeout=600  # 10 minutes for initial boot (Linux might be slower)
-        elapsed=0
-
-        while [[ "$elapsed" -lt "$timeout" ]]; do
-          bootanim=$(adb shell getprop init.svc.bootanim 2>/dev/null || echo "unknown")
-          sys_boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null || echo "0")
-          
-          echo "Waiting for emulator... bootanim: $bootanim, boot_completed: $sys_boot_completed (${elapsed}s elapsed)"
-
-          if [[ "$bootanim" == *"stopped"* ]] && [[ "$sys_boot_completed" == "1" ]]; then
-            echo "✅ Emulator booted successfully"
-            
-            # Unlock screen and disable animations for testing
-            adb shell input keyevent 82  # Unlock
-            adb shell settings put global window_animation_scale 0
-            adb shell settings put global transition_animation_scale 0
-            adb shell settings put global animator_duration_scale 0
-            
-            echo "✅ Emulator is ready for testing"
-            exit 0
-          fi
-
-          sleep 10
-          elapsed=$((elapsed + 10))
-        done
-
-        echo "❌ Timeout waiting for emulator to boot"
-
-        # Debug information on failure
-        echo "Debug: ADB devices:"
-        adb devices
-        echo "Debug: Emulator processes:"
-        ps aux | grep emulator || echo "No emulator processes found"
-
-        exit 1
-      shell: bash
+    #- name: Wait for Android Emulator to Boot
+    #  if: ${{ inputs.platform == 'android' && inputs.setup-simulator == 'true' }}
+    #  run: |
+    #    echo "Waiting for emulator to be ready on $RUNNER_OS..."
+#
+    #    # Wait for device to be detected by ADB
+    #    echo "Waiting for ADB to detect device..."
+    #    adb wait-for-device
+#
+    #    # Additional wait for emulator to stabilize
+    #    sleep 10
+#
+    #    # Check emulator status
+    #    echo "Checking emulator processes..."
+    #    if [ "$RUNNER_OS" = "Linux" ]; then
+    #      ps aux | grep emulator || echo "No emulator processes found"
+    #    fi
+#
+    #    # Wait for boot to complete
+    #    bootanim=""
+    #    timeout=600  # 10 minutes for initial boot (Linux might be slower)
+    #    elapsed=0
+#
+    #    while [[ "$elapsed" -lt "$timeout" ]]; do
+    #      bootanim=$(adb shell getprop init.svc.bootanim 2>/dev/null || echo "unknown")
+    #      sys_boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null || echo "0")
+    #      
+    #      echo "Waiting for emulator... bootanim: $bootanim, boot_completed: $sys_boot_completed (${elapsed}s elapsed)"
+#
+    #      if [[ "$bootanim" == *"stopped"* ]] && [[ "$sys_boot_completed" == "1" ]]; then
+    #        echo "✅ Emulator booted successfully"
+    #        
+    #        # Unlock screen and disable animations for testing
+    #        adb shell input keyevent 82  # Unlock
+    #        adb shell settings put global window_animation_scale 0
+    #        adb shell settings put global transition_animation_scale 0
+    #        adb shell settings put global animator_duration_scale 0
+    #        
+    #        echo "✅ Emulator is ready for testing"
+    #        exit 0
+    #      fi
+#
+    #      sleep 10
+    #      elapsed=$((elapsed + 10))
+    #    done
+#
+    #    echo "❌ Timeout waiting for emulator to boot"
+#
+    #    # Debug information on failure
+    #    echo "Debug: ADB devices:"
+    #    adb devices
+    #    echo "Debug: Emulator processes:"
+    #    ps aux | grep emulator || echo "No emulator processes found"
+#
+    #    exit 1
+    #  shell: bash
