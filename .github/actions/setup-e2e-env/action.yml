@@ -188,19 +188,19 @@ runs:
       shell: bash
 
     # Restore CocoaPods cache
-    - name: Restore CocoaPods cache
-      if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
-      uses: actions/cache@v4
-      with:
-        path: ios/Pods
-        key: ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
-        restore-keys: |
-          ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-
+    # - name: Restore CocoaPods cache
+    #   if: ${{ inputs.platform == 'ios'}}
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: ios/Pods
+    #     key: ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+    #     restore-keys: |
+    #       ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
-      if: ${{ inputs.platform == 'ios' && inputs.setup-simulator == 'true' }}
-      run: bundle exec pod install --repo-update
+      if: ${{ inputs.platform == 'ios'}}
+      run: bundle exec pod install--repo-update --verbose
       working-directory: ios
       shell: bash
 
