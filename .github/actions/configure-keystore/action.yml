@@ -1,0 +1,114 @@
+name: 'Configure Keystore'
+description: 'Assume an AWS role and fetch a secret into environment variables'
+
+inputs:
+  aws-role-to-assume:
+    description: 'The AWS IAM role to assume'
+    required: true
+  aws-region:
+    description: 'The AWS region where the secret is stored'
+    required: true
+  secret-name:
+    description: 'The name of the secret in AWS Secrets Manager'
+    required: true
+  platform:
+    description: 'The platform for which the keystore is being configured (e.g., ios, android)'
+    required: true
+  environment:
+    description: 'The environment for which the keystore is being configured (e.g., qa, flask, main)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine signing secret name
+      shell: bash
+      run: |
+        case "${{ inputs.environment }}" in
+          qa)
+            SECRET_NAME="metamask-mobile-qa-signing-certificates"
+            ;;
+          flask)
+            SECRET_NAME="metamask-mobile-flask-signing-certificates"
+            ;;
+          main)
+            SECRET_NAME="metamask-mobile-main-signing-certificates"
+            ;;
+          *)
+            echo "❌ Unknown environment: ${{ inputs.environment }}"
+            exit 1
+            ;;
+        esac
+        echo "AWS_SIGNING_CERT_SECRET_NAME=$SECRET_NAME" >> "$GITHUB_ENV"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Fetch secret and export as environment variables
+      shell: bash
+      run: |
+        echo "🔐 Fetching secret from Secrets Manager..."
+        secret_json=$(aws secretsmanager get-secret-value \
+          --region "${{ inputs.aws-region }}" \
+          --secret-id "${AWS_SIGNING_CERT_SECRET_NAME}" \
+          --query SecretString \
+          --output text)
+
+        keys=$(echo "$secret_json" | jq -r 'keys[]')
+        for key in $keys; do
+          value=$(echo "$secret_json" | jq -r --arg k "$key" '.[$k]')
+          echo "::add-mask::$value"
+          echo "$key=$(printf '%s' "$value")" >> "$GITHUB_ENV"
+          echo "✅ Set secret for key: $key"
+        done
+
+    - name: Configure Android Signing Certificates
+      if: inputs.platform == 'android'
+      shell: bash
+      run: |
+        echo "📦 Configuring Android keystore..."
+        if [[ -z "$ANDROID_KEYSTORE" ]]; then
+          echo "⚠️ ANDROID_KEYSTORE is not set. Skipping keystore decoding."
+          exit 1
+        fi
+
+        # Use provided path if set, fallback to default
+        KEYSTORE_PATH="${ANDROID_KEYSTORE_PATH:-/tmp/android.keystore}"
+        echo "$ANDROID_KEYSTORE" | base64 --decode > "$KEYSTORE_PATH"
+        echo "✅ Android keystore written to $KEYSTORE_PATH"
+
+    - name: Configure iOS Signing Certificates
+      if: inputs.platform == 'ios'
+      shell: bash
+      run: |
+        echo "📦 Configuring iOS code signing..."
+
+        # Create paths
+        CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+        PROFILE_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+        KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+        CERT_PW="${IOS_SIGNING_KEYSTORE_PASSWORD}"
+
+        # Decode base64 files
+        echo "$IOS_SIGNING_KEYSTORE" | base64 --decode > "$CERT_PATH"
+        echo "$IOS_SIGNING_PROFILE" | base64 --decode > "$PROFILE_PATH"
+        echo "✅ Decoded .p12 and provisioning profile"
+
+        # Create and unlock keychain
+        security create-keychain -p "$CERT_PW" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$CERT_PW" "$KEYCHAIN_PATH"
+
+        # Import cert
+        security import "$CERT_PATH" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" > /dev/null
+        security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH" > /dev/null
+        security find-identity -p codesigning "$KEYCHAIN_PATH"
+
+
+        # Install provisioning profile
+        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+        cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+        echo "✅ Installed provisioning profile"
