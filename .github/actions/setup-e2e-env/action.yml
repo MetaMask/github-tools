@@ -152,34 +152,12 @@ runs:
 
     - name: Install Android SDK packages
       if: ${{ inputs.platform == 'android' }}
-      run: |
-        # Based on the official method from https://github.com/actions/runner-images
-        SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-        
-        echo "Accepting SDK licenses..."
-        yes | "$SDKMANAGER" --licenses
-
-        echo "Updating SDK manager..."
-        "$SDKMANAGER" --update > /dev/null || true
-
-        COMPONENTS=(
-          "platform-tools"
-          "platforms;android-${{ inputs.android-api-level }}"
-          "build-tools;34.0.0"
-          "emulator"
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
-          "ndk;${{ inputs.ndk-version }}"
-        )
-
-        echo "Installing Android SDK components..."
-        "$SDKMANAGER" --install "${COMPONENTS[@]}" --verbose
-
-        echo "Verifying installed packages..."
-        "$SDKMANAGER" --list_installed | grep "system-images"
-        "$SDKMANAGER" --list_installed | grep "ndk"
-
-        echo "✅ Android SDK packages installed successfully"
+      run: bash ${{ github.action_path }}/install-sdk.sh
       shell: bash
+      env:
+        ANDROID_API_LEVEL: ${{ inputs.android-api-level }}
+        ANDROID_ABI: ${{ inputs.android-abi }}
+        NDK_VERSION: ${{ inputs.ndk-version }}
 
     ## NDK Setup
 
