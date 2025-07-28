@@ -154,7 +154,10 @@ runs:
       if: ${{ inputs.platform == 'android' }}
       run: |
         echo "Accepting SDK licenses..."
-        printf 'y\n%.0s' {1..10} | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
+        printf 'y\n%.0s' {1..20} | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+        
+        echo "Updating SDK manager..."
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
 
         echo "Installing Android SDK components..."
         "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
@@ -162,10 +165,10 @@ runs:
           "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
+          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}" --verbose
 
         echo "Verifying installed packages..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list | grep "system-images"
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list_installed | grep "system-images"
 
         echo "✅ Android SDK packages installed successfully"
       shell: bash
