@@ -231,6 +231,25 @@ runs:
         echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
         echo "✅ Android environment variables set"
       shell: bash
+
+    - name: Install Android SDK
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        if [ ! -d "/usr/local/lib/android/sdk/cmdline-tools" ]; then
+          echo "Installing Android SDK..."
+          sudo mkdir -p /usr/local/lib/android/sdk
+          cd /usr/local/lib/android/sdk
+          sudo wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+          sudo unzip commandlinetools-linux-10406996_latest.zip
+          sudo rm commandlinetools-linux-10406996_latest.zip
+          sudo mkdir -p cmdline-tools/latest
+          sudo mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
+          sudo chmod -R 755 /usr/local/lib/android/sdk
+          echo "✅ Android SDK installed"
+        else
+          echo "✅ Android SDK already installed"
+        fi
+      shell: bash
     
     - name: Configure Android Signing Certificates
       if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
