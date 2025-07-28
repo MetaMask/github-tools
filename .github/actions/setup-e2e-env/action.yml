@@ -295,10 +295,10 @@ runs:
           "platforms;android-${{ inputs.android-api-level }}" \
           "build-tools;34.0.0" \
           "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}" \
+          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
 
-        echo "Updating SDK packages..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
+        echo "Verifying installed packages..."
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list | grep "system-images"
 
         echo "✅ Android SDK packages installed successfully"
       shell: bash
