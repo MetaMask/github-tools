@@ -40,10 +40,6 @@ inputs:
     description: JDK distribution to use (only for Android)
     required: false
     default: 'temurin'
-  ndk-version:
-    description: NDK version to use (only for Android)
-    required: false
-    default: '26.1.10909125'
   foundry-version:
     description: Foundry version to install
     required: false
@@ -83,6 +79,36 @@ runs:
     ## Common Setup ##
     - run: echo "Setup E2E Environment started"
       shell: bash
+
+    ## Platform Environment Configuration (must happen first) ##
+    
+    # Set Android environment variables (self-hosted runner has SDK pre-installed)
+    - name: Set Android environment variables
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        echo "ANDROID_HOME=/opt/android-sdk" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=/opt/android-sdk" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: Configure Android Signing Certificates
+      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      with:
+        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
+        aws-region: 'us-east-2'
+        platform: 'android'
+        environment: ${{ inputs.environment }}
+
+    - name: Configure iOS Signing Certificates
+      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      with:
+        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
+        aws-region: 'us-east-2'
+        platform: 'ios'
+        environment: ${{ inputs.environment }}
+
+    ## Node.js & JavaScript Dependencies Setup ##
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -134,15 +160,7 @@ runs:
 
         "$FOUNDRY_BIN/foundryup"
 
-    ## IOS Setup ##
-    - name: Configure iOS Signing Certificates
-      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
-      with:
-        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
-        aws-region: 'us-east-2'
-        platform: 'ios'
-        environment: ${{ inputs.environment }}
+    ## iOS Setup ##
 
     ## Ruby Setup & Cache Management
     - name: Setup Ruby
@@ -216,32 +234,16 @@ runs:
 
     ## Android Setup ##
 
-    ## JDK Setup
-    - name: Setup Java
-      if: ${{ inputs.platform == 'android' }}
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
-      with:
-        java-version: ${{ inputs.jdk-version }}
-        distribution: ${{ inputs.jdk-distribution }}
-    
-    - name: Configure Android Signing Certificates
-      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
-      with:
-        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
-        aws-region: 'us-east-2'
-        platform: 'android'
-        environment: ${{ inputs.environment }}
+    # KVM permissions setup - commented out for self-hosted runner
+    # - name: Enable KVM group perms (Ubuntu only)
+    #   if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
+    #   run: |
+    #     echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+    #     sudo udevadm control --reload-rules
+    #     sudo udevadm trigger --name-match=kvm
+    #   shell: bash
 
-    - name: Enable KVM group perms (Ubuntu only)
-      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --name-match=kvm
-      shell: bash
-
-    ## Android SDK Setup
+    ## Android Emulator Setup (SDK/NDK pre-installed by self-hosted runner)
 
     - name: Install required emulator dependencies
       if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
@@ -256,55 +258,15 @@ runs:
         echo "✅ Linux dependencies installed successfully"
       shell: bash
 
-    - name: Install Android SDK packages
+    - name: Install Android emulator and system images
       if: ${{ inputs.platform == 'android' }}
       run: |
-        echo "Accepting SDK licenses..."
-        printf 'y\n%.0s' {1..10} | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
-
-        echo "Installing Android SDK components..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
-          "platform-tools" \
-          "platforms;android-${{ inputs.android-api-level }}" \
-          "build-tools;34.0.0" \
+        echo "Installing emulator and system images..."
+        "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" --install \
           "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}" \
+          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
 
-        echo "Updating SDK packages..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
-
-        echo "✅ Android SDK packages installed successfully"
-      shell: bash
-
-    ## NDK Setup
-
-    - name: Debug Android SDK Paths
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-      shell: bash
-
-    - name: Install Android NDK
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
-      shell: bash
-
-    - name: Add Android tools to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-        echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
-        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-      shell: bash
-
-    - name: Add NDK related toolchains to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-        echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
-        echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
+        echo "✅ Android emulator components installed successfully"
       shell: bash
 
     ## Launch AVD
@@ -321,7 +283,7 @@ runs:
       run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Creating AVD with image: $IMAGE"
-        echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
+        echo "no" | "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" create avd \
           --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
           --device "${{ inputs.android-device }}"
