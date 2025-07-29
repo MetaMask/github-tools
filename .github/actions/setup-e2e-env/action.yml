@@ -40,10 +40,6 @@ inputs:
     description: JDK distribution to use (only for Android)
     required: false
     default: 'temurin'
-  ndk-version:
-    description: NDK version to use (only for Android)
-    required: false
-    default: '26.1.10909125'
   foundry-version:
     description: Foundry version to install
     required: false
@@ -144,37 +140,6 @@ runs:
         "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" --update
 
         echo "✅ Android SDK packages installed successfully"
-      shell: bash
-
-    ## NDK Setup
-
-    - name: Debug Android SDK Paths
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-      shell: bash
-
-    - name: Install Android NDK
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
-      shell: bash
-
-    - name: Add Android tools to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "/opt/android-sdk/platform-tools" >> "$GITHUB_PATH"
-        echo "/opt/android-sdk/emulator" >> "$GITHUB_PATH"
-        echo "/opt/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-      shell: bash
-
-    - name: Add NDK related toolchains to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        NDK_TOOLCHAIN="/opt/android-sdk/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-        echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
-        echo "/opt/android-sdk/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
       shell: bash
 
     ## Launch AVD
