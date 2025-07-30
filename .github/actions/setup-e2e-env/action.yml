@@ -120,26 +120,15 @@ runs:
         echo "✅ Linux dependencies installed successfully"
       shell: bash
 
-    ## Android SDK Setup
+    ## Android SDK Setup (SDK pre-installed in container)
 
-    - name: Install Android SDK packages
-      if: ${{ inputs.platform == 'android' }}
+    - name: Install additional Android SDK components if needed
+      if: ${{ inputs.platform == 'android' && (inputs.android-api-level != '34' || inputs.android-abi != 'x86_64') }}
       run: |
-        echo "Accepting SDK licenses..."
-        printf 'y\n%.0s' {1..10} | "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" --licenses
-
-        echo "Installing Android SDK components..."
-        "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" --install \
-          "platform-tools" \
-          "platforms;android-${{ inputs.android-api-level }}" \
-          "build-tools;34.0.0" \
-          "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
-
-        echo "Updating SDK packages..."
-        "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" --update
-
-        echo "✅ Android SDK packages installed successfully"
+        # Only install if different from pre-installed defaults (API 34, x86_64)
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
+        echo "Installing additional system image: $IMAGE"
+        echo "y" | "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" "$IMAGE"
       shell: bash
 
     ## Launch AVD
