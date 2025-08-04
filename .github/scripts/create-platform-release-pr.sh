@@ -292,7 +292,7 @@ create_release_pr() {
 create_changelog_pr() {
     local platform="$1"
     local new_version="$2"
-    local previous_version="$3"
+    local previous_release_branch_name="$3"
     local release_branch_name="$4"
     local changelog_branch_name="$5"
 
@@ -313,7 +313,7 @@ create_changelog_pr() {
     yarn --cwd install
 
     echo "Generating test plan csv.."
-    yarn run gen:commits "${platform}" "${previous_version}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
+    yarn run gen:commits "${platform}" "${previous_release_branch_name}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
 
     if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
       echo "Updating release sheet.."
@@ -420,7 +420,8 @@ main() {
     next_version=$(get_next_version "$NEW_VERSION")
 
     # Initialize branch names
-    local release_branch_name changelog_branch_name version_bump_branch_name
+    local previous_release_branch_name release_branch_name changelog_branch_name version_bump_branch_name
+    previous_release_branch_name=$(get_release_branch_name "$PLATFORM" "$PREVIOUS_VERSION")
     release_branch_name=$(get_release_branch_name "$PLATFORM" "$NEW_VERSION")
     changelog_branch_name="chore/${NEW_VERSION}-Changelog"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
@@ -433,7 +434,7 @@ main() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "Skipping changelog generation in test mode"
     else
-        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION" "$release_branch_name" "$changelog_branch_name"
+        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$previous_release_branch_name" "$release_branch_name" "$changelog_branch_name"
     fi
 
     # Step 3: Create version bump PR for main branch
