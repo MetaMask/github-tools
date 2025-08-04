@@ -14,8 +14,8 @@ inputs:
   platform:
     description: 'The platform for which the keystore is being configured (e.g., ios, android)'
     required: true
-  environment:
-    description: 'The environment for which the keystore is being configured (e.g., qa, flask, main)'
+  target:
+    description: 'The target for which the keystore is being configured (e.g., qa, flask, main)'
     required: true
 
 runs:
@@ -24,7 +24,7 @@ runs:
     - name: Determine signing secret name
       shell: bash
       run: |
-        case "${{ inputs.environment }}" in
+        case "${{ inputs.target }}" in
           qa)
             SECRET_NAME="metamask-mobile-qa-signing-certificates"
             ;;
@@ -35,7 +35,7 @@ runs:
             SECRET_NAME="metamask-mobile-main-signing-certificates"
             ;;
           *)
-            echo "❌ Unknown environment: ${{ inputs.environment }}"
+            echo "❌ Unknown target: ${{ inputs.target }}"
             exit 1
             ;;
         esac

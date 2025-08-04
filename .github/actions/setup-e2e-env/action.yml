@@ -68,8 +68,8 @@ inputs:
     description: 'AWS IAM role to assume for keystore configuration'
     required: false
     default: 'arn:aws:iam::363762752069:role/metamask-mobile-build-signing-certificate-manager'
-  environment:
-    description: 'Environment for which the keystore is being configured (e.g., qa, flask, main)'
+  target:
+    description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
 
@@ -97,7 +97,7 @@ runs:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'
         platform: 'android'
-        environment: ${{ inputs.environment }}
+        target: ${{ inputs.target }}
 
     ## JDK Setup
     - name: Setup Java
@@ -171,7 +171,7 @@ runs:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'
         platform: 'ios'
-        environment: ${{ inputs.environment }}
+        target: ${{ inputs.target }}
 
     ## Node.js & JavaScript Dependencies Setup ##
 
