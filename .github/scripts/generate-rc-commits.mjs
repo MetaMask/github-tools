@@ -80,6 +80,31 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
   try {
     const git = simpleGit();
 
+    // Fetch all branches and tags to ensure references exist
+    await git.fetch(['--all', '--tags', '--prune']);
+
+    // Check if branchA exists
+    let branchAExists = true;
+    try {
+      await git.revparse([branchA]);
+    } catch (e) {
+      branchAExists = false;
+    }
+
+    // Check if branchB exists
+    let branchBExists = true;
+    try {
+      await git.revparse([branchB]);
+    } catch (e) {
+      branchBExists = false;
+    }
+
+    if (!branchAExists || !branchBExists) {
+      throw new Error(
+        `Cannot find reference(s):${!branchAExists ? ` ${branchA}` : ''}${!branchBExists ? ` ${branchB}` : ''}.`
+      );
+    }
+
     const logOptions = {
       from: branchB,
       to: branchA,
@@ -223,7 +248,7 @@ async function main() {
     `Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`,
   );
 
-  const commitsByTeam = await filterCommitsByTeam(platform, branchA, branchB);
+  const commitsByTeam = await filterCommitsByTeam(platform, `origin/${branchA}`, `origin/${branchB}`);
 
   if (Object.keys(commitsByTeam).length === 0) {
     console.log('No commits found.');
