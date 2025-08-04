@@ -76,6 +76,10 @@ inputs:
     description: 'Environment for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
+  is-self-hosted:
+    description: 'Whether the GitHub Actions runner is self-hosted'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -146,7 +150,7 @@ runs:
 
     ## Ruby Setup & Cache Management
     - name: Setup Ruby
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.is-self-hosted == 'false' }}
       uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
       with:
         ruby-version: ${{ inputs.ruby-version }}
