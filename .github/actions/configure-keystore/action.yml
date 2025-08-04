@@ -14,8 +14,8 @@ inputs:
   platform:
     description: 'The platform for which the keystore is being configured (e.g., ios, android)'
     required: true
-  environment:
-    description: 'The environment for which the keystore is being configured (e.g., qa, flask, main)'
+  target:
+    description: 'The target for which the keystore is being configured (e.g., qa, flask, main)'
     required: true
 
 runs:
