@@ -83,7 +83,7 @@ jobs:
              });
              console.log(`✅ Validation checklist posted on PR #${pull_number}`);
             } catch (error) {
-              console.log(`⚠️  Could not postt comment: ${error.message}`);
+              console.log(`⚠️  Could not post comment: ${error.message}`);
             }            
 
             // Add the needs-validation label

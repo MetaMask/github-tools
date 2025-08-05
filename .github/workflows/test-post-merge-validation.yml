@@ -1,4 +1,4 @@
-name: Test Merge Validation
+name: Test Merge Validationn
 
 on:
   push:
