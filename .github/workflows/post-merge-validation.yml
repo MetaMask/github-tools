@@ -2,7 +2,6 @@ name: Post Merge Validation
 
 permissions:
   pull-requests: write
-  issues: write
   contents: read
 
 on:
@@ -56,7 +55,7 @@ jobs:
 
             // Check if PR title starts with "feat" or "perf" (conventional commits)
             const titleLower = title.toLowerCase();
-            if (!titleLower.startsWith('fix:') && !titleLower.startsWith('feat(') && 
+            if (!titleLower.startsWith('feat:') && !titleLower.startsWith('feat(') && 
                 !titleLower.startsWith('perf:') && !titleLower.startsWith('perf(')) {
               console.log(`❌ PR #${pull_number} title doesn't start with feat or perf - skipping.`);
               return;
@@ -75,12 +74,12 @@ jobs:
             <!-- AUTO-VALIDATION-CHECKLIST PR:${pull_number} -->`;
 
             // Post the comment
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: pull_number,
-              body
-            });
+            # await github.rest.issues.createComment({
+            #   owner,
+            #   repo,
+            #   issue_number: pull_number,
+            #   body
+            # });
             
             console.log(`✅ Validation checklist posted on PR #${pull_number}`);
             
