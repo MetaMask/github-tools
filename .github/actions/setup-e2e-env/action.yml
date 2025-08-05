@@ -67,7 +67,7 @@ inputs:
   keystore-role-to-assume:
     description: 'AWS IAM role to assume for keystore configuration'
     required: false
-    default: 'arn:aws:iam::363762752069:role/metamask-mobile-build-signing-certificate-manager'
+    default: 'arn:aws:iam::363762752069:role/metamask-mobile-build-signer-qa'
   target:
     description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
