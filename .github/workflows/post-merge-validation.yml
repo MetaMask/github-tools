@@ -74,12 +74,12 @@ jobs:
             <!-- AUTO-VALIDATION-CHECKLIST PR:${pull_number} -->`;
 
             // Post the comment
-            # await github.rest.issues.createComment({
-            #   owner,
-            #   repo,
-            #   issue_number: pull_number,
-            #   body
-            # });
+            // await github.rest.issues.createComment({
+            //   owner,
+            //  repo,
+            //   issue_number: pull_number,
+            //   body
+            // });
             
             console.log(`✅ Validation checklist posted on PR #${pull_number}`);
             
