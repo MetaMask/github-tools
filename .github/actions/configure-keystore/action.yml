@@ -24,7 +24,7 @@ runs:
     - name: Determine signing secret name
       shell: bash
       run: |
-        case "${{ inputs.environment }}" in
+        case "${{ inputs.target }}" in
           qa)
             SECRET_NAME="metamask-mobile-qa-signing-certificates"
             ;;
