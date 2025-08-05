@@ -62,15 +62,15 @@ jobs:
             }
 
             const body = `Hi @${author},
-            
+
             This PR has been merged to the main branch. Please ensure the following validation steps are completed.
             Please use power user persona where performance might be a challenge.
-            
+
             ## Validation Checklist
             - [ ] Author validated the changes in main branch using the nightly build
             - [ ] PM of the team validated the changes in main branch using the nightly build            
             - [ ] Video URL shared: 
-            
+
             <!-- AUTO-VALIDATION-CHECKLIST PR:${pull_number} -->`;
 
             // Post the comment
@@ -85,7 +85,7 @@ jobs:
             } catch (error) {
               console.log(`⚠️  Could not post comment: ${error.message}`);
             }            
-            
+
             // Add the needs-validation label
             try {
               await github.rest.issues.addLabels({

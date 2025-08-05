@@ -17,4 +17,4 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       pr-number: ${{ github.event.pull_request.number }}
       pr-author: ${{ github.event.pull_request.user.login }}
-      pr-title: ${{ github.event.pull_request.title }} 
+      pr-title: ${{ github.event.pull_request.title }}
