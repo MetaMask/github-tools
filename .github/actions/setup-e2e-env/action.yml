@@ -49,9 +49,9 @@ inputs:
     required: false
     default: 'test_e2e_avd'
   android-device:
-    description: 'AVD device profile (e.g. "pixel")'
+    description: 'AVD device profile (e.g. "pixel_5", "pixel", "Nexus 6")'
     required: false
-    default: 'pixel'
+    default: 'pixel_5'
   android-api-level:
     description: 'Android API level to use (e.g. "34")'
     required: false
@@ -60,6 +60,14 @@ inputs:
     description: 'System architecture ABI for the Android system image (e.g. x86_64, arm64-v8a, armeabi-v7a)'
     required: false
     default: 'x86_64'
+  android-tag:
+    description: 'Android system image tag (e.g. google_apis, default)'
+    required: false
+    default: 'google_apis'
+  android-sdcard-size:
+    description: 'SD card size for AVD (e.g. 8092M)'
+    required: false
+    default: '8092M'
   configure-keystores:
     description: 'Whether to configure keystores for E2E tests'
     required: false
@@ -143,12 +151,16 @@ runs:
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
       run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
+        IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
         echo "Creating AVD with image: $IMAGE"
-        echo "no" | "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" create avd \
+        "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" --verbose create avd \
+          --force \
           --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
-          --device "${{ inputs.android-device }}"
+          --device "${{ inputs.android-device }}" \
+          --tag "${{ inputs.android-tag }}" \
+          --abi "${{ inputs.android-abi }}" \
+          --sdcard "${{ inputs.android-sdcard-size }}"
       shell: bash
 
     ## iOS Platform Setup ##
