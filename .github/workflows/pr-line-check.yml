@@ -104,9 +104,11 @@ jobs:
           total=$((additions + deletions))
 
           echo "Additions: $additions, Deletions: $deletions, Total: $total"
-          echo "lines_changed=$total" >> "$GITHUB_OUTPUT"
-          echo "additions=$additions" >> "$GITHUB_OUTPUT"
-          echo "deletions=$deletions" >> "$GITHUB_OUTPUT"
+          {
+            echo "lines_changed=$total"
+            echo "additions=$additions"
+            echo "deletions=$deletions"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check line count limit
         uses: actions/github-script@v7
