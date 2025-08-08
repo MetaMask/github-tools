@@ -99,8 +99,8 @@ jobs:
 
           # Calculate additions and deletions across all changes between the base and HEAD,
           # filtering out files matching the ignore pattern.
-          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{add += $1} END {print add}')
-          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{del += $2} END {print del}')
+          additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{add += $1} END {print add+0}')
+          deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$ignore_pattern" | awk '{del += $2} END {print del+0}')
           total=$((additions + deletions))
 
           echo "Additions: $additions, Deletions: $deletions, Total: $total"
@@ -112,9 +112,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const total = parseInt('${{ steps.line_count.outputs.lines_changed }}');
-            const additions = parseInt('${{ steps.line_count.outputs.additions }}');
-            const deletions = parseInt('${{ steps.line_count.outputs.deletions }}');
+            const total = parseInt('${{ steps.line_count.outputs.lines_changed }}') || 0;
+            const additions = parseInt('${{ steps.line_count.outputs.additions }}') || 0;
+            const deletions = parseInt('${{ steps.line_count.outputs.deletions }}') || 0;
             const maxLines = parseInt('${{ inputs.max_lines }}');
 
             // Size thresholds from inputs
