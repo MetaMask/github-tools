@@ -117,13 +117,13 @@ jobs:
             const total = parseInt('${{ steps.line_count.outputs.lines_changed }}') || 0;
             const additions = parseInt('${{ steps.line_count.outputs.additions }}') || 0;
             const deletions = parseInt('${{ steps.line_count.outputs.deletions }}') || 0;
-            const maxLines = parseInt('${{ inputs.max_lines }}');
 
-            // Size thresholds from inputs
-            const xsMaxSize = parseInt('${{ inputs.xs_max_size }}');
-            const sMaxSize = parseInt('${{ inputs.s_max_size }}');
-            const mMaxSize = parseInt('${{ inputs.m_max_size }}');
-            const lMaxSize = parseInt('${{ inputs.l_max_size }}');
+            // Thresholds from inputs with fallback to defaults
+            const maxLines = parseInt('${{ inputs.max_lines }}') || 1000;
+            const xsMaxSize = parseInt('${{ inputs.xs_max_size }}') || 10;
+            const sMaxSize = parseInt('${{ inputs.s_max_size }}') || 100;
+            const mMaxSize = parseInt('${{ inputs.m_max_size }}') || 500;
+            const lMaxSize = parseInt('${{ inputs.l_max_size }}') || 1000;
 
             // Print summary
             console.log('Summary:');
@@ -164,36 +164,31 @@ jobs:
               });
               
               const currentLabelNames = currentLabels.data.map(l => l.name);
-              const currentSizeLabels = currentLabelNames.filter(name => existingSizeLabels.includes(name));
               
-              // Check if we already have the correct label
-              if (currentSizeLabels.length === 1 && currentSizeLabels[0] === sizeLabel) {
+              // Build new label set: keep non-size labels and add the new size label
+              const newLabels = currentLabelNames
+                .filter(name => !existingSizeLabels.includes(name))  // Remove all size labels
+                .concat(sizeLabel);  // Add the correct size label
+              
+              // Check if labels need updating
+              const currentSizeLabel = currentLabelNames.find(name => existingSizeLabels.includes(name));
+              if (currentSizeLabel === sizeLabel && currentLabelNames.length === newLabels.length) {
                 console.log(`✅ Correct label '${sizeLabel}' already present, no changes needed`);
               } else {
-                // Remove only the size labels that need to be removed
-                for (const label of currentSizeLabels) {
-                  if (label !== sizeLabel) {
-                    await github.rest.issues.removeLabel({
-                      owner,
-                      repo,
-                      issue_number,
-                      name: label
-                    });
-                    console.log(`  - Removed label: ${label}`);
-                  }
-                }
+                // Update all labels in a single API call
+                await github.rest.issues.setLabels({
+                  owner,
+                  repo,
+                  issue_number,
+                  labels: newLabels
+                });
                 
-                // Add the new label only if it's not already present
-                if (!currentLabelNames.includes(sizeLabel)) {
-                  await github.rest.issues.addLabels({
-                    owner,
-                    repo,
-                    issue_number,
-                    labels: [sizeLabel]
-                  });
+                if (currentSizeLabel && currentSizeLabel !== sizeLabel) {
+                  console.log(`  - Replaced '${currentSizeLabel}' with '${sizeLabel}'`);
+                } else if (!currentSizeLabel) {
                   console.log(`✅ Added '${sizeLabel}' label to PR #${issue_number}`);
                 } else {
-                  console.log(`✅ Label '${sizeLabel}' already present`);
+                  console.log(`✅ Updated labels for PR #${issue_number}`);
                 }
               }
             } catch (error) {
