@@ -18,6 +18,26 @@ on:
         required: false
         type: string
         default: '(\.lock$)'
+      xs_max_size:
+        description: 'Maximum lines for XS size'
+        required: false
+        type: number
+        default: 10
+      s_max_size:
+        description: 'Maximum lines for S size'
+        required: false
+        type: number
+        default: 100
+      m_max_size:
+        description: 'Maximum lines for M size'
+        required: false
+        type: number
+        default: 500
+      l_max_size:
+        description: 'Maximum lines for L size'
+        required: false
+        type: number
+        default: 1000
 
 jobs:
   check-lines:
@@ -85,9 +105,103 @@ jobs:
 
           echo "Additions: $additions, Deletions: $deletions, Total: $total"
           echo "lines_changed=$total" >> "$GITHUB_OUTPUT"
+          echo "additions=$additions" >> "$GITHUB_OUTPUT"
+          echo "deletions=$deletions" >> "$GITHUB_OUTPUT"
 
-          max_lines="${{ inputs.max_lines }}"
-          if [ "$total" -gt "$max_lines" ]; then
-            echo "Error: Total changed lines ($total) exceed the limit of $max_lines."
-            exit 1
-          fi
+      - name: Check line count limit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const total = parseInt('${{ steps.line_count.outputs.lines_changed }}');
+            const additions = parseInt('${{ steps.line_count.outputs.additions }}');
+            const deletions = parseInt('${{ steps.line_count.outputs.deletions }}');
+            const maxLines = parseInt('${{ inputs.max_lines }}');
+
+            // Size thresholds from inputs
+            const xsMaxSize = parseInt('${{ inputs.xs_max_size }}');
+            const sMaxSize = parseInt('${{ inputs.s_max_size }}');
+            const mMaxSize = parseInt('${{ inputs.m_max_size }}');
+            const lMaxSize = parseInt('${{ inputs.l_max_size }}');
+
+            // Print summary
+            console.log('Summary:');
+            console.log(`  - Additions: ${additions}`);
+            console.log(`  - Deletions: ${deletions}`);
+            console.log(`  - Total: ${total}`);
+            console.log(`  - Limit: ${maxLines}`);
+
+            // Determine size label based on configured criteria
+            let sizeLabel = '';
+            if (total <= xsMaxSize) {
+              sizeLabel = 'size-XS';
+            } else if (total <= sMaxSize) {
+              sizeLabel = 'size-S';
+            } else if (total <= mMaxSize) {
+              sizeLabel = 'size-M';
+            } else if (total <= lMaxSize) {
+              sizeLabel = 'size-L';
+            } else {
+              sizeLabel = 'size-XL';
+            }
+
+            console.log(`  - Size category: ${sizeLabel}`);
+
+            // Manage PR labels
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            try {
+              const existingSizeLabels = ['size-XS', 'size-S', 'size-M', 'size-L', 'size-XL'];
+              
+              // Get current labels
+              const currentLabels = await github.rest.issues.listLabelsOnIssue({
+                owner,
+                repo,
+                issue_number
+              });
+              
+              const currentLabelNames = currentLabels.data.map(l => l.name);
+              const currentSizeLabels = currentLabelNames.filter(name => existingSizeLabels.includes(name));
+              
+              // Check if we already have the correct label
+              if (currentSizeLabels.length === 1 && currentSizeLabels[0] === sizeLabel) {
+                console.log(`✅ Correct label '${sizeLabel}' already present, no changes needed`);
+              } else {
+                // Remove only the size labels that need to be removed
+                for (const label of currentSizeLabels) {
+                  if (label !== sizeLabel) {
+                    await github.rest.issues.removeLabel({
+                      owner,
+                      repo,
+                      issue_number,
+                      name: label
+                    });
+                    console.log(`  - Removed label: ${label}`);
+                  }
+                }
+                
+                // Add the new label only if it's not already present
+                if (!currentLabelNames.includes(sizeLabel)) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number,
+                    labels: [sizeLabel]
+                  });
+                  console.log(`✅ Added '${sizeLabel}' label to PR #${issue_number}`);
+                } else {
+                  console.log(`✅ Label '${sizeLabel}' already present`);
+                }
+              }
+            } catch (error) {
+              console.log(`⚠️  Could not manage labels: ${error.message}`);
+            }
+
+            // Check if exceeds limit
+            if (total > maxLines) {
+              console.log(`❌ Error: Total changed lines (${total}) exceed the limit of ${maxLines}.`);
+              process.exit(1);
+            } else {
+              console.log(`✅ Success: Total changed lines (${total}) are within the limit of ${maxLines}.`);
+            }
