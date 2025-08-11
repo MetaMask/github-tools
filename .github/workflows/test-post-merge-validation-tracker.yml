@@ -27,7 +27,7 @@ jobs:
 
       - name: Run post-merge-validation script
         env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           SHEET_ID: '1uSERA-Mczy0pjlrr1vvYG0FZwU65B7TMiQURJXY4tSs'
         run: node .github/scripts/post-merge-validation-tracker.mjs
