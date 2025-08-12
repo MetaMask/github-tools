@@ -14,7 +14,7 @@ const RELEASE_LABEL_PATTERN = /^release-(v?\d+\.\d+\.\d+)$/i;
 const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
-const LOOKBACK_DAYS = 15;
+const LOOKBACK_DAYS = 1;
 
 // When the window starts each day (UTC)
 const START_HOUR_UTC = 7;
