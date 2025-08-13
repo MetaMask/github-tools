@@ -6,15 +6,15 @@ const spreadsheetId = process.env.SHEET_ID;
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
 
 const REPOS = [
-  'MetaMask/metamask-mobile',
+  // 'MetaMask/metamask-mobile'
   'MetaMask/metamask-extension'
 ];
 
 const RELEASE_LABEL_PATTERN = /^release-(v?\d+\.\d+\.\d+)$/i;
-const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)/i;
+const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)|(\b)bump(\b)/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
-const LOOKBACK_DAYS = 1;
+const LOOKBACK_DAYS = 2;
 
 // When the window starts each day (UTC)
 const START_HOUR_UTC = 7;
@@ -293,88 +293,58 @@ function isoSinceAtUTC(days, hour = 2, minute = 0) {
 }
 
 async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
-  // Strategy: list commits on main since timestamp, map commits -> associated PRs, dedupe, then fetch PR details
+  // Strategy: use fast GitHub search API, then add package.json version detection
   const since = new Date(sinceDateISO);
-  const per_page = 100;
+  const sinceDate = since.toISOString().split('T')[0];
+  const prs = [];
   let page = 1;
-  const commitShas = [];
 
   while (true) {
-    console.log(`Fetching commits page ${page} for ${owner}/${repo} (since ${sinceDateISO})...`);
-    const { data } = await octokit.rest.repos.listCommits({
-      owner,
-      repo,
-      sha: 'main',
-      since: sinceDateISO,
-      per_page,
-      page,
-    });
-    if (!data.length) break;
-    for (const c of data) commitShas.push(c.sha);
-    if (data.length < per_page) break;
-    page += 1;
-  }
+    console.log(`Fetching merged PRs page ${page} for ${owner}/${repo} (since ${sinceDateISO})...`);
 
-  // Collect unique PR numbers associated with these commits
-  const prNumbers = new Set();
-  console.log(`Total commits fetched on main since ${sinceDateISO}: ${commitShas.length}`);
-  let commitIndex = 0;
-  for (const sha of commitShas) {
     try {
-      const prs = await listPRsForCommitWithRetry(owner, repo, sha);
-      for (const pr of prs) {
-        if (pr.base?.ref === 'main') prNumbers.add(pr.number);
-      }
-    } catch (e) {
-      const status = e?.status || e?.response?.status || 'n/a';
-      console.log(`Warn: failed to list PRs for commit ${sha}: status=${status} msg=${e?.message}`);
-    }
-    commitIndex += 1;
-    if (commitIndex % 50 === 0 || commitIndex === commitShas.length) {
-      console.log(`Processed commits: ${commitIndex}/${commitShas.length} → unique PRs: ${prNumbers.size}`);
-    }
-    // Gentle pacing to avoid bursts
-    await sleep(100);
-  }
+      const query = `repo:${owner}/${repo} is:pr is:merged base:main merged:>=${sinceDate}`;
 
-  // Fetch PR details and labels; keep only merged since threshold
-  const enriched = [];
-  const prList = Array.from(prNumbers);
-  console.log(`Unique PRs associated with commits: ${prList.length}`);
-  for (let i = 0; i < prList.length; i += 1) {
-    const number = prList[i];
-    try {
-      const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: number });
-      if (!pr.merged_at) continue;
-      const mergedAt = new Date(pr.merged_at);
-      if (mergedAt < since) continue;
-      let labels = [];
-      try {
-        const { data: issue } = await octokit.rest.issues.get({ owner, repo, issue_number: number });
-        labels = issue.labels || [];
-      } catch (e) {
-        labels = [];
-      }
-      enriched.push({
-        number,
-        title: pr.title,
-        html_url: pr.html_url,
-        user: { login: pr.user?.login || '' },
-        labels,
-        closed_at: pr.merged_at,
-        base_ref: pr.base?.ref || '',
+      const { data } = await octokit.rest.search.issuesAndPullRequests({
+        q: query,
+        sort: 'updated',
+        order: 'desc',
+        per_page: 100,
+        page,
+        advanced_search: true  // ← This stops the deprecation warning
       });
+
+      if (!data.items.length) break;
+      console.log(`Found ${data.items.length} PRs on page ${page}`);
+
+      for (const item of data.items) {
+        if (item.pull_request && item.closed_at) {
+          const mergedAt = new Date(item.closed_at);
+          if (mergedAt >= since) {
+            prs.push({
+              number: item.number,
+              title: item.title,
+              html_url: item.html_url,
+              user: { login: item.user?.login || '' },
+              labels: item.labels || [], // Basic labels from search
+              closed_at: item.closed_at,
+              base_ref: 'main'
+            });
+          }
+        }
+      }
+
+      if (data.items.length < 100) break;
+      page++;
+      await sleep(200);
     } catch (e) {
-      console.log(`❌ FAILED: failed to fetch PR #${number}: ${e.message}`);
+      console.log(`❌ Search API error: ${e.message}`);
+      break;
     }
-    if ((i + 1) % 10 === 0 || i + 1 === prList.length) {
-      console.log(`Fetched PR details: ${i + 1}/${prList.length}`);
-    }
-    await sleep(50);
   }
 
-  console.log(`Found ${enriched.length} merged PR(s) since ${sinceDateISO} for ${owner}/${repo}`);
-  return enriched;
+  console.log(`Found ${prs.length} merged PRs since ${sinceDateISO} for ${owner}/${repo}`);
+  return prs;
 }
 
 function isRelevantTitle(title) {
@@ -398,29 +368,6 @@ function parsePrNumberFromCell(cell) {
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function listPRsForCommitWithRetry(owner, repo, sha, maxRetries = 3) {
-  let attempt = 0;
-  let lastErr;
-  while (attempt < maxRetries) {
-    try {
-      const { data } = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-        owner,
-        repo,
-        commit_sha: sha,
-      });
-      return data;
-    } catch (e) {
-      lastErr = e;
-      const status = e?.status || e?.response?.status || 'n/a';
-      const backoff = 200;
-      console.log(`Retry ${attempt + 1}/${maxRetries} listPRsForCommit sha=${sha} status=${status} backoff=${backoff}ms`);
-      await sleep(backoff);
-    }
-    attempt += 1;
-  }
-  throw lastErr;
 }
 
 function splitByReleaseAndTitle(items) {
@@ -517,14 +464,16 @@ async function processRepo(authClient, owner, repo, since) {
   console.log(
     `[${owner}/${repo}] API items=${items.length}, candidatesWithRelease=${candidates.length}, missingRelease=${missing.length}, relevantByTitle=${relevant.length}, skippedByTitle=${skippedByTitle}`,
   );
-  const tabToRows = buildTabGrouping(repo, relevant);
+  // Sort relevant items by merge time before grouping into tabs
+  const sortedRelevant = relevant.slice().sort((a, b) => new Date(a.closed_at || '') - new Date(b.closed_at || ''));
+  const tabToRows = buildTabGrouping(repo, sortedRelevant);
   for (const [title, group] of tabToRows.entries()) {
     const inserted = await processTab(authClient, title, group.entries, group.platformType);
     insertedThisRepo += inserted;
   }
   console.log(`✅ [${owner}/${repo}] Inserted PRs: ${insertedThisRepo}`);
   if (skippedMissingReleaseThisRepo.length) {
-    console.log(`[${owner}/${repo}] Skipped (no release label): ${skippedMissingReleaseThisRepo.length}`);
+    console.log(`⚠️ [${owner}/${repo}] Skipped (no release label): ${skippedMissingReleaseThisRepo.length}`);
     for (const url of skippedMissingReleaseThisRepo) console.log(`- ${url}`);
   }
   return { insertedThisRepo, skippedMissingReleaseThisRepo };
