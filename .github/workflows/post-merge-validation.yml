@@ -38,6 +38,7 @@ jobs:
         with:
           repository: MetaMask/github-tools
           path: github-tools
+          ref: ci-slack-reminder
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -48,10 +49,12 @@ jobs:
 
       - name: Enable Corepack
         run: corepack enable
+        working-directory: ./github-tools
 
       - name: Install dependencies
         working-directory: ./github-tools
         run: yarn --immutable
+        working-directory: ./github-tools
 
       - name: Run post-merge-validation script
         working-directory: ./github-tools
