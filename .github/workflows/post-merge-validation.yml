@@ -21,13 +21,13 @@ on:
         required: false
         type: number
         default: 2
-  secrets:
-    github-token:
-      description: 'GitHub token with repo access'
-      required: true
-    google-application-creds-base64:
-      description: 'Base64 encoded Google service account credentials'
-      required: true
+    secrets:
+      github-token:
+        description: 'GitHub token with repo access'
+        required: true
+      google-application-creds-base64:
+        description: 'Base64 encoded Google service account credentials'
+        required: true
 
 jobs:
   post-merge-validation-tracker:
