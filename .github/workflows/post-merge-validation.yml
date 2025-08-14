@@ -33,8 +33,12 @@ jobs:
   post-merge-validation-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout github-tools repository
         uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          # Optionally specify a branch/tag/ref if needed
+          # ref: main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
