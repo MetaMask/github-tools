@@ -6,11 +6,11 @@ const spreadsheetId = process.env.SHEET_ID;
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
 
 const REPOS = [
-  // 'MetaMask/metamask-mobile'
+  'MetaMask/metamask-mobile',
   'MetaMask/metamask-extension'
 ];
 
-const RELEASE_LABEL_PATTERN = /^release-(v?\d+\.\d+\.\d+)$/i;
+
 const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)|(\b)bump(\b)/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
@@ -262,22 +262,6 @@ function extractSize(labels) {
   return found ? found.name : 'unknown';
 }
 
-function extractReleaseVersionFromLabelName(labelName) {
-  if (!labelName) return null;
-  const match = labelName.match(RELEASE_LABEL_PATTERN);
-  if (!match) return null;
-  const raw = match[1];
-  return raw.startsWith('v') ? raw : `v${raw}`;
-}
-
-function findReleaseLabel(labels) {
-  for (const l of labels || []) {
-    const version = extractReleaseVersionFromLabelName(l.name || '');
-    if (version) return version; // return normalized version like 'v10.4.0'
-  }
-  return null;
-}
-
 function isoSinceAtUTC(days, hour = 2, minute = 0) {
   // Returns an ISO timestamp at (today - days) with specific UTC hour:minute, e.g., 02:00Z
   const now = new Date();
@@ -371,38 +355,236 @@ async function sleep(ms) {
 }
 
 function splitByReleaseAndTitle(items) {
-  const candidates = items.filter((it) => findReleaseLabel(it.labels || []));
-  const missing = items.filter((it) => !findReleaseLabel(it.labels || []));
   const relevant = [];
   let skippedByTitle = 0;
-  for (const it of candidates) {
-    if (isRelevantTitle(it.title)) relevant.push(it);
-    else skippedByTitle += 1;
+
+  for (const item of items) {
+    if (isRelevantTitle(item.title)) {
+      relevant.push(item);
+    } else {
+      skippedByTitle += 1;
+    }
   }
-  return { candidates, missing, relevant, skippedByTitle };
+
+  return { relevant, skippedByTitle };
 }
 
-function buildTabGrouping(repo, relevantItems) {
+// Add efficient version detection with caching
+let versionCache = new Map(); // Cache version bumps per repo
+
+async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
+  const cacheKey = `${owner}/${repo}`;
+  if (versionCache.has(cacheKey)) {
+    return versionCache.get(cacheKey);
+  }
+
+  console.log(`🔍 Analyzing version timeline for ${owner}/${repo}...`);
+
+  // Get current version from package.json
+  const currentVersion = await getCurrentPackageVersion(owner, repo);
+  if (!currentVersion) {
+    console.log(`⚠️ Could not determine current version for ${owner}/${repo}`);
+    return { currentVersion: null, versionBumps: [] };
+  }
+
+  // Find version bumps in lookback period  
+  const versionBumps = await findVersionBumpCommits(owner, repo, sinceDateISO);
+
+  // Create timeline: [newest bump, older bump, ..., oldest bump]
+  const timeline = {
+    currentVersion: normalizeVersion(currentVersion),
+    versionBumps: versionBumps, // Already sorted newest first
+    sinceDate: new Date(sinceDateISO)
+  };
+
+  console.log(`📊 Version timeline for ${owner}/${repo}:`);
+  console.log(`   Current: ${timeline.currentVersion}`);
+
+  if (versionBumps.length === 0) {
+    console.log(`   No version bumps in lookback period - all PRs → ${timeline.currentVersion}`);
+  } else {
+    for (const bump of versionBumps) {
+      console.log(`   ${bump.oldVersion} → ${bump.newVersion} at ${formatDateHumanUTC(bump.date)}`);
+    }
+  }
+
+  versionCache.set(cacheKey, timeline);
+  return timeline;
+}
+
+async function getCurrentPackageVersion(owner, repo) {
+  try {
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path: 'package.json',
+      ref: 'main'
+    });
+    const content = Buffer.from(data.content, 'base64').toString('utf8');
+    const packageJson = JSON.parse(content);
+    return packageJson.version;
+  } catch (e) {
+    console.log(`⚠️ Failed to fetch package.json version: ${e.message}`);
+    return null;
+  }
+}
+
+function parseVersionFromPatch(patch) {
+  const lines = patch.split('\n');
+  let oldVersion = null;
+  let newVersion = null;
+
+  for (const line of lines) {
+    if (line.startsWith('-') && line.includes('"version":')) {
+      const match = line.match(/"version":\s*"([^"]+)"/);
+      if (match) oldVersion = match[1];
+    }
+    if (line.startsWith('+') && line.includes('"version":')) {
+      const match = line.match(/"version":\s*"([^"]+)"/);
+      if (match) newVersion = match[1];
+    }
+  }
+
+  if (oldVersion && newVersion && oldVersion !== newVersion) {
+    return { oldVersion, newVersion };
+  }
+  return null;
+}
+
+function normalizeVersion(version) {
+  if (!version) return null;
+  return version.startsWith('v') ? version : `v${version}`;
+}
+
+function determineReleaseVersionFromTimeline(mergedAt, versionTimeline) {
+  const { currentVersion, versionBumps, sinceDate } = versionTimeline;
+  const mergedDate = new Date(mergedAt);
+
+  // If no version bumps in our lookback period, everything goes to current version
+  if (versionBumps.length === 0) {
+    return currentVersion;
+  }
+
+  // Find the appropriate version based on merge time vs version bump times
+  // versionBumps are sorted newest first
+  for (const bump of versionBumps) {
+    const bumpDate = new Date(bump.date);
+
+    // If PR was merged after this version bump, it belongs to the new version
+    if (mergedDate >= bumpDate) {
+      return normalizeVersion(bump.newVersion);
+    }
+  }
+
+  // If PR was merged before all version bumps in our period,
+  // it belongs to the version that existed before the oldest bump
+  const oldestBump = versionBumps[versionBumps.length - 1];
+  return normalizeVersion(oldestBump.oldVersion);
+}
+
+// Optimized buildTabGrouping
+async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
   const tabToRows = new Map();
   const platformType = repoType(repo);
-  for (const it of relevantItems) {
-    const releaseVersion = findReleaseLabel(it.labels || []);
-    if (!releaseVersion) continue;
-    const title = tabTitleFor(repo, releaseVersion);
-    if (!tabToRows.has(title)) tabToRows.set(title, { entries: [], platformType });
-    const row = [
-      makePrHyperlinkCell(it.html_url, it.title, it.number),
-      formatDateHumanUTC(it.closed_at || ''),
-      it.user.login,
-      extractSize(it.labels || []),
-      extractTeam(it.labels || []),
-      '',
-      '',
-      '',
-    ];
-    tabToRows.get(title).entries.push({ row, mergedAtIso: it.closed_at || '' });
+
+  // Get version timeline once for this repo
+  const versionTimeline = await getVersionTimelineForRepo(owner, repo, sinceDateISO);
+
+  if (!versionTimeline.currentVersion) {
+    console.log(`❌ Cannot determine versions for ${owner}/${repo} - skipping`);
+    return tabToRows;
   }
+
+  // Group PRs by determined release version
+  const prsByVersion = new Map();
+
+  for (const pr of relevantItems) {
+    const releaseVersion = determineReleaseVersionFromTimeline(pr.closed_at, versionTimeline);
+    if (!releaseVersion) continue;
+
+    if (!prsByVersion.has(releaseVersion)) {
+      prsByVersion.set(releaseVersion, []);
+    }
+    prsByVersion.get(releaseVersion).push(pr);
+  }
+
+  // Create tabs only for versions that have PRs
+  for (const [version, prs] of prsByVersion.entries()) {
+    const title = tabTitleFor(repo, version);
+    console.log(`📋 Tab: ${title} - ${prs.length} PRs`);
+
+    if (!tabToRows.has(title)) {
+      tabToRows.set(title, { entries: [], platformType });
+    }
+
+    for (const pr of prs) {
+      const row = [
+        makePrHyperlinkCell(pr.html_url, pr.title, pr.number),
+        formatDateHumanUTC(pr.closed_at || ''),
+        pr.user.login,
+        extractSize(pr.labels || []),
+        extractTeam(pr.labels || []),
+        '',
+        '',
+        '',
+      ];
+      tabToRows.get(title).entries.push({ row, mergedAtIso: pr.closed_at || '' });
+    }
+  }
+
   return tabToRows;
+}
+
+// Enhanced version bump detection with better error handling
+async function findVersionBumpCommits(owner, repo, sinceDateISO) {
+  try {
+    const { data: commits } = await octokit.rest.repos.listCommits({
+      owner,
+      repo,
+      sha: 'main',
+      since: sinceDateISO,
+      path: 'package.json',
+      per_page: 50 // Should be enough for 15 days
+    });
+
+    const versionBumps = [];
+
+    // Process commits in parallel for better performance
+    const commitPromises = commits.map(async (commit) => {
+      try {
+        const { data: commitData } = await octokit.rest.repos.getCommit({
+          owner,
+          repo,
+          ref: commit.sha
+        });
+
+        const packageJsonFile = commitData.files?.find(f => f.filename === 'package.json');
+        if (packageJsonFile?.patch) {
+          const versionChange = parseVersionFromPatch(packageJsonFile.patch);
+          if (versionChange) {
+            return {
+              sha: commit.sha,
+              date: commit.commit.committer.date,
+              message: commit.commit.message,
+              ...versionChange
+            };
+          }
+        }
+      } catch (e) {
+        console.log(`⚠️ Failed to analyze commit ${commit.sha}: ${e.message}`);
+      }
+      return null;
+    });
+
+    const results = await Promise.all(commitPromises);
+    versionBumps.push(...results.filter(Boolean));
+
+    // Sort by date (newest first) 
+    return versionBumps.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (e) {
+    console.log(`⚠️ Failed to find version bumps: ${e.message}`);
+    return [];
+  }
 }
 
 async function processTab(authClient, title, entries, platformType) {
@@ -455,28 +637,24 @@ async function processTab(authClient, title, entries, platformType) {
 async function processRepo(authClient, owner, repo, since) {
   console.log(`\nScanning ${owner}/${repo}...`);
   let insertedThisRepo = 0;
-  const skippedMissingReleaseThisRepo = [];
   const items = await fetchMergedPRsSince(owner, repo, since);
-  const { candidates, missing, relevant, skippedByTitle } = splitByReleaseAndTitle(items);
-  for (const it of missing) {
-    if (it.html_url) skippedMissingReleaseThisRepo.push(it.html_url);
-  }
+  const { relevant, skippedByTitle } = splitByReleaseAndTitle(items);
+
   console.log(
-    `[${owner}/${repo}] API items=${items.length}, candidatesWithRelease=${candidates.length}, missingRelease=${missing.length}, relevantByTitle=${relevant.length}, skippedByTitle=${skippedByTitle}`,
+    `[${owner}/${repo}] API items=${items.length}, relevantByTitle=${relevant.length}, skippedByTitle=${skippedByTitle}`,
   );
+
   // Sort relevant items by merge time before grouping into tabs
   const sortedRelevant = relevant.slice().sort((a, b) => new Date(a.closed_at || '') - new Date(b.closed_at || ''));
-  const tabToRows = buildTabGrouping(repo, sortedRelevant);
+  const tabToRows = await buildTabGrouping(owner, repo, sortedRelevant, since);
+
   for (const [title, group] of tabToRows.entries()) {
     const inserted = await processTab(authClient, title, group.entries, group.platformType);
     insertedThisRepo += inserted;
   }
+
   console.log(`✅ [${owner}/${repo}] Inserted PRs: ${insertedThisRepo}`);
-  if (skippedMissingReleaseThisRepo.length) {
-    console.log(`⚠️ [${owner}/${repo}] Skipped (no release label): ${skippedMissingReleaseThisRepo.length}`);
-    for (const url of skippedMissingReleaseThisRepo) console.log(`- ${url}`);
-  }
-  return { insertedThisRepo, skippedMissingReleaseThisRepo };
+  return { insertedThisRepo };
 }
 
 async function main() {
