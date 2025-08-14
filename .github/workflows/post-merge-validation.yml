@@ -37,21 +37,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
+          path: github-tools
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./.nvmrc
-          cache-dependency-path: ./yarn.lock
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
           cache: yarn
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Install dependencies
+        working-directory: ./github-tools
         run: yarn --immutable
 
       - name: Run post-merge-validation script
+        working-directory: ./github-tools
         env:
           SHEET_ID: ${{ inputs.spreadsheet_id }}
           START_HOUR_UTC: ${{ inputs.start_hour_utc }}
