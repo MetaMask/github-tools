@@ -54,7 +54,6 @@ jobs:
       - name: Install dependencies
         working-directory: ./github-tools
         run: yarn --immutable
-        working-directory: ./github-tools
 
       - name: Run post-merge-validation script
         working-directory: ./github-tools
