@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       repo:
-        description: 'The repo owner/name to process (e.g. MetaMask/metamask-extension)''
+        description: 'The repo owner/name to process (e.g. MetaMask/metamask-extension)'
         required: true
         type: string
       start_hour_utc:
