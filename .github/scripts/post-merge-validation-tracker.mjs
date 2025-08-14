@@ -4,26 +4,21 @@ import { Octokit } from '@octokit/rest';
 const githubToken = process.env.GITHUB_TOKEN;
 const spreadsheetId = process.env.SHEET_ID;
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+const repo = process.env.REPO;
+const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS) || 2;
+const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC) || 7;
 
-const REPOS = [
-  'MetaMask/metamask-mobile',
-  'MetaMask/metamask-extension'
-];
-
-
+const START_MINUTE_UTC = 0;
 const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)|(\b)bump(\b)/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
-const LOOKBACK_DAYS = 2;
 
-// When the window starts each day (UTC)
-const START_HOUR_UTC = 7;
-const START_MINUTE_UTC = 0;
 
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 if (!spreadsheetId) throw new Error('Missing SHEET_ID env var');
 if (!googleApplicationCredentialsBase64)
   throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS_BASE64 env var');
+if (!repo) throw new Error('Missing REPO env var');
 
 const octokit = new Octokit({ auth: githubToken });
 const sheets = google.sheets('v4');
@@ -37,12 +32,10 @@ async function getGoogleAuth() {
   return auth.getClient();
 }
 
-function getRepos() {
-  return REPOS.map((p) => {
-    const [owner, repo] = p.split('/');
-    if (!owner || !repo) throw new Error(`Invalid repo "${p}"`);
-    return { owner, repo };
-  });
+function parseRepo() {
+  const [owner, repoName] = repo.split('/');
+  if (!owner || !repoName) throw new Error(`Invalid repo format "${repo}". Expected format: "owner/repo"`);
+  return { owner, repo: repoName };
 }
 
 function repoType(repo) {
@@ -659,17 +652,13 @@ async function processRepo(authClient, owner, repo, since) {
 
 async function main() {
   const authClient = await getGoogleAuth();
-  const repos = getRepos();
+  const { owner, repo: repoName } = parseRepo();
   const since = isoSinceAtUTC(LOOKBACK_DAYS, START_HOUR_UTC, START_MINUTE_UTC);
   console.log(
-    `Starting post-merge validation tracker. Mode=Sheets; Since(UTC)=${since}; Repos=${repos
-      .map((r) => `${r.owner}/${r.repo}`)
-      .join(', ')}`,
+    `Starting post-merge validation tracker. Mode=Sheets; Since(UTC)=${since}; Repo=${owner}/${repoName}`,
   );
 
-  for (const { owner, repo } of repos) {
-    await processRepo(authClient, owner, repo, since);
-  }
+  await processRepo(authClient, owner, repoName, since);
 }
 
 main().catch((e) => {

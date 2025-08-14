@@ -1,102 +1,60 @@
 name: Post Merge Validation
 
-permissions:
-  pull-requests: write
-  contents: read
-
 on:
   workflow_call:
     inputs:
-      repo-owner:
-        description: The repo owner
+      repo:
+        description: 'The repo owner/name to process (e.g. MetaMask/metamask-extension)''
         required: true
         type: string
-      repo-name:
-        description: The repo name
+      start_hour_utc:
+        description: 'The hour of the day (UTC) to start processing the PRs merged in main'
         required: true
+        type: number
+      spreadsheet_id:
+        description: 'Google Spreadsheet ID to update'
+        required: false
         type: string
-      pr-number:
-        description: The number of the merged PR
-        required: true
-        type: string
-      pr-author:
-        description: The PR author username
-        required: true
-        type: string
-      pr-title:
-        description: The PR title
-        required: true
-        type: string
+        default: '1uSERA-Mczy0pjlrr1vvYG0FZwU65B7TMiQURJXY4tSs'
+      lookback_days:
+        description: 'Number of days to look back for PRs'
+        required: false
+        type: number
+        default: 2
+  secrets:
+    github-token:
+      description: 'GitHub token with repo access'
+      required: true
+    google-application-creds-base64:
+      description: 'Base64 encoded Google service account credentials'
+      required: true
 
 jobs:
-  post-merge-validation:
+  post-merge-validation-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Post Feature Validation Checklist
-        uses: actions/github-script@v7
-        env:
-          OWNER_NAME: ${{ inputs.repo-owner }}
-          REPO_NAME: ${{ inputs.repo-name }}
-          PR_NUMBER: ${{ inputs.pr-number }}
-          PR_AUTHOR: ${{ inputs.pr-author }}
-          PR_TITLE: ${{ inputs.pr-title }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const {
-              OWNER_NAME: owner,
-              REPO_NAME: repo,
-              PR_NUMBER: prNumStr,
-              PR_AUTHOR: author,
-              PR_TITLE: title,
-            } = process.env;
+          node-version-file: ./.nvmrc
+          cache-dependency-path: ./yarn.lock
+          cache: yarn
 
-            const pull_number = parseInt(prNumStr, 10);
+      - name: Enable Corepack
+        run: corepack enable
 
-            // Check if PR title starts with "feat" or "perf" (conventional commits)
-            const titleLower = title.toLowerCase();
-            if (!titleLower.startsWith('feat:') && !titleLower.startsWith('feat(') && 
-                !titleLower.startsWith('perf:') && !titleLower.startsWith('perf(')) {
-              console.log(`❌ PR #${pull_number} title doesn't start with feat or perf - skipping.`);
-              return;
-            }
+      - name: Install dependencies
+        run: yarn --immutable
 
-            const body = `Hi @${author},
-
-            on the day following \`feat\` or \`perf\` PR merge, PM and author to test changes on main (feature + exploratory around the edges) using the latest [nightly build](https://consensys.slack.com/archives/C093JQSEPJL) with [casual user persona](https://consensyssoftware.atlassian.net/wiki/spaces/TL1/pages/400085221547/Mobile+User+Persona+Definition) and also a [power user persona](https://consensyssoftware.atlassian.net/wiki/spaces/TL1/pages/400085221547/Mobile+User+Persona+Definition) where performance might be a challenge. Please record the testing in a video, check the relevant post-merge checklist box below, and post the video in a comment at the bottom of this PR.
-
-            ### Author validation checklist
-            - [ ] Validated the changes in main branch using the nightly build
-            - [ ] Video shared
-
-            ### PM validation checklist
-            - [ ] Validated the changes in main branch using the nightly build
-            - [ ] Video shared
-
-            <!-- AUTO-VALIDATION-CHECKLIST PR:${pull_number} -->`;
-
-            // Post the comment
-            try {
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: pull_number,
-              body
-            });
-            console.log(`✅ Validation checklist posted on PR #${pull_number}`);
-            } catch (error) {
-              console.log(`⚠️  Could not post comment: ${error.message}`);
-            }            
-
-            // Add the needs-validation label
-            try {
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: pull_number,
-                labels: ['needs-validation']
-              });
-              console.log(`✅ Added 'needs-validation' label to PR #${pull_number}`);
-            } catch (error) {
-              console.log(`⚠️  Could not add label: ${error.message}`);
-            }
+      - name: Run post-merge-validation script
+        env:
+          SHEET_ID: ${{ inputs.spreadsheet_id }}
+          START_HOUR_UTC: ${{ inputs.start_hour_utc }}
+          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+          REPO: ${{ inputs.repo }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
+        run: node .github/scripts/post-merge-validation-tracker.mjs
