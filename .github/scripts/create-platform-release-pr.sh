@@ -285,7 +285,7 @@ create_release_pr() {
 
     # Push and create PR using helper functions
     push_branch_with_handling "${release_branch_name}"
-    create_pr_if_not_exists "${release_branch_name}" "release: ${new_version}" "${release_body}" "main" "" "head"
+    create_pr_if_not_exists "${release_branch_name}" "release: ${new_version}" "${release_body}" "${BASE_BRANCH}" "" "head"
 }
 
 # Create changelog branch and generate changelog

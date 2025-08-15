@@ -3,10 +3,14 @@ name: Create Release Pull Request
 on:
   workflow_call:
     inputs:
-      base-branch:
+      checkout-base-branch:
         required: true
         type: string
         description: 'The base branch, tag, or SHA for git operations and the pull request.'
+      release-pr-base-branch:
+        required: true
+        type: string
+        description: 'The base branch, tag, or SHA for the release pull request.'
       semver-version:
         required: true
         type: string
@@ -78,7 +82,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.base-branch }}
+          ref: ${{ inputs.checkout-base-branch }}
           token: ${{ secrets.github-token }}
 
       # Step 2: Checkout github-tools repository
@@ -101,7 +105,8 @@ jobs:
           echo "Input Values:"
           echo "-------------"
           echo "Platform: ${{ inputs.platform }}"
-          echo "Base Branch: ${{ inputs.base-branch }}"
+          echo "Checkout Base Branch: ${{ inputs.checkout-base-branch }}"
+          echo "Release PR Base Branch: ${{ inputs.release-pr-base-branch }}"
           echo "Semver Version: ${{ inputs.semver-version }}"
           echo "Previous Version Tag: ${{ inputs.previous-version-tag }}"
           echo "Test Only Mode: ${{ inputs.test-only }}"
@@ -122,7 +127,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
-          BASE_BRANCH: ${{ inputs.base-branch }}
+          BASE_BRANCH: ${{ inputs.release-pr-base-branch }}
           GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
           TEST_ONLY: ${{ inputs.test-only }}
           GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
