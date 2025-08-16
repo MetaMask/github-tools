@@ -9,7 +9,7 @@ const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '2');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
 const START_MINUTE_UTC = 0;
-const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)|\bbump\b/i;
+const RELEVANT_TITLE_REGEX = /^(feat|perf)\s*(\(|:|!|\/)|\bbump\b/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
 
