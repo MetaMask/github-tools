@@ -9,10 +9,16 @@ const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '2');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
 const START_MINUTE_UTC = 0;
-const RELEVANT_TITLE_REGEX = /^(feat|perf)(\(|:|!)|\bbump\b/i;
+const RELEVANT_TITLE_REGEX = /^(feat|perf|fix)\s*(\(|:|!|\/)|\bbump\b/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
-
+const AUTOMATED_TEST_PATTERNS = [
+  /\.test\.(js|ts|tsx)$/,
+  /\.spec\.(js|ts|tsx)$/,
+  /(^|\/)test\//,
+  /(^|\/)e2e\//,
+  /(^|\/)wdio\//
+];
 
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 if (!spreadsheetId) throw new Error('Missing SHEET_ID env var');
@@ -57,6 +63,7 @@ function headerRowFor(type) {
     'Merged Time (UTC)',
     'Author',
     'PR Size',
+    'Auto Tests',
     'Team Responsible',
     colF,
     colG,
@@ -118,7 +125,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A2:H2`,
+      range: `${title}!A2:I2`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headerRowFor(platformType)] },
     });
@@ -174,7 +181,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A2:H2`,
+    range: `${title}!A2:I2`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
@@ -201,7 +208,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:H`,
+      range: `${title}!A3:I`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -215,7 +222,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:H`,
+    range: `${title}!A4:I`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -288,7 +295,7 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         order: 'desc',
         per_page: 100,
         page,
-        advanced_search: true  // ← This stops the deprecation warning
+        advanced_search: true
       });
 
       if (!data.items.length) break;
@@ -364,6 +371,9 @@ function splitByReleaseAndTitle(items) {
 
 // Add efficient version detection with caching
 let versionCache = new Map(); // Cache version bumps per repo
+
+// Automated test detection cache
+let automatedTestCache = new Map(); // Cache automated test results per PR: "owner/repo/prNumber" -> "Yes"|"No"|"Unknown"
 
 async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
   const cacheKey = `${owner}/${repo}`;
@@ -511,11 +521,15 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
     }
 
     for (const pr of prs) {
+      // Check if PR modifies automated test files
+      const automatedTestsModified = await checkAutomatedTestFiles(owner, repo, pr.number);
+
       const row = [
         makePrHyperlinkCell(pr.html_url, pr.title, pr.number),
         formatDateHumanUTC(pr.closed_at || ''),
         pr.user.login,
         extractSize(pr.labels || []),
+        automatedTestsModified,
         extractTeam(pr.labels || []),
         '',
         '',
@@ -537,7 +551,7 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
       sha: 'main',
       since: sinceDateISO,
       path: 'package.json',
-      per_page: 50 // Should be enough for 15 days
+      per_page: 50 // Should be enough for e.g. 15 days lookback
     });
 
     const versionBumps = [];
@@ -578,6 +592,69 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
     console.log(`⚠️ Failed to find version bumps: ${e.message}`);
     return [];
   }
+}
+
+// Automated test detection functions
+async function fetchPRFiles(owner, repo, prNumber) {
+  try {
+    const allFiles = [];
+    let page = 1;
+
+    while (true) {
+      const { data: files } = await octokit.rest.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: prNumber,
+        per_page: 100,
+        page
+      });
+
+      allFiles.push(...files);
+
+      // If we got less than 100 files, we've reached the end
+      if (files.length < 100) break;
+
+      page++;
+      await sleep(100);
+    }
+
+    return allFiles.map(file => file.filename);
+  } catch (e) {
+    console.log(`⚠️ Failed to fetch files for PR #${prNumber}: ${e.message}`);
+    return null; // Return null to indicate API failure
+  }
+}
+
+function checkFilesForAutomatedTestPatterns(filenames) {
+  if (!filenames || filenames.length === 0) return false;
+
+  // Debug logging to help identify pattern matching issues
+  const matches = filenames.filter(filename =>
+    AUTOMATED_TEST_PATTERNS.some(pattern => pattern.test(filename))
+  );
+
+  return matches.length > 0;
+}
+
+async function checkAutomatedTestFiles(owner, repo, prNumber) {
+  const cacheKey = `${owner}/${repo}/${prNumber}`;
+  if (automatedTestCache.has(cacheKey)) {
+    return automatedTestCache.get(cacheKey);
+  }
+
+  const filenames = await fetchPRFiles(owner, repo, prNumber);
+  let result;
+
+  if (filenames === null) {
+    result = 'Unknown'; // API error
+  } else if (checkFilesForAutomatedTestPatterns(filenames)) {
+    result = 'Yes';
+  } else {
+    result = 'No';
+  }
+
+  automatedTestCache.set(cacheKey, result);
+  return result;
 }
 
 async function processTab(authClient, title, entries, platformType) {
