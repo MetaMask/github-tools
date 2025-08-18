@@ -140,10 +140,7 @@ const getDevDependencyLines = (
     }
   }
 
-  if (
-    devDependencySectionStart === undefined ||
-    devDependencySectionEnd === undefined
-  ) {
+  if (devDependencySectionStart === undefined) {
     return [];
   }
 
@@ -151,10 +148,12 @@ const getDevDependencyLines = (
   for (const changeLine of nonVersionLines) {
     const lineIndex = allLines.findIndex((line) => line === changeLine);
     if (lineIndex !== -1) {
-      // Check if this line falls within any devDependencies section
+      // Check if this line falls within the devDependencies section
+      // If we don't have an end, assume everything after start is in devDependencies
       const isInDevDeps =
         lineIndex >= devDependencySectionStart &&
-        lineIndex <= devDependencySectionEnd;
+        (devDependencySectionEnd === undefined ||
+          lineIndex <= devDependencySectionEnd);
 
       if (isInDevDeps) {
         devDependencyLines.push(changeLine);
