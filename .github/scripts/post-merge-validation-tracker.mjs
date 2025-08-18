@@ -181,7 +181,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A2:H2`,
+    range: `${title}!A2:I2`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
