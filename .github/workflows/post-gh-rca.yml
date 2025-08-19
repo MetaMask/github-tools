@@ -9,7 +9,7 @@ on:
     inputs:
       google-form-base-url:
         description: Base URL of the Google Form.
-        required: true
+        default: 'https://docs.google.com/forms/d/e/1FAIpQLSeLOVVUy7mO1j-5Isb04OAWk3dM0b1NY1R8kf0tiEBs9elcEg/viewform?usp=pp_url'
         type: string
       repo-owner:
         description: The repo owner
@@ -29,25 +29,24 @@ on:
         type: string
       entry-issue:
         description: The entry ID for the issue field in the Google Form
-        required: true
+        default: 'entry.1417567074'
         type: string
       entry-regression:
         description: The entry ID for the regression field in the Google Form
-        required: true
+        default: 'entry.1470697156'
         type: string
       entry-team:
         description: The entry ID for the team field in the Google Form
-        required: true
+        default: 'entry.1198657478'
         type: string
       entry-repo-name:
         description: The entry ID for the repository name field
-        required: true
+        default: 'entry.1085838323'
         type: string
       entry-issue-url:
         description: The entry ID for the GitHub issue URL field
-        required: true
+        default: 'entry.516762472'
         type: string
-
 
 jobs:
   post-rca-form:
