@@ -39,6 +39,15 @@ on:
         description: The entry ID for the team field in the Google Form
         required: true
         type: string
+      entry-repo-name:
+        description: The entry ID for the repository name field
+        required: true
+        type: string
+      entry-issue-url:
+        description: The entry ID for the GitHub issue URL field
+        required: true
+        type: string
+
 
 jobs:
   post-rca-form:
@@ -56,6 +65,8 @@ jobs:
           ENTRY_ISSUE: ${{ inputs.entry-issue }}
           ENTRY_REGRESSION: ${{ inputs.entry-regression }}
           ENTRY_TEAM: ${{ inputs.entry-team }}
+          ENTRY_REPO_NAME: ${{ inputs.entry-repo-name }}
+          ENTRY_ISSUE_URL: ${{ inputs.entry-issue-url }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -64,6 +75,8 @@ jobs:
               ENTRY_ISSUE,
               ENTRY_REGRESSION,
               ENTRY_TEAM,
+              ENTRY_REPO_NAME,
+              ENTRY_ISSUE_URL,
               OWNER_NAME: owner,
               REPO_NAME: repo,
               ISSUE_NUMBER: issueNumStr,
@@ -108,6 +121,9 @@ jobs:
               ENTRY_TEAM,
               teamLabels.length ? teamLabels.join(',') : ''
             );
+
+            formUrl.searchParams.set(ENTRY_REPO_NAME, repo);
+            formUrl.searchParams.set(ENTRY_ISSUE_URL, `https://github.com/${owner}/${repo}/issues/${issue_number}`);
 
             const assignees = issue.assignees.map(u=>`@${u.login}`).join(', ');
             const body = `Hi ${assignees},
