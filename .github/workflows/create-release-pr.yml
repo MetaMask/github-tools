@@ -6,7 +6,7 @@ on:
       checkout-base-branch:
         required: true
         type: string
-        description: 'The base branch, tag, or SHA for git operations and the pull request.'
+        description: 'The base branch, tag, or SHA for git operations.'
       release-pr-base-branch:
         required: true
         type: string
