@@ -15,6 +15,7 @@ const SIZE_LABEL_PREFIX = 'size-';
 const AUTOMATED_TEST_PATTERNS = [
   /\.test\.(js|ts|tsx)$/,
   /\.spec\.(js|ts|tsx)$/,
+  /\.(test|spec)\.(js|ts|tsx)\.snap$/,
   /(^|\/)test\//,
   /(^|\/)e2e\//,
   /(^|\/)wdio\//
