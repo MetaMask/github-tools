@@ -1,4 +1,4 @@
- name: 'Setup E2E Test Environment'
+name: 'Setup E2E Test Environment'
 description: 'Sets up the environment for running E2E tests'
 inputs:
   platform:
