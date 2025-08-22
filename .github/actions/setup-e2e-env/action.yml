@@ -80,6 +80,10 @@ inputs:
     description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
+  skip-yarn-install:
+    description: 'Whether to skip yarn install (assumes node_modules already available)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -115,18 +119,18 @@ runs:
         java-version: ${{ inputs.jdk-version }}
         distribution: ${{ inputs.jdk-distribution }}
 
-    - name: Install required emulator dependencies
-      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libpulse0 \
-          libglu1-mesa \
-          libnss3 \
-          libxss1
-
-        echo "✅ Linux dependencies installed successfully"
-      shell: bash
+    #- name: Install required emulator dependencies
+    #  if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
+    #  run: |
+    #    sudo apt-get update
+    #    sudo apt-get install -y \
+    #      libpulse0 \
+    #      libglu1-mesa \
+    #      libnss3 \
+    #      libxss1
+#
+    #    echo "✅ Linux dependencies installed successfully"
+    #  shell: bash
 
     ## Android SDK Setup (SDK pre-installed in container)
 
@@ -188,18 +192,26 @@ runs:
       run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
       shell: bash
 
-    - name: Restore Yarn cache
+    - name: Restore Yarn cache (cross-workflow)
+      if: ${{ inputs.skip-yarn-install == 'false' }}
       uses: actions/cache@v4
       with:
         path: |
           node_modules
-        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          ~/.yarn/cache
+          ~/.cache/yarn
+        key: ${{ inputs.cache-prefix }}-yarn-v2-${{ runner.os }}-${{ hashFiles('yarn.lock', 'package.json') }}
         restore-keys: |
-          ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
+          ${{ inputs.cache-prefix }}-yarn-v2-${{ runner.os }}-
+          ${{ inputs.cache-prefix }}-yarn-v1-${{ runner.os }}-
 
     - name: Install JavaScript dependencies
+      if: ${{ inputs.skip-yarn-install == 'false' }}
       id: yarn-install
-      run: yarn install --frozen-lockfile
+      run: |
+        echo "📦 Installing JavaScript dependencies..."
+        yarn install --frozen-lockfile --prefer-offline
+        echo "✅ JavaScript dependencies installed successfully"
       shell: bash
       env:
         NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
