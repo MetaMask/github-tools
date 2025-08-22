@@ -14,42 +14,46 @@ if (!githubToken) {
 // Initialize Octokit with your GitHub token
 const octokit = new Octokit({ auth: githubToken });
 
-// Minimal change: hardcode owner/repo for PR lookup and links
-const OWNER = 'consensys-test';
-const REPO = 'metamask-extension-test-workflow2';
-
 // https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json lookup from here
-async function getTeam(prNumber) {
+async function getTeam(repository, prNumber) {
   try {
     const { data: prData } = await octokit.pulls.get({
-      owner: OWNER,
-      repo: REPO,
-      pull_number: prNumber,
+      owner: 'consensys-test',
+      repo: repository,
+      pull_number: prNumber[1],
     });
 
     const author = prData.user.login; // PR author's GitHub username
 
     const teamsJsonUrl =
-      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/main/teams.json';
+      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
     const githubToken = process.env.GITHUB_TOKEN;
 
     const response = await axios.get(teamsJsonUrl, {
       headers: { Authorization: `token ${githubToken}` },
     });
 
+    // Check if the response is successful and contains data
     if (response.status !== 200 || !response.data) {
       console.error(
         `Invalid response when fetching teams.json: ${response.status}`,
       );
-      return 'Unknown';
+      return ['Unknown'];
     }
 
     const teamsJson = response.data;
+
+    // Step 3: Match the PR author's username to a team
     const team = teamsJson[author];
+
+    // Step 4: Return the team name or 'Unknown' if not found.
     return team || 'Unknown';
 
   } catch (error) {
-    console.error(`Error fetching team for PR #${prNumber}:`, error.message || error);
+    console.error(
+      `Error fetching team for PR #${prNumber}:`,
+      error.message || error,
+    );
     return 'Unknown';
   }
 }
@@ -60,7 +64,18 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
   const MAX_COMMITS = 500; // Limit the number of commits to process
   console.log('Filtering commits by team...');
 
-  // Minimal: no platform-based repo discovery; always use OWNER/REPO above
+  var repository = '';
+
+  switch (platform) {
+    case 'mobile':
+      repository = 'metamask-mobile';
+      break;
+    case 'extension':
+      repository = 'metamask-extension-test-workflow2';
+      break;
+    default:
+      repository = 'metamask-mobile';
+  }
 
   try {
     const git = simpleGit();
@@ -94,9 +109,10 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
       // Extract PR number from the commit message using regex
       const prMatch = message.match(/\(#(\d{1,5})\)$/u);
       if (prMatch) {
-        const prNumber = prMatch[1];
-        const team = await getTeam(prNumber);
-        const prLink = `https://github.com/${OWNER}/${REPO}/pull/${prNumber}`;
+        const prLink = prMatch
+          ? `https://github.com/consensys-test/${repository}/pull/${prMatch[1]}`
+          : '';
+        const team = await getTeam(repository, prMatch);
 
         // Initialize the team's commits array if it doesn't exist
         if (!commitsByTeam[team]) {
@@ -135,6 +151,7 @@ function formatAsCSV(commitsByTeam) {
         stripDelimiter(commit.author, ','),
         commit.prLink,
         stripDelimiter(team, ','),
+        ,
         assignChangeType(commit.message),
       ];
       csvContent.push(row.join(','));
