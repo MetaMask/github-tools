@@ -119,18 +119,18 @@ runs:
         java-version: ${{ inputs.jdk-version }}
         distribution: ${{ inputs.jdk-distribution }}
 
-    - name: Install required emulator dependencies
-      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libpulse0 \
-          libglu1-mesa \
-          libnss3 \
-          libxss1
-
-        echo "✅ Linux dependencies installed successfully"
-      shell: bash
+    #- name: Install required emulator dependencies
+    #  if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
+    #  run: |
+    #    sudo apt-get update
+    #    sudo apt-get install -y \
+    #      libpulse0 \
+    #      libglu1-mesa \
+    #      libnss3 \
+    #      libxss1
+#
+    #    echo "✅ Linux dependencies installed successfully"
+    #  shell: bash
 
     ## Android SDK Setup (SDK pre-installed in container)
 
