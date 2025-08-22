@@ -1,4 +1,4 @@
-name: 'Setup E2E Test Environment'
+ name: 'Setup E2E Test Environment'
 description: 'Sets up the environment for running E2E tests'
 inputs:
   platform:
@@ -80,6 +80,10 @@ inputs:
     description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
+  skip-yarn-install:
+    description: 'Whether to skip yarn install (assumes node_modules already available)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -188,18 +192,26 @@ runs:
       run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
       shell: bash
 
-    - name: Restore Yarn cache
+    - name: Restore Yarn cache (cross-workflow)
+      if: ${{ inputs.skip-yarn-install == 'false' }}
       uses: actions/cache@v4
       with:
         path: |
           node_modules
-        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          ~/.yarn/cache
+          ~/.cache/yarn
+        key: ${{ inputs.cache-prefix }}-yarn-v2-${{ runner.os }}-${{ hashFiles('yarn.lock', 'package.json') }}
         restore-keys: |
-          ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
+          ${{ inputs.cache-prefix }}-yarn-v2-${{ runner.os }}-
+          ${{ inputs.cache-prefix }}-yarn-v1-${{ runner.os }}-
 
     - name: Install JavaScript dependencies
+      if: ${{ inputs.skip-yarn-install == 'false' }}
       id: yarn-install
-      run: yarn install --frozen-lockfile
+      run: |
+        echo "📦 Installing JavaScript dependencies..."
+        yarn install --frozen-lockfile --prefer-offline
+        echo "✅ JavaScript dependencies installed successfully"
       shell: bash
       env:
         NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
