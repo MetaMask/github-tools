@@ -18,7 +18,7 @@ const octokit = new Octokit({ auth: githubToken });
 async function getTeam(repository, prNumber) {
   try {
     const { data: prData } = await octokit.pulls.get({
-      owner: 'MetaMask',
+      owner: 'consensys-test',
       repo: repository,
       pull_number: prNumber[1],
     });
@@ -46,7 +46,7 @@ async function getTeam(repository, prNumber) {
     // Step 3: Match the PR author's username to a team
     const team = teamsJson[author];
 
-    // Step 4: Return the team name or 'Unknown' if not found
+    // Step 4: Return the team name or 'Unknown' if not found.
     return team || 'Unknown';
 
   } catch (error) {
@@ -71,7 +71,7 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
       repository = 'metamask-mobile';
       break;
     case 'extension':
-      repository = 'metamask-extension';
+      repository = 'metamask-extension-test-workflow2';
       break;
     default:
       repository = 'metamask-mobile';
@@ -107,10 +107,10 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
       }
 
       // Extract PR number from the commit message using regex
-      const prMatch = message.match(/\(#(\d{4,5})\)$/u);
+      const prMatch = message.match(/\(#(\d{1,5})\)$/u);
       if (prMatch) {
         const prLink = prMatch
-          ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}`
+          ? `https://github.com/consensys-test/${repository}/pull/${prMatch[1]}`
           : '';
         const team = await getTeam(repository, prMatch);
 

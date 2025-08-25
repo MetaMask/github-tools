@@ -44,7 +44,7 @@ on:
         required: false
         type: string
         description: 'The Google Document ID for the release notes.'
-        default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ' # Prod Release Document
+        default: '1rWSCoU07QxaP-H1Wkw-GNtwVNdeunDOjZoHoLXYxwkw' # Prod Release Document
       platform:
         required: true
         type: string
