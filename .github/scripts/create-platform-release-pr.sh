@@ -315,11 +315,13 @@ create_changelog_pr() {
     echo "Generating test plan csv.."
     yarn run gen:commits "${platform}" "${previous_version}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
 
-    if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
-      echo "Updating release sheet.."
-      # Create a new Release Sheet Page for the new version with our commits.csv content
-      yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
-    fi
+    # Skipping Google Sheets update since there is no need for it anymore
+    # TODO: Remove this once the current post-main validation approach is stable
+    # if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
+    #   echo "Updating release sheet.."
+    #   # Create a new Release Sheet Page for the new version with our commits.csv content
+    #   yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
+    # fi
     cd ../
 
     # Commit and Push Changelog Changes
