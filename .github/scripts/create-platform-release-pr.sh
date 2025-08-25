@@ -306,6 +306,16 @@ create_changelog_pr() {
     # Need to run from .github-tools context to inherit it's dependencies/environment
     echo "Current Directory: $(pwd)"
     PROJECT_GIT_DIR=$(pwd)
+
+    # Resolve previous_version when it's a branch name: fetch and use origin/<branch>
+    DIFF_BASE="${previous_version}"
+    if git ls-remote --heads origin "${previous_version}" | grep -qE "\srefs/heads/${previous_version}$"; then
+      echo "Detected remote branch for previous version: ${previous_version}"
+      git fetch origin "${previous_version}"
+      DIFF_BASE="origin/${previous_version}"
+    fi
+
+    # Switch to github-tools directory
     cd ./github-tools/
     ls -ltra
     corepack prepare yarn@4.5.1 --activate
@@ -313,8 +323,8 @@ create_changelog_pr() {
     yarn --cwd install
 
     echo "Generating test plan csv.."
-    yarn run gen:commits "${platform}" "${previous_version}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
-
+    yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
+    
     # Skipping Google Sheets update since there is no need for it anymore
     # TODO: Remove this once the current post-main validation approach is stable
     # if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
