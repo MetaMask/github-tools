@@ -61,7 +61,9 @@ async function main(): Promise<void> {
     const repoOwner = context.repo.owner;
     const repoName = context.repo.repo;
 
-    console.log(`Starting Google Sheets-based RCA label removal (Dry Run: ${isDryRun})`);
+    console.log(
+      `Starting Google Sheets-based RCA label removal (Dry Run: ${isDryRun})`,
+    );
     console.log(`Repository: ${repoOwner}/${repoName}`);
     console.log(`Sheet ID: ${SPREADSHEET_ID}`);
     console.log(`Sheet Name: ${SHEET_NAME}`);
@@ -77,10 +79,12 @@ async function main(): Promise<void> {
     const issuesWithRcaNeeded = await getIssuesWithRcaLabel(
       octokit,
       repoOwner,
-      repoName
+      repoName,
     );
 
-    console.log(`Found ${issuesWithRcaNeeded.length} issues with RCA-needed label`);
+    console.log(
+      `Found ${issuesWithRcaNeeded.length} issues with RCA-needed label`,
+    );
 
     let removedCount = 0;
     let skippedCount = 0;
@@ -94,11 +98,13 @@ async function main(): Promise<void> {
       try {
         // Check if issue has RCA response in Google Sheets
         const hasRcaResponse = rcaResponses.some(
-          response => response.issueNumber === issue.number.toString()
+          (response) => response.issueNumber === issue.number.toString(),
         );
 
         if (hasRcaResponse) {
-          console.log(`✅ RCA response found in Google Sheets for issue #${issue.number}`);
+          console.log(
+            `✅ RCA response found in Google Sheets for issue #${issue.number}`,
+          );
 
           if (!isDryRun) {
             // Remove the RCA-needed label
@@ -107,21 +113,29 @@ async function main(): Promise<void> {
               repoOwner,
               repoName,
               issue.number,
-              RCA_NEEDED_LABEL.name
+              RCA_NEEDED_LABEL.name,
             );
 
-            console.log(`✅ Successfully removed RCA-needed label from issue #${issue.number}`);
+            console.log(
+              `✅ Successfully removed RCA-needed label from issue #${issue.number}`,
+            );
             removedCount++;
           } else {
-            console.log(`🔍 [DRY RUN] Would remove label from issue #${issue.number}`);
+            console.log(
+              `🔍 [DRY RUN] Would remove label from issue #${issue.number}`,
+            );
             removedCount++;
           }
         } else {
-          console.log(`⏳ No RCA found in sheet for issue #${issue.number} - skipping`);
+          console.log(
+            `⏳ No RCA found in sheet for issue #${issue.number} - skipping`,
+          );
           skippedCount++;
         }
       } catch (error) {
-        console.error(`❌ Failed to process issue #${issue.number}: ${error.message}`);
+        console.error(
+          `❌ Failed to process issue #${issue.number}: ${error.message}`,
+        );
         failedCount++;
         failedIssues.push(issue.number);
         // Continue processing other issues
@@ -131,7 +145,9 @@ async function main(): Promise<void> {
     console.log(`\n📊 Summary:`);
     console.log(`  - Repository: ${repoOwner}/${repoName}`);
     console.log(`  - Issues processed: ${issuesWithRcaNeeded.length}`);
-    console.log(`  - Labels ${isDryRun ? 'would be' : ''} removed: ${removedCount}`);
+    console.log(
+      `  - Labels ${isDryRun ? 'would be' : ''} removed: ${removedCount}`,
+    );
     console.log(`  - Issues skipped (no RCA in sheet): ${skippedCount}`);
 
     if (failedCount > 0) {
@@ -145,13 +161,16 @@ async function main(): Promise<void> {
       core.setFailed('All label removal attempts failed');
       process.exit(1);
     } else if (failedCount > 0) {
-      console.log(`\n⚠️  Completed with ${failedCount} failures. Check logs for details.`);
+      console.log(
+        `\n⚠️  Completed with ${failedCount} failures. Check logs for details.`,
+      );
     } else {
       console.log(`\n✅ All operations completed successfully!`);
     }
-
   } catch (error) {
-    core.setFailed(`Error in Google Sheets RCA label removal: ${error.message}`);
+    core.setFailed(
+      `Error in Google Sheets RCA label removal: ${error.message}`,
+    );
     process.exit(1);
   }
 }
@@ -159,7 +178,7 @@ async function main(): Promise<void> {
 async function initializeGoogleSheets(credentials: string): Promise<any> {
   // Decode base64 credentials
   const credentialsJson = JSON.parse(
-    Buffer.from(credentials, 'base64').toString('utf-8')
+    Buffer.from(credentials, 'base64').toString('utf-8'),
   );
 
   // Initialize Google Sheets API client
@@ -216,7 +235,9 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
             // repository: row[2], // Column C: Github Repository
             // issueUrl: row[3],   // Column D: Github Issue URL
           });
-          console.log(`  Found RCA for issue #${issueMatch[0]} submitted on ${row[0]}`);
+          console.log(
+            `  Found RCA for issue #${issueMatch[0]} submitted on ${row[0]}`,
+          );
         }
       }
     }
@@ -231,7 +252,7 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
 async function getIssuesWithRcaLabel(
   octokit: InstanceType<typeof GitHub>,
   owner: string,
-  repo: string
+  repo: string,
 ): Promise<any[]> {
   const allIssues: any[] = [];
   let hasNextPage = true;
@@ -284,7 +305,7 @@ async function removeLabelFromIssue(
   owner: string,
   repo: string,
   issueNumber: number,
-  labelName: string
+  labelName: string,
 ): Promise<void> {
   try {
     // Use REST API to remove label from issue
