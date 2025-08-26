@@ -1,6 +1,11 @@
+// Note: These packages are installed at runtime in the GitHub Actions workflow
+// @ts-ignore - @actions/core is not in devDependencies
 import * as core from '@actions/core';
+// @ts-ignore - @actions/github is not in devDependencies
 import { context, getOctokit } from '@actions/github';
+// @ts-ignore - @actions/github is not in devDependencies
 import { GitHub } from '@actions/github/lib/utils';
+// @ts-ignore - googleapis types may not be available locally
 import { google } from 'googleapis';
 
 interface Label {

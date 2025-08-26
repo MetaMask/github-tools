@@ -11,6 +11,8 @@
     "@swc/cli",
     "@swc/core",
     "ts-node",
-    "typedoc"
+    "typedoc",
+    "@actions/core",
+    "@actions/github"
   ]
 }

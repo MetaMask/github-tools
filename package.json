@@ -38,8 +38,6 @@
     "simple-git": "3.27.0"
   },
   "devDependencies": {
-    "@actions/core": "^1.10.1",
-    "@actions/github": "^6.0.0",
     "@lavamoat/allow-scripts": "^2.3.1",
     "@lavamoat/preinstall-always-fail": "^1.0.0",
     "@metamask/eslint-config": "^12.0.0",
