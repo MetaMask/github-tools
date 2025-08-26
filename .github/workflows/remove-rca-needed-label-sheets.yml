@@ -1,0 +1,74 @@
+name: Remove RCA-needed Label
+
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no changes made)'
+        required: false
+        default: 'false'
+        type: string
+      spreadsheet_id:
+        description: 'Google Spreadsheet ID (uses default if not provided)'
+        required: false
+        default: '1Y16QEnDwZuR3DAQIe3T5LTWy1ye07GNYqxIei_cMg24'
+        type: string
+      sheet_name:
+        description: 'Sheet tab name (uses default if not provided)'
+        required: false
+        default: 'Form Responses 1'
+        type: string
+      github-tools-version:
+        description: 'The version of github-tools to use. Defaults to main.'
+        required: false
+        default: 'main'
+        type: string
+    secrets:
+      github-token:
+        description: 'GitHub token with issues write permissions'
+        required: true
+      google-application-creds-base64:
+        description: 'Base64 encoded Google application service account credentials'
+        required: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  remove-rca-labels:
+    name: Remove RCA-needed Labels Based on Sheet Data
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: ${{ inputs.github-tools-version }}
+          path: github-tools
+
+      - name: Checkout and setup environment
+        uses: ./github-tools/.github/actions/checkout-and-setup
+        with:
+          is-high-risk-environment: true
+
+      - name: Install additional dependencies
+        run: |
+          npm install @actions/core
+          npm install @actions/github
+          npm install googleapis
+          npm install @octokit/types
+
+      - name: Run RCA Google Sheets check
+        run: npx tsx ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.google-application-creds-base64 }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SPREADSHEET_ID: ${{ inputs.spreadsheet_id }}
+          SHEET_NAME: ${{ inputs.sheet_name }}
