@@ -1,11 +1,6 @@
-// Note: These packages are installed at runtime in the workflow
-// @ts-ignore - @actions/core types may not be available in CI
 import * as core from '@actions/core';
-// @ts-ignore - @actions/github types may not be available in CI
 import { context, getOctokit } from '@actions/github';
-// @ts-ignore - @actions/github types may not be available in CI
 import { GitHub } from '@actions/github/lib/utils';
-// @ts-ignore - googleapis types may not be available in CI
 import { google } from 'googleapis';
 
 interface Label {
