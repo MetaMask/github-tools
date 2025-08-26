@@ -8,15 +8,15 @@
 # 3. A version bump PR for the main branch
 #
 # Usage:
-#   create-platform-release-pr.sh <platform> <previous_version> <new_version> [new_version_number] [git_user_name] [git_user_email]
+#   create-platform-release-pr.sh <platform> <previous_version_ref> <new_version> [new_version_number] [git_user_name] [git_user_email]
 #
 # Parameters:
-#   platform           - 'mobile' or 'extension'
-#   previous_version    - Previous release version tag (e.g., v7.7.0)
-#   new_version         - New semantic version (e.g., 7.8.0)
-#   new_version_number  - Build version for mobile platform (optional, required for mobile)
-#   git_user_name       - Git user name for commits (optional, defaults to 'metamaskbot')
-#   git_user_email      - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
+#   platform                - 'mobile' or 'extension'
+#   previous_version_ref    - Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)
+#   new_version             - New semantic version (e.g., 7.8.0)
+#   new_version_number      - Build version for mobile platform (optional, required for mobile)
+#   git_user_name           - Git user name for commits (optional, defaults to 'metamaskbot')
+#   git_user_email          - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
 
 set -e
 set -u
@@ -24,7 +24,7 @@ set -o pipefail
 
 # Input validation
 PLATFORM="${1}"
-PREVIOUS_VERSION="${2}"
+PREVIOUS_VERSION_REF="${2}"
 NEW_VERSION="${3}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
@@ -292,7 +292,7 @@ create_release_pr() {
 create_changelog_pr() {
     local platform="$1"
     local new_version="$2"
-    local previous_version="$3"
+    local previous_version_ref="$3"
     local release_branch_name="$4"
     local changelog_branch_name="$5"
 
@@ -306,6 +306,31 @@ create_changelog_pr() {
     # Need to run from .github-tools context to inherit it's dependencies/environment
     echo "Current Directory: $(pwd)"
     PROJECT_GIT_DIR=$(pwd)
+
+    # By default, DIFF_BASE is set to the provided `previous_version_ref` (which can be a branch name, tag, or commit hash).
+    # If `previous_version_ref` matches a remote branch on origin, we fetch it and update DIFF_BASE to the fully qualified remote ref (`origin/<branch>`).
+    # This is required for the `generate-rc-commits.mjs` script to resolve the branch and successfully run the `git log` command.
+    # Otherwise, DIFF_BASE remains unchanged.
+    DIFF_BASE="${previous_version_ref}"
+
+    # Only consider known release branch patterns to avoid regex pitfalls:
+    # - Extension: Version-vx.y.z
+    # - Mobile:    release/x.y.z
+    if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "Previous version looks like a release branch: ${previous_version_ref}"
+      # Check if the exact branch exists on origin without interpolating into a regex
+      if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
+        echo "Detected remote branch for previous version: ${previous_version_ref}"
+        git fetch origin "${previous_version_ref}"
+        DIFF_BASE="origin/${previous_version_ref}"
+      else
+        echo "Remote branch not found on origin: ${previous_version_ref}. Will use as-is."
+      fi
+    else
+      echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
+    fi
+
+    # Switch to github-tools directory
     cd ./github-tools/
     ls -ltra
     corepack prepare yarn@4.5.1 --activate
@@ -313,8 +338,8 @@ create_changelog_pr() {
     yarn --cwd install
 
     echo "Generating test plan csv.."
-    yarn run gen:commits "${platform}" "${previous_version}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
-
+    yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
+    
     # Skipping Google Sheets update since there is no need for it anymore
     # TODO: Remove this once the current post-main validation approach is stable
     # if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
@@ -435,7 +460,7 @@ main() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "Skipping changelog generation in test mode"
     else
-        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION" "$release_branch_name" "$changelog_branch_name"
+        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
     fi
 
     # Step 3: Create version bump PR for main branch

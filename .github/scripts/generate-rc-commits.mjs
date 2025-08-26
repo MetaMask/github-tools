@@ -59,7 +59,8 @@ async function getTeam(repository, prNumber) {
 }
 
 // Function to filter commits based on unique commit messages and group by teams
-async function filterCommitsByTeam(platform, branchA, branchB) {
+// Input parameters refA and refB can be a branch name, a tag or a commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)
+async function filterCommitsByTeam(platform, refA, refB) {
 
   const MAX_COMMITS = 500; // Limit the number of commits to process
   console.log('Filtering commits by team...');
@@ -81,8 +82,8 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
     const git = simpleGit();
 
     const logOptions = {
-      from: branchB,
-      to: branchA,
+      from: refB,
+      to: refA,
       format: {
         hash: '%H',
         author: '%an',
@@ -92,7 +93,7 @@ async function filterCommitsByTeam(platform, branchA, branchB) {
 
     const log = await git.log(logOptions);
 
-    console.log(`Total commits between ${branchA} and ${branchB}: ${log.total}`);
+    console.log(`Total commits between ${refA} and ${refB}: ${log.total}`);
     console.log(`Processing up to ${Math.min(log.all.length, MAX_COMMITS)} commits...`);
 
     const commitsByTeam = {};
@@ -204,15 +205,15 @@ async function main() {
 
   if (args.length !== 4) {
     console.error(
-      'Usage: node generate-rc-commits.mjs platform branchA branchB',
+      'Usage: node generate-rc-commits.mjs platform refA refB',
     );
     console.error('Received:', args, ' with length:', args.length);
     process.exit(1);
   }
 
   const platform = args[0];
-  const branchA = args[1];
-  const branchB = args[2];
+  const refA = args[1];
+  const refB = args[2];
   const gitDir = args[3];
 
   // Change the working directory to the git repository path
@@ -220,10 +221,10 @@ async function main() {
   process.chdir(gitDir);
 
   console.log(
-    `Generating CSV file for commits between ${branchA} and ${branchB} on ${platform} platform...`,
+    `Generating CSV file for commits between ${refA} and ${refB} on ${platform} platform...`,
   );
 
-  const commitsByTeam = await filterCommitsByTeam(platform, branchA, branchB);
+  const commitsByTeam = await filterCommitsByTeam(platform, refA, refB);
 
   if (Object.keys(commitsByTeam).length === 0) {
     console.log('No commits found.');
