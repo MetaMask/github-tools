@@ -8,15 +8,15 @@
 # 3. A version bump PR for the main branch
 #
 # Usage:
-#   create-platform-release-pr.sh <platform> <previous_version> <new_version> [new_version_number] [git_user_name] [git_user_email]
+#   create-platform-release-pr.sh <platform> <previous_version_ref> <new_version> [new_version_number] [git_user_name] [git_user_email]
 #
 # Parameters:
-#   platform           - 'mobile' or 'extension'
-#   previous_version    - Previous release version tag (e.g., v7.7.0)
-#   new_version         - New semantic version (e.g., 7.8.0)
-#   new_version_number  - Build version for mobile platform (optional, required for mobile)
-#   git_user_name       - Git user name for commits (optional, defaults to 'metamaskbot')
-#   git_user_email      - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
+#   platform                - 'mobile' or 'extension'
+#   previous_version_ref    - Previous release version tag or branch name (e.g., v7.7.0)
+#   new_version             - New semantic version (e.g., 7.8.0)
+#   new_version_number      - Build version for mobile platform (optional, required for mobile)
+#   git_user_name           - Git user name for commits (optional, defaults to 'metamaskbot')
+#   git_user_email          - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
 
 set -e
 set -u
@@ -24,7 +24,7 @@ set -o pipefail
 
 # Input validation
 PLATFORM="${1}"
-PREVIOUS_VERSION="${2}"
+PREVIOUS_VERSION_REF="${2}"
 NEW_VERSION="${3}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
@@ -292,7 +292,7 @@ create_release_pr() {
 create_changelog_pr() {
     local platform="$1"
     local new_version="$2"
-    local previous_version="$3"
+    local previous_version_ref="$3"
     local release_branch_name="$4"
     local changelog_branch_name="$5"
 
@@ -307,12 +307,14 @@ create_changelog_pr() {
     echo "Current Directory: $(pwd)"
     PROJECT_GIT_DIR=$(pwd)
 
-    # Resolve previous_version when it's a branch name: fetch and use origin/<branch>
-    DIFF_BASE="${previous_version}"
-    if git ls-remote --heads origin "${previous_version}" | grep -qE "\srefs/heads/${previous_version}$"; then
-      echo "Detected remote branch for previous version: ${previous_version}"
-      git fetch origin "${previous_version}"
-      DIFF_BASE="origin/${previous_version}"
+    # Resolve previous_version_ref when it's a branch name: fetch and use origin/<branch>. This enables branch names to be used as previous version references.
+    DIFF_BASE="${previous_version_ref}"
+    if git ls-remote --heads origin "${previous_version_ref}" | grep -qE "\srefs/heads/${previous_version_ref}$"; then
+      echo "Detected remote branch for previous version: ${previous_version_ref}"
+      git fetch origin "${previous_version_ref}"
+      DIFF_BASE="origin/${previous_version_ref}"
+    else
+      echo "No remote branch detected for previous version: ${previous_version_ref}"
     fi
 
     # Switch to github-tools directory
@@ -445,7 +447,7 @@ main() {
     if [ "$TEST_ONLY" == "true" ]; then
         echo "Skipping changelog generation in test mode"
     else
-        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION" "$release_branch_name" "$changelog_branch_name"
+        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
     fi
 
     # Step 3: Create version bump PR for main branch

@@ -19,10 +19,10 @@ on:
         required: false
         type: string
         description: 'The build version for the mobile platform.'
-      previous-version-tag:
+      previous-version-ref:
         required: true
         type: string
-        description: 'Previous release version tag. eg: v7.7.0'
+        description: 'Previous release version tag or branch name. eg: v7.7.0'
       # Flag to indicate if the release is a test release for development purposes only
       mobile-template-sheet-id:
         required: false
@@ -108,7 +108,7 @@ jobs:
           echo "Checkout Base Branch: ${{ inputs.checkout-base-branch }}"
           echo "Release PR Base Branch: ${{ inputs.release-pr-base-branch }}"
           echo "Semver Version: ${{ inputs.semver-version }}"
-          echo "Previous Version Tag: ${{ inputs.previous-version-tag }}"
+          echo "Previous Version Reference: ${{ inputs.previous-version-ref }}"
           echo "Test Only Mode: ${{ inputs.test-only }}"
           if [[ "${{ inputs.platform }}" == "mobile" ]]; then
             echo "Mobile Build Version: ${{ inputs.mobile-build-version }}"
@@ -140,7 +140,7 @@ jobs:
           # Execute the script from github-tools
           ./github-tools/.github/scripts/create-platform-release-pr.sh \
             ${{ inputs.platform }} \
-            ${{ inputs.previous-version-tag }} \
+            ${{ inputs.previous-version-ref }} \
             ${{ inputs.semver-version }} \
             ${{ inputs.mobile-build-version }} \
             ${{ inputs.git-user-name }} \
