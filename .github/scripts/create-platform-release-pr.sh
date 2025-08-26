@@ -12,7 +12,7 @@
 #
 # Parameters:
 #   platform                - 'mobile' or 'extension'
-#   previous_version_ref    - Previous release version tag or branch name (e.g., v7.7.0)
+#   previous_version_ref    - Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)
 #   new_version             - New semantic version (e.g., 7.8.0)
 #   new_version_number      - Build version for mobile platform (optional, required for mobile)
 #   git_user_name           - Git user name for commits (optional, defaults to 'metamaskbot')
@@ -307,14 +307,27 @@ create_changelog_pr() {
     echo "Current Directory: $(pwd)"
     PROJECT_GIT_DIR=$(pwd)
 
-    # Resolve previous_version_ref when it's a branch name: fetch and use origin/<branch>. This enables branch names to be used as previous version references.
+    # By default, DIFF_BASE is set to the provided `previous_version_ref` (which can be a branch name, tag, or commit hash).
+    # If `previous_version_ref` matches a remote branch on origin, we fetch it and update DIFF_BASE to the fully qualified remote ref (`origin/<branch>`).
+    # This is required for the `generate-rc-commits.mjs` script to resolve the branch and successfully run the `git log` command.
+    # Otherwise, DIFF_BASE remains unchanged.
     DIFF_BASE="${previous_version_ref}"
-    if git ls-remote --heads origin "${previous_version_ref}" | grep -qE "\srefs/heads/${previous_version_ref}$"; then
-      echo "Detected remote branch for previous version: ${previous_version_ref}"
-      git fetch origin "${previous_version_ref}"
-      DIFF_BASE="origin/${previous_version_ref}"
+
+    # Only consider known release branch patterns to avoid regex pitfalls:
+    # - Extension: Version-vx.y.z
+    # - Mobile:    release/x.y.z
+    if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "Previous version looks like a release branch: ${previous_version_ref}"
+      # Check if the exact branch exists on origin without interpolating into a regex
+      if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
+        echo "Detected remote branch for previous version: ${previous_version_ref}"
+        git fetch origin "${previous_version_ref}"
+        DIFF_BASE="origin/${previous_version_ref}"
+      else
+        echo "Remote branch not found on origin: ${previous_version_ref}. Will use as-is."
+      fi
     else
-      echo "No remote branch detected for previous version: ${previous_version_ref}"
+      echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
     fi
 
     # Switch to github-tools directory

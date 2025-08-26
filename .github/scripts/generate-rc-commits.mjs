@@ -59,6 +59,7 @@ async function getTeam(repository, prNumber) {
 }
 
 // Function to filter commits based on unique commit messages and group by teams
+// Input parameters refA and refB can be a branch name, a tag or a commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)
 async function filterCommitsByTeam(platform, refA, refB) {
 
   const MAX_COMMITS = 500; // Limit the number of commits to process

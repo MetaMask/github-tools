@@ -22,7 +22,7 @@ on:
       previous-version-ref:
         required: true
         type: string
-        description: 'Previous release version tag or branch name. eg: v7.7.0'
+        description: 'Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)'
       # Flag to indicate if the release is a test release for development purposes only
       mobile-template-sheet-id:
         required: false
