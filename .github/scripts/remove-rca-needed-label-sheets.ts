@@ -6,8 +6,10 @@ import { context, getOctokit } from '@actions/github';
 // @ts-ignore - googleapis types may not be available locally
 import { google } from 'googleapis';
 
-// HTTP status codes
-const HTTP_NOT_FOUND = 404;
+// HTTP status codes enum for better maintainability
+enum HttpStatusCode {
+  NotFound = 404,
+}
 
 interface Label {
   name: string;
@@ -21,12 +23,23 @@ const RCA_NEEDED_LABEL: Label = {
   description: 'Issue requires Root Cause Analysis',
 };
 
+// Type alias for Google Sheets v4 API
+// @ts-ignore - googleapis types may not be available locally
+type SheetsV4 = ReturnType<typeof google.sheets>;
+
 // Google Sheets configuration from environment variables
 // @ts-ignore - process is available at runtime in GitHub Actions
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 // @ts-ignore - process is available at runtime in GitHub Actions
 const SHEET_NAME = process.env.SHEET_NAME;
 
+/**
+ * Represents a single response row from the RCA (Root Cause Analysis) Google Form.
+ * @property issueNumber - The GitHub issue number associated with this RCA response (as a string)
+ * @property timestamp - The timestamp when the form was submitted
+ * @property [key: string] - Any additional form fields captured from the Google Form.
+ *   The keys correspond to column headers in the Google Sheet, and the values are the user responses.
+ */
 interface RcaFormResponse {
   issueNumber: string;
   timestamp: string;
@@ -209,10 +222,6 @@ async function main(): Promise<void> {
   }
 }
 
-// Type alias for Google Sheets v4 API
-// @ts-ignore - googleapis types may not be available locally
-type SheetsV4 = ReturnType<typeof google.sheets>;
-
 async function initializeGoogleSheets(credentials: string): Promise<SheetsV4> {
   // Decode base64 credentials
   const credentialsJson = JSON.parse(
@@ -373,7 +382,7 @@ async function removeLabelFromIssue(
   } catch (error: any) {
     // If label doesn't exist on issue, the API will throw 404
     // This is not an error for our use case, so we can safely ignore it
-    if (error?.status !== HTTP_NOT_FOUND) {
+    if (error?.status !== HttpStatusCode.NotFound) {
       throw error;
     }
   }
