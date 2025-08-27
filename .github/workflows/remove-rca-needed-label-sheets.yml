@@ -57,11 +57,7 @@ jobs:
           is-high-risk-environment: true
 
       - name: Install additional dependencies
-        run: |
-          npm install @actions/core
-          npm install @actions/github
-          npm install googleapis
-          npm install @octokit/types
+        run: npm install @actions/core @actions/github googleapis @octokit/types
 
       - name: Run RCA Google Sheets check
         run: npx tsx ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts

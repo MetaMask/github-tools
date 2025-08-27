@@ -140,7 +140,7 @@ async function main(): Promise<void> {
         }
       } catch (error: any) {
         console.error(
-          `❌ Failed to process issue #${issue.number}: ${error?.message || error}`,
+          `❌ Failed to process issue #${issue.number}: ${error?.message || String(error)}`,
         );
         failedCount++;
         failedIssues.push(issue.number);
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     }
   } catch (error: any) {
     core.setFailed(
-      `Error in Google Sheets RCA label removal: ${error?.message || error}`,
+      `Error in Google Sheets RCA label removal: ${error?.message || String(error)}`,
     );
     // No need for process.exit() - core.setFailed() handles the exit code
   }
@@ -203,7 +203,7 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
     // Fetch data from the Google Sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:J`, // Covers columns A through J
+      range: `${SHEET_NAME}!A:Z`, // Covers columns A through Z
     });
 
     const rows = response.data.values || [];
@@ -240,11 +240,12 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
 
       if (issueNumberValue) {
         // Extract just the numeric part from the issue number
-        // Handles formats like: "18454", "#18454", "issue-18454", etc.
-        const issueMatch = issueNumberValue.toString().match(/\d+/);
+        // Handles formats like: "18454", "#18454", or leading/trailing whitespace
+        const trimmedValue = issueNumberValue.toString().trim();
+        const issueMatch = trimmedValue.match(/^#?(\d+)$/);
         if (issueMatch) {
           responses.push({
-            issueNumber: issueMatch[0],
+            issueNumber: issueMatch[1],
             timestamp: row[0] || '', // Column A: Timestamp
             // Additional fields can be added if needed:
             // repository: row[2], // Column C: Github Repository
@@ -261,7 +262,7 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
   } catch (error: any) {
     console.error(
       'Error fetching Google Sheets data:',
-      error?.message || error,
+      error?.message || String(error),
     );
     throw error;
   }
@@ -343,8 +344,8 @@ async function removeLabelFromIssue(
 }
 
 // Run the main function
-main().catch((error: Error): void => {
+main().catch((error: any): void => {
   console.error('Unhandled error:', error);
-  core.setFailed(`Unhandled error: ${error.message}`);
+  core.setFailed(`Unhandled error: ${error?.message || String(error)}`);
   // No need for process.exit() - core.setFailed() handles the exit code
 });
