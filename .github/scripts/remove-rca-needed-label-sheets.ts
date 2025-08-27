@@ -6,6 +6,9 @@ import { context, getOctokit } from '@actions/github';
 // @ts-ignore - googleapis types may not be available locally
 import { google } from 'googleapis';
 
+// HTTP status codes
+const HTTP_NOT_FOUND = 404;
+
 interface Label {
   name: string;
   color: string;
@@ -218,30 +221,9 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
     );
 
     if (issueNumberColumnIndex === -1) {
-      console.warn(
-        `Could not find "${ISSUE_NUMBER_HEADER}" column in sheet headers. Falling back to column E (index 4)`,
+      throw new Error(
+        `Could not find "${ISSUE_NUMBER_HEADER}" column in sheet headers. Please check the Google Sheet structure.`,
       );
-      // Fallback to known column position for backwards compatibility
-      const ISSUE_NUMBER_COLUMN = 4;
-      const responses: RcaFormResponse[] = [];
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || row.length === 0) continue;
-        const issueNumberValue = row[ISSUE_NUMBER_COLUMN];
-        if (issueNumberValue) {
-          const issueMatch = issueNumberValue.toString().match(/\d+/);
-          if (issueMatch) {
-            responses.push({
-              issueNumber: issueMatch[0],
-              timestamp: row[0] || '',
-            });
-            console.log(
-              `  Found RCA for issue #${issueMatch[0]} submitted on ${row[0]}`,
-            );
-          }
-        }
-      }
-      return responses;
     }
 
     const responses: RcaFormResponse[] = [];
@@ -354,7 +336,7 @@ async function removeLabelFromIssue(
   } catch (error: any) {
     // If label doesn't exist on issue, the API will throw 404
     // This is not an error for our use case, so we can safely ignore it
-    if (error?.status !== 404) {
+    if (error?.status !== HTTP_NOT_FOUND) {
       throw error;
     }
   }
