@@ -3,8 +3,6 @@
 import * as core from '@actions/core';
 // @ts-ignore - @actions/github is not in devDependencies
 import { context, getOctokit } from '@actions/github';
-// @ts-ignore - @actions/github is not in devDependencies
-import { GitHub } from '@actions/github/lib/utils';
 // @ts-ignore - googleapis types may not be available locally
 import { google } from 'googleapis';
 
@@ -62,7 +60,7 @@ async function main(): Promise<void> {
     // @ts-ignore - process is available at runtime in GitHub Actions
     const isDryRun = process.env.DRY_RUN === 'true';
 
-    const octokit: InstanceType<typeof GitHub> = getOctokit(githubToken);
+    const octokit = getOctokit(githubToken);
     const repoOwner = context.repo.owner;
     const repoName = context.repo.repo;
 
@@ -288,7 +286,7 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
 }
 
 async function getIssuesWithRcaLabel(
-  octokit: InstanceType<typeof GitHub>,
+  octokit: ReturnType<typeof getOctokit>,
   owner: string,
   repo: string,
 ): Promise<any[]> {
@@ -339,7 +337,7 @@ async function getIssuesWithRcaLabel(
 }
 
 async function removeLabelFromIssue(
-  octokit: InstanceType<typeof GitHub>,
+  octokit: ReturnType<typeof getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
