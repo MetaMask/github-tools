@@ -404,6 +404,14 @@ Platform: ${platform}"
         echo "Version bump committed"
     fi
 
+    # If the version bump branch has no commits ahead of main, skip pushing/PR creation
+    # right-only count gives number of commits unique to the version bump branch
+    ahead_count=$(git rev-list --right-only --count "${main_branch}...${version_bump_branch_name}" || echo 0)
+    if [ "${ahead_count}" -eq 0 ]; then
+        echo "No differences between ${main_branch} and ${version_bump_branch_name}; skipping version bump PR creation."
+        return 0
+    fi
+
     local version_bump_body="## Version Bump After Release
 
 This PR bumps the ${main_branch} branch version from ${new_version} to ${next_version} after cutting the release branch.
