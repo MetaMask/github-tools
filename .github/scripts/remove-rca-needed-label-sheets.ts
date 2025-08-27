@@ -132,9 +132,9 @@ async function main(): Promise<void> {
           );
           skippedCount++;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(
-          `❌ Failed to process issue #${issue.number}: ${error.message}`,
+          `❌ Failed to process issue #${issue.number}: ${error?.message || error}`,
         );
         failedCount++;
         failedIssues.push(issue.number);
@@ -167,9 +167,9 @@ async function main(): Promise<void> {
     } else {
       console.log(`\n✅ All operations completed successfully!`);
     }
-  } catch (error) {
+  } catch (error: any) {
     core.setFailed(
-      `Error in Google Sheets RCA label removal: ${error.message}`,
+      `Error in Google Sheets RCA label removal: ${error?.message || error}`,
     );
     process.exit(1);
   }
@@ -206,10 +206,39 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
       return [];
     }
 
-    // Process data rows (skip header row at index 0)
-    // Column indices based on actual sheet:
-    // 0: Timestamp, 1: Email, 2: Github Repository, 3: Github Issue URL, 4: Issue Number
-    const ISSUE_NUMBER_COLUMN = 4;
+    // Dynamically determine the column index for "Issue Number" from the header row
+    const headerRow = rows[0] || [];
+    const ISSUE_NUMBER_HEADER = 'Issue Number';
+    const issueNumberColumnIndex = headerRow.findIndex(
+      (col: string) => col && col.trim() === ISSUE_NUMBER_HEADER,
+    );
+
+    if (issueNumberColumnIndex === -1) {
+      console.warn(
+        `Could not find "${ISSUE_NUMBER_HEADER}" column in sheet headers. Falling back to column E (index 4)`,
+      );
+      // Fallback to known column position for backwards compatibility
+      const ISSUE_NUMBER_COLUMN = 4;
+      const responses: RcaFormResponse[] = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        const issueNumberValue = row[ISSUE_NUMBER_COLUMN];
+        if (issueNumberValue) {
+          const issueMatch = issueNumberValue.toString().match(/\d+/);
+          if (issueMatch) {
+            responses.push({
+              issueNumber: issueMatch[0],
+              timestamp: row[0] || '',
+            });
+            console.log(
+              `  Found RCA for issue #${issueMatch[0]} submitted on ${row[0]}`,
+            );
+          }
+        }
+      }
+      return responses;
+    }
 
     const responses: RcaFormResponse[] = [];
     for (let i = 1; i < rows.length; i++) {
@@ -220,8 +249,8 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
         continue;
       }
 
-      // Get issue number from column E (index 4)
-      const issueNumberValue = row[ISSUE_NUMBER_COLUMN];
+      // Get issue number from dynamically determined column
+      const issueNumberValue = row[issueNumberColumnIndex];
 
       if (issueNumberValue) {
         // Extract just the numeric part from the issue number
@@ -243,8 +272,11 @@ async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
     }
 
     return responses;
-  } catch (error) {
-    console.error('Error fetching Google Sheets data:', error);
+  } catch (error: any) {
+    console.error(
+      'Error fetching Google Sheets data:',
+      error?.message || error,
+    );
     throw error;
   }
 }
@@ -315,10 +347,10 @@ async function removeLabelFromIssue(
       issue_number: issueNumber,
       name: labelName,
     });
-  } catch (error) {
+  } catch (error: any) {
     // If label doesn't exist on issue, the API will throw 404
     // This is not an error for our use case, so we can safely ignore it
-    if (error.status !== 404) {
+    if (error?.status !== 404) {
       throw error;
     }
   }

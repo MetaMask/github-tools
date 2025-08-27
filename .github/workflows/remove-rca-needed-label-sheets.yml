@@ -11,6 +11,8 @@ on:
       spreadsheet_id:
         description: 'Google Spreadsheet ID (uses default if not provided)'
         required: false
+        # Default is the shared MetaMask RCA tracking spreadsheet
+        # This is public and documented in the PR descriptions
         default: '1Y16QEnDwZuR3DAQIe3T5LTWy1ye07GNYqxIei_cMg24'
         type: string
       sheet_name:
