@@ -39,7 +39,7 @@ This PR introduces a **reusable GitHub workflow** that automates the RCA label r
 
 **Dependency Strategy:**
 - Runtime packages installed on-the-fly using `npx --package`
-- No complex isolation needed - npx handles everything
+- Minimal tsconfig isolation to prevent conflicts with consuming repos
 - Not in `package.json` to avoid Socket Security alerts
 - `.depcheckrc.json` configured to ignore these dependencies
 
