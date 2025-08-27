@@ -33,6 +33,35 @@ interface RcaFormResponse {
   [key: string]: any;
 }
 
+// GitHub GraphQL types
+interface GitHubLabel {
+  id: string;
+  name: string;
+}
+
+interface GitHubIssue {
+  id: string;
+  number: number;
+  title: string;
+  createdAt: string;
+  closedAt: string | null;
+  labels: {
+    nodes: GitHubLabel[];
+  };
+}
+
+interface GetIssuesWithRcaLabelResponse {
+  repository: {
+    issues: {
+      nodes: GitHubIssue[];
+      pageInfo: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+      };
+    };
+  };
+}
+
 async function main(): Promise<void> {
   try {
     // @ts-ignore - process is available at runtime in GitHub Actions
@@ -181,7 +210,11 @@ async function main(): Promise<void> {
   }
 }
 
-async function initializeGoogleSheets(credentials: string): Promise<any> {
+// Type alias for Google Sheets v4 API
+// @ts-ignore - googleapis types may not be available locally
+type SheetsV4 = ReturnType<typeof google.sheets>;
+
+async function initializeGoogleSheets(credentials: string): Promise<SheetsV4> {
   // Decode base64 credentials
   const credentialsJson = JSON.parse(
     // @ts-ignore - Buffer is available at runtime in GitHub Actions
@@ -198,7 +231,7 @@ async function initializeGoogleSheets(credentials: string): Promise<any> {
   return sheets;
 }
 
-async function fetchRcaResponses(sheets: any): Promise<RcaFormResponse[]> {
+async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
   try {
     // Fetch data from the Google Sheet
     const response = await sheets.spreadsheets.values.get({
@@ -272,8 +305,8 @@ async function getIssuesWithRcaLabel(
   octokit: ReturnType<typeof getOctokit>,
   owner: string,
   repo: string,
-): Promise<any[]> {
-  const allIssues: any[] = [];
+): Promise<GitHubIssue[]> {
+  const allIssues: GitHubIssue[] = [];
   let hasNextPage = true;
   let cursor: string | null = null;
 
@@ -304,7 +337,11 @@ async function getIssuesWithRcaLabel(
       }
     `;
 
-    const result: any = await octokit.graphql(query, { owner, repo, cursor });
+    const result: GetIssuesWithRcaLabelResponse = await octokit.graphql(query, {
+      owner,
+      repo,
+      cursor,
+    });
     const issues = result.repository.issues;
 
     allIssues.push(...(issues.nodes || []));
