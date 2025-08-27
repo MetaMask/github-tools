@@ -70,6 +70,9 @@ jobs:
           # Initialize a minimal package.json
           echo '{"name": "rca-workflow-deps", "version": "1.0.0"}' > package.json
           
+          # Create a minimal tsconfig.json to prevent tsx from searching up the directory tree
+          echo '{"compilerOptions": {"module": "commonjs", "target": "es2020", "esModuleInterop": true}}' > tsconfig.json
+          
           # Pin exact versions for security and reproducibility in CI
           npm install --save-exact \
             @actions/core@1.10.1 \
@@ -80,9 +83,8 @@ jobs:
       - name: Run RCA Google Sheets check
         run: |
           # Use the dependencies from the temporary directory
-          # --no-config prevents tsx from looking for tsconfig files
           cd /tmp/rca-workflow-deps
-          NODE_PATH=/tmp/rca-workflow-deps/node_modules npx tsx --no-config $GITHUB_WORKSPACE/github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
+          NODE_PATH=/tmp/rca-workflow-deps/node_modules npx tsx $GITHUB_WORKSPACE/github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.google-application-creds-base64 }}
