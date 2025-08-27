@@ -61,8 +61,11 @@ jobs:
 
       - name: Run RCA Google Sheets check
         run: |
-          # Use npx to run tsx with required packages
-          npx --yes \
+          # Create a minimal tsconfig to prevent tsx from using the consuming repo's config
+          echo '{"compilerOptions": {"module": "commonjs", "target": "es2020", "esModuleInterop": true}}' > /tmp/tsconfig.json
+
+          # Use npx with TSX_TSCONFIG_PATH to run the script
+          TSX_TSCONFIG_PATH=/tmp/tsconfig.json npx --yes \
             --package @actions/core@1.10.1 \
             --package @actions/github@6.0.0 \
             --package googleapis@144.0.0 \

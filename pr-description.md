@@ -38,8 +38,8 @@ This PR introduces a **reusable GitHub workflow** that automates the RCA label r
 - Fails fast on configuration errors
 
 **Dependency Strategy:**
-- Runtime packages (`@actions/core`, `@actions/github`, `googleapis`) installed in workflow
-- Isolated installation in `/tmp` directory to avoid conflicts with Yarn-based projects
+- Runtime packages installed on-the-fly using `npx --package`
+- No complex isolation needed - npx handles everything
 - Not in `package.json` to avoid Socket Security alerts
 - `.depcheckrc.json` configured to ignore these dependencies
 
