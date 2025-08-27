@@ -21,7 +21,9 @@ const RCA_NEEDED_LABEL: Label = {
 };
 
 // Google Sheets configuration from environment variables
+// @ts-ignore - process is available at runtime in GitHub Actions
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+// @ts-ignore - process is available at runtime in GitHub Actions
 const SHEET_NAME = process.env.SHEET_NAME;
 
 interface RcaFormResponse {
@@ -32,29 +34,32 @@ interface RcaFormResponse {
 
 async function main(): Promise<void> {
   try {
+    // @ts-ignore - process is available at runtime in GitHub Actions
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       core.setFailed('GITHUB_TOKEN not found');
-      process.exit(1);
+      return; // Exit early instead of process.exit()
     }
 
     // Google Sheets API credentials (base64 encoded service account JSON)
+    // @ts-ignore - process is available at runtime in GitHub Actions
     const googleCredentials = process.env.GOOGLE_SHEETS_CREDENTIALS;
     if (!googleCredentials) {
       core.setFailed('GOOGLE_SHEETS_CREDENTIALS not found');
-      process.exit(1);
+      return; // Exit early instead of process.exit()
     }
 
     // Validate sheet configuration
     if (!SPREADSHEET_ID) {
       core.setFailed('SPREADSHEET_ID not configured');
-      process.exit(1);
+      return; // Exit early instead of process.exit()
     }
     if (!SHEET_NAME) {
       core.setFailed('SHEET_NAME not configured');
-      process.exit(1);
+      return; // Exit early instead of process.exit()
     }
 
+    // @ts-ignore - process is available at runtime in GitHub Actions
     const isDryRun = process.env.DRY_RUN === 'true';
 
     const octokit: InstanceType<typeof GitHub> = getOctokit(githubToken);
@@ -159,7 +164,7 @@ async function main(): Promise<void> {
     // Set appropriate exit status
     if (failedCount > 0 && removedCount === 0) {
       core.setFailed('All label removal attempts failed');
-      process.exit(1);
+      return; // Exit early instead of process.exit()
     } else if (failedCount > 0) {
       console.log(
         `\n⚠️  Completed with ${failedCount} failures. Check logs for details.`,
@@ -171,13 +176,14 @@ async function main(): Promise<void> {
     core.setFailed(
       `Error in Google Sheets RCA label removal: ${error?.message || error}`,
     );
-    process.exit(1);
+    // No need for process.exit() - core.setFailed() handles the exit code
   }
 }
 
 async function initializeGoogleSheets(credentials: string): Promise<any> {
   // Decode base64 credentials
   const credentialsJson = JSON.parse(
+    // @ts-ignore - Buffer is available at runtime in GitHub Actions
     Buffer.from(credentials, 'base64').toString('utf-8'),
   );
 
@@ -358,6 +364,7 @@ async function removeLabelFromIssue(
 
 // Run the main function
 main().catch((error: Error): void => {
-  console.error(error);
-  process.exit(1);
+  console.error('Unhandled error:', error);
+  core.setFailed(`Unhandled error: ${error.message}`);
+  // No need for process.exit() - core.setFailed() handles the exit code
 });
