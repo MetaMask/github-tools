@@ -9,11 +9,8 @@ on:
         default: 'false'
         type: string
       spreadsheet_id:
-        description: 'Google Spreadsheet ID (uses default if not provided)'
-        required: false
-        # Default is the shared MetaMask RCA tracking spreadsheet
-        # This is public and documented in the PR descriptions
-        default: '1Y16QEnDwZuR3DAQIe3T5LTWy1ye07GNYqxIei_cMg24'
+        description: 'Google Spreadsheet ID (must be provided by consuming repository)'
+        required: true
         type: string
       sheet_name:
         description: 'Sheet tab name (uses default if not provided)'
