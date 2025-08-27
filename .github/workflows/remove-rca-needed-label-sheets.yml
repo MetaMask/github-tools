@@ -80,7 +80,8 @@ jobs:
       - name: Run RCA Google Sheets check
         run: |
           # Use the dependencies from the temporary directory
-          NODE_PATH=/tmp/rca-workflow-deps/node_modules node /tmp/rca-workflow-deps/node_modules/.bin/tsx ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
+          # --no-config prevents tsx from looking for tsconfig files
+          NODE_PATH=/tmp/rca-workflow-deps/node_modules node /tmp/rca-workflow-deps/node_modules/.bin/tsx --no-config ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.google-application-creds-base64 }}
