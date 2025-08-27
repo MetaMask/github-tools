@@ -279,21 +279,26 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
       // Get issue number from dynamically determined column
       const issueNumberValue = row[issueNumberColumnIndex];
 
-      if (issueNumberValue) {
+      if (issueNumberValue != null) {
         // Extract just the numeric part from the issue number
         // Handles formats like: "18454", "#18454", or leading/trailing whitespace
-        const trimmedValue = issueNumberValue.toString().trim();
+        const trimmedValue = issueNumberValue?.toString()?.trim();
+        if (!trimmedValue) {
+          continue; // Skip if empty string after trimming
+        }
+
         const issueMatch = trimmedValue.match(/^#?(\d+)$/);
         if (issueMatch) {
+          const issueNumber = issueMatch[1];
           responses.push({
-            issueNumber: issueMatch[1],
+            issueNumber: issueNumber,
             timestamp: row[0] || '', // Column A: Timestamp
             // Additional fields can be added if needed:
             // repository: row[2], // Column C: Github Repository
             // issueUrl: row[3],   // Column D: Github Issue URL
           });
           console.log(
-            `  Found RCA for issue #${issueMatch[0]} submitted on ${row[0]}`,
+            `  Found RCA for issue #${issueNumber} submitted on ${row[0]}`,
           );
         }
       }
@@ -320,13 +325,19 @@ async function getIssuesWithRcaLabel(
 
   // Constants for the GraphQL query
   const PAGE_SIZE = 100; // Maximum allowed by GitHub API
-  const LABEL_NAME = RCA_NEEDED_LABEL.name; // Use the constant we already have
+  const LABEL_NAMES = [RCA_NEEDED_LABEL.name]; // Use the constant we already have
 
   while (hasNextPage) {
     const query = `
-      query GetIssuesWithRcaLabel($owner: String!, $repo: String!, $cursor: String) {
+      query GetIssuesWithRcaLabel(
+        $owner: String!,
+        $repo: String!,
+        $cursor: String,
+        $labelNames: [String!],
+        $pageSize: Int!
+      ) {
         repository(owner: $owner, name: $repo) {
-          issues(labels: ["${LABEL_NAME}"], states: CLOSED, first: ${PAGE_SIZE}, after: $cursor) {
+          issues(labels: $labelNames, states: CLOSED, first: $pageSize, after: $cursor) {
             nodes {
               id
               number
@@ -353,6 +364,8 @@ async function getIssuesWithRcaLabel(
       owner,
       repo,
       cursor,
+      labelNames: LABEL_NAMES,
+      pageSize: PAGE_SIZE,
     });
     const issues = result.repository.issues;
 
