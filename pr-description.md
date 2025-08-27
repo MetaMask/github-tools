@@ -38,8 +38,8 @@ This PR introduces a **reusable GitHub workflow** that automates the RCA label r
 - Fails fast on configuration errors
 
 **Dependency Strategy:**
-- Runtime packages installed on-the-fly using `npx --package`
-- Minimal tsconfig isolation to prevent conflicts with consuming repos
+- Runtime packages installed locally in scripts directory during workflow execution
+- Uses `npm install --no-save` to avoid modifying checked-in files
 - Not in `package.json` to avoid Socket Security alerts
 - `.depcheckrc.json` configured to ignore these dependencies
 
@@ -84,6 +84,12 @@ jobs:
 - Dry-run mode for safe testing
 - All linting and dependency checks passing
 - No Socket Security blocking alerts
+
+✅ **Live testing in fork repository:**
+- **Test Run 1**: [Issue has label but is NOT in RCA sheet - label kept](https://github.com/consensys-test/metamask-extension-test-fork/actions/runs/17266390093)
+  - Correctly skipped removal when RCA not found in Google Sheet
+- **Test Run 2**: [Issue label removed because it IS in RCA sheet](https://github.com/consensys-test/metamask-extension-test-fork/actions/runs/17266424658/job/48999524636)
+  - Successfully removed label when RCA was found in Google Sheet
 
 ✅ **Security improvements from Copilot code review:**
 - GraphQL injection prevention
