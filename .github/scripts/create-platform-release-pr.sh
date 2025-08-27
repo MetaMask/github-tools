@@ -392,7 +392,7 @@ create_version_bump_pr() {
     if git diff --staged --quiet; then
         echo "No changes to commit for version bump"
     else
-        git commit -m "chore: Bump version to ${next_version} after release ${new_version}
+        git commit -m "release: Bump version to ${next_version} after release ${new_version}
 
 This automated version bump ensures that:
 - ${main_branch} branch version is ahead of the release branch
@@ -433,7 +433,7 @@ This PR should be **manually reviewed and merged by the release manager** to mai
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${version_bump_branch_name}"
-    create_pr_if_not_exists "${version_bump_branch_name}" "chore: Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "" "head"
+    create_pr_if_not_exists "${version_bump_branch_name}" "release: Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "" "head"
 
     echo "Version bump PR ready"
 }
