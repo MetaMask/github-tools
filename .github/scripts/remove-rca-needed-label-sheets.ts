@@ -282,7 +282,7 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
       if (issueNumberValue != null) {
         // Extract just the numeric part from the issue number
         // Handles formats like: "18454", "#18454", or leading/trailing whitespace
-        const trimmedValue = issueNumberValue?.toString()?.trim();
+        const trimmedValue = issueNumberValue.toString().trim();
         if (!trimmedValue) {
           continue; // Skip if empty string after trimming
         }
