@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       core.setFailed('GITHUB_TOKEN not found');
-      return; // Exit early instead of process.exit()
+      return;
     }
 
     // Google Sheets API credentials (base64 encoded service account JSON)
@@ -76,17 +76,17 @@ async function main(): Promise<void> {
     const googleCredentials = process.env.GOOGLE_SHEETS_CREDENTIALS;
     if (!googleCredentials) {
       core.setFailed('GOOGLE_SHEETS_CREDENTIALS not found');
-      return; // Exit early instead of process.exit()
+      return;
     }
 
     // Validate sheet configuration
     if (!SPREADSHEET_ID) {
       core.setFailed('SPREADSHEET_ID not configured');
-      return; // Exit early instead of process.exit()
+      return;
     }
     if (!SHEET_NAME) {
       core.setFailed('SHEET_NAME not configured');
-      return; // Exit early instead of process.exit()
+      return;
     }
 
     // @ts-ignore - process is available at runtime in GitHub Actions
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     // Set appropriate exit status
     if (failedCount > 0 && removedCount === 0) {
       core.setFailed('All label removal attempts failed');
-      return; // Exit early instead of process.exit()
+      return;
     } else if (failedCount > 0) {
       console.log(
         `\n⚠️  Completed with ${failedCount} failures. Check logs for details.`,
@@ -206,7 +206,6 @@ async function main(): Promise<void> {
     core.setFailed(
       `Error in Google Sheets RCA label removal: ${error?.message || String(error)}`,
     );
-    // No need for process.exit() - core.setFailed() handles the exit code
   }
 }
 
@@ -384,5 +383,5 @@ async function removeLabelFromIssue(
 main().catch((error: any): void => {
   console.error('Unhandled error:', error);
   core.setFailed(`Unhandled error: ${error?.message || String(error)}`);
-  // No need for process.exit() - core.setFailed() handles the exit code
+  // core.setFailed() sets the action's exit code to 1, causing the workflow to fail
 });
