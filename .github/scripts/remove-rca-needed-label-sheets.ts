@@ -318,11 +318,15 @@ async function getIssuesWithRcaLabel(
   let hasNextPage = true;
   let cursor: string | null = null;
 
+  // Constants for the GraphQL query
+  const PAGE_SIZE = 100; // Maximum allowed by GitHub API
+  const LABEL_NAME = RCA_NEEDED_LABEL.name; // Use the constant we already have
+
   while (hasNextPage) {
     const query = `
       query GetIssuesWithRcaLabel($owner: String!, $repo: String!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
-          issues(labels: ["RCA-needed"], states: CLOSED, first: 100, after: $cursor) {
+          issues(labels: ["${LABEL_NAME}"], states: CLOSED, first: ${PAGE_SIZE}, after: $cursor) {
             nodes {
               id
               number
