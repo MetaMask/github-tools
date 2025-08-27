@@ -41,32 +41,47 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Checkout github-tools repository
+      - name: Checkout github-tools
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
           ref: ${{ inputs.github-tools-version }}
+          token: ${{ secrets.github-token }}
           path: github-tools
 
-      - name: Checkout and setup environment
-        uses: ./github-tools/.github/actions/checkout-and-setup
+      - name: Checkout consuming repository
+        uses: actions/checkout@v4
         with:
-          is-high-risk-environment: true
+          token: ${{ secrets.github-token }}
+          # The script needs to run in the context of the consuming repository
+          # So we don't specify a path here, it checks out to the root
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install additional dependencies
         run: |
+          # Create a temporary directory for npm dependencies to avoid conflicts with Yarn projects
+          mkdir -p /tmp/rca-workflow-deps
+          cd /tmp/rca-workflow-deps
+          
+          # Initialize a minimal package.json
+          echo '{"name": "rca-workflow-deps", "version": "1.0.0"}' > package.json
+          
           # Pin exact versions for security and reproducibility in CI
           npm install --save-exact \
             @actions/core@1.10.1 \
             @actions/github@6.0.0 \
             googleapis@144.0.0 \
-            @octokit/types@13.5.2
+            @octokit/types@13.5.2 \
+            tsx@4.7.1
 
       - name: Run RCA Google Sheets check
-        run: npx tsx ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
+        run: |
+          # Use the dependencies from the temporary directory
+          NODE_PATH=/tmp/rca-workflow-deps/node_modules node /tmp/rca-workflow-deps/node_modules/.bin/tsx ./github-tools/.github/scripts/remove-rca-needed-label-sheets.ts
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.google-application-creds-base64 }}
