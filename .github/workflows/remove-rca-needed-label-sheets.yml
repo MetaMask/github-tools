@@ -41,6 +41,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Checkout consuming repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.github-token }}
+
       - name: Checkout github-tools
         uses: actions/checkout@v4
         with:
@@ -48,13 +53,6 @@ jobs:
           ref: ${{ inputs.github-tools-version }}
           token: ${{ secrets.github-token }}
           path: github-tools
-
-      - name: Checkout consuming repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.github-token }}
-          # The script needs to run in the context of the consuming repository
-          # So we don't specify a path here, it checks out to the root
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
