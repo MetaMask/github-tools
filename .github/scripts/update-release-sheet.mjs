@@ -310,7 +310,7 @@ async function main() {
     extensionTemplateSheetId,
   );
 
-  createReleaseSheet(
+  await createReleaseSheet(
     documentId,
     platform,
     semanticVersion,

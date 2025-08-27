@@ -349,16 +349,14 @@ create_changelog_pr() {
     # fi
     cd ../
 
-    # Commit and Push Changelog Changes
+    # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
-    git add ./commits.csv
-
-    if ! (git commit -am "updated changelog and generated feature test plan"); then
+    if ! (git commit -am "update changelog for ${new_version}"); then
         echo "Error: No changes detected."
         exit 1
     fi
 
-    local pr_body="This PR updates the change log for ${new_version} and generates the test plan here [commit.csv](${GITHUB_REPOSITORY_URL}/blob/${changelog_branch_name}/commits.csv)"
+    local pr_body="This PR updates the change log for ${new_version}."
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${changelog_branch_name}"
@@ -394,7 +392,7 @@ create_version_bump_pr() {
     if git diff --staged --quiet; then
         echo "No changes to commit for version bump"
     else
-        git commit -m "Bump version to ${next_version} after release ${new_version}
+        git commit -m "chore: Bump version to ${next_version} after release ${new_version}
 
 This automated version bump ensures that:
 - ${main_branch} branch version is ahead of the release branch
@@ -435,7 +433,7 @@ This PR should be **manually reviewed and merged by the release manager** to mai
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${version_bump_branch_name}"
-    create_pr_if_not_exists "${version_bump_branch_name}" "Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "" "head"
+    create_pr_if_not_exists "${version_bump_branch_name}" "chore: Bump ${main_branch} version to ${next_version}" "${version_bump_body}" "${main_branch}" "" "head"
 
     echo "Version bump PR ready"
 }
