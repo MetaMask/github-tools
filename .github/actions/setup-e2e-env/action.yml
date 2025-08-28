@@ -281,7 +281,7 @@ runs:
       if: ${{ inputs.platform == 'ios' }}
       run: |
         bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
-        pod --version
+        bundle exec pod --version
       working-directory: ios
       shell: bash
 
