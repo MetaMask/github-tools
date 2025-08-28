@@ -286,6 +286,15 @@ runs:
       working-directory: ios
       shell: bash
 
+    # Verify CocoaPods is available
+    - name: Verify CocoaPods BinStub
+      if: ${{ inputs.platform == 'ios' }}
+      run: |
+        bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
+        pod --version
+      working-directory: ios
+      shell: bash
+
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
