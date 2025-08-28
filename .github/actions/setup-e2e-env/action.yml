@@ -266,14 +266,15 @@ runs:
       working-directory: ios
       shell: bash
 
-    # Add vendored bundle bin to PATH so `pod` resolves correctly
-    - name: Add vendored bundle bin to PATH
+    - name: Generate binstubs for CocoaPods
       if: ${{ inputs.platform == 'ios' }}
-      run: |
-        VENDOR_BIN="$(bundle exec ruby -e 'puts Gem.bindir')"
-        echo "Prepending vendored bin: $VENDOR_BIN"
-        echo "$VENDOR_BIN" >> "$GITHUB_PATH"
+      run: bundle binstubs cocoapods --path=vendor/bundle/bin
       working-directory: ios
+      shell: bash
+
+    - name: Add binstubs to PATH
+      if: ${{ inputs.platform == 'ios' }}
+      run: echo "$(pwd)/ios/vendor/bundle/bin" >> "$GITHUB_PATH"
       shell: bash
 
     # Verify CocoaPods is available
@@ -304,7 +305,7 @@ runs:
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios'}}
-      run: bundle exec pod install --repo-update --verbose
+      run: bundle exec pod install --repo-update
       working-directory: ios
       shell: bash
 
