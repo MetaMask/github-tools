@@ -405,8 +405,21 @@ Platform: ${platform}"
     fi
 
     # If the version bump branch has no commits ahead of main, skip pushing/PR creation
+    # Validate refs before computing ahead count to avoid masking errors
+    # Fail fast with a error message if the base branch doesn’t exist locally (or isn’t fetched)
+    # Verifies that ${main_branch} exists and resolves to a valid commit and not a tag, tree, or something else
+    if ! git rev-parse --verify --quiet "${main_branch}^{commit}" >/dev/null; then
+        echo "Error: Base branch does not resolve to a commit: ${main_branch}"
+        exit 1
+    fi
+    # Fail fast with a error message if the version bump branch doesn’t exist locally (or isn’t fetched)
+    # Verifies that ${version_bump_branch_name} exists and resolves to a valid commit and not a tag, tree, or something else
+    if ! git rev-parse --verify --quiet "${version_bump_branch_name}^{commit}" >/dev/null; then
+        echo "Error: Version bump branch does not resolve to a commit: ${version_bump_branch_name}"
+        exit 1
+    fi
     # right-only count gives number of commits unique to the version bump branch
-    ahead_count=$(git rev-list --right-only --count "${main_branch}...${version_bump_branch_name}" || echo 0)
+    ahead_count=$(git rev-list --right-only --count "${main_branch}...${version_bump_branch_name}")
     if [ "${ahead_count}" -eq 0 ]; then
         echo "No differences between ${main_branch} and ${version_bump_branch_name}; skipping version bump PR creation."
         return 0
