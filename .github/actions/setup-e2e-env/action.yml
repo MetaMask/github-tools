@@ -239,6 +239,7 @@ runs:
     - name: Install bundler
       if: ${{ inputs.platform == 'ios' }}
       run: gem install bundler -v ${{ inputs.bundler-version }}
+      working-directory: ios
       shell: bash
 
     # Restore cached Ruby gems
@@ -275,6 +276,14 @@ runs:
       working-directory: ios
       shell: bash
 
+    # Verify CocoaPods is available
+    - name: Verify CocoaPods
+      if: ${{ inputs.platform == 'ios' }}
+      run: |
+        bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
+        pod --version
+      working-directory: ios
+      shell: bash
 
     # Select Xcode version
     - name: Select Xcode version
