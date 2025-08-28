@@ -265,6 +265,17 @@ runs:
       working-directory: ios
       shell: bash
 
+    # Add vendored bundle bin to PATH so `pod` resolves correctly
+    - name: Add vendored bundle bin to PATH
+      if: ${{ inputs.platform == 'ios' }}
+      run: |
+        VENDOR_BIN="$(bundle exec ruby -e 'puts Gem.bindir')"
+        echo "Prepending vendored bin: $VENDOR_BIN"
+        echo "$VENDOR_BIN" >> "$GITHUB_PATH"
+      working-directory: ios
+      shell: bash
+
+
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
