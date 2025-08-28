@@ -145,3 +145,12 @@ jobs:
             ${{ inputs.mobile-build-version }} \
             ${{ inputs.git-user-name }} \
             ${{ inputs.git-user-email }}
+
+      # Step 6: Upload commits.csv as artifact (if generated)
+      - name: Upload commits.csv artifact
+        if: ${{ hashFiles('commits.csv') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: commits-csv
+          path: commits.csv
+          if-no-files-found: error
