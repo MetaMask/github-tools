@@ -103,10 +103,29 @@ runs:
         security unlock-keychain -p "$CERT_PW" "$KEYCHAIN_PATH"
 
         # Import cert
-        security import "$CERT_PATH" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" > /dev/null
-        security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH" > /dev/null
-        security find-identity -p codesigning "$KEYCHAIN_PATH"
+        echo "🔐 Importing certificate..."
+        if ! security import "$CERT_PATH" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"; then
+          echo "❌ Failed to import certificate. Check if the password is correct or the .p12 is valid."
+          exit 1
+        fi
+        echo "✅ Certificate imported"
 
+        # Set key partition list
+        echo "🔑 Setting key partition list..."
+        if ! security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH"; then
+          echo "❌ Failed to set key partition list. Codesigning tools may not have access."
+          exit 1
+        fi
+        echo "✅ Key partition list set"
+
+        # Verify signing identities
+        echo "🔍 Verifying code signing identities in keychain..."
+        if ! security find-identity -p codesigning "$KEYCHAIN_PATH" | grep -q "Valid identities"; then
+          echo "❌ No valid code signing identities found in keychain."
+          security find-identity -p codesigning "$KEYCHAIN_PATH" || true
+          exit 1
+        fi
+        echo "✅ Code signing identity is available"
 
         # Install provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles

@@ -168,7 +168,7 @@ runs:
     
     - name: Configure iOS Signing Certificates
       if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@self-hosted-runners-config
       with:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'
