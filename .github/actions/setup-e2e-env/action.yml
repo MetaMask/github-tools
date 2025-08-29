@@ -1,5 +1,6 @@
 name: 'Setup E2E Test Environment'
 description: 'Sets up the environment for running E2E tests'
+
 inputs:
   platform:
     description: 'Platform (ios or android)'
@@ -268,7 +269,8 @@ runs:
 
     - name: Generate binstubs for CocoaPods
       if: ${{ inputs.platform == 'ios' }}
-      run: bundle binstubs cocoapods --path=vendor/bundle/bin
+      run: bundle binstubs cocoapods --force --path=vendor/bundle/bin
+
       working-directory: ios
       shell: bash
 
