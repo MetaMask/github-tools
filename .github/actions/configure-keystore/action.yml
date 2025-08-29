@@ -112,11 +112,12 @@ runs:
 
         # Set key partition list
         echo "🔑 Setting key partition list..."
-        if ! security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH"; then
+        if ! security set-key-partition-list -S apple-tool:,apple: -k "$CERT_PW" "$KEYCHAIN_PATH" 2>/dev/null; then
           echo "❌ Failed to set key partition list. Codesigning tools may not have access."
           exit 1
         fi
         echo "✅ Key partition list set"
+
 
         # Verify signing identities
         echo "🔍 Verifying code signing identities in keychain..."
