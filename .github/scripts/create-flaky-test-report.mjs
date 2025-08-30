@@ -1,24 +1,27 @@
 #!/usr/bin/env node
 
-import { Octokit } from 'octokit';
+import { Octokit } from '@octokit/rest';
 import unzipper from 'unzipper';
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 
 const env = {
-  OWNER: process.env.OWNER || 'MetaMask',
-  REPOSITORY: process.env.REPOSITORY || 'metamask-extension',
-  WORKFLOW_ID: process.env.WORKFLOW_ID || 'main.yml',
-  BRANCH: process.env.BRANCH || 'main',
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
+  TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
+  OWNER: process.env.OWNER || 'MetaMask',
+  REPOSITORY: process.env.REPOSITORY || 'metamask-mobile',
+  WORKFLOW_ID: process.env.WORKFLOW_ID || 'ci.yml',
+  BRANCH: process.env.BRANCH || 'main',
+  // For extension
+  // TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
+  //   ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
+  //   : ['test-e2e-chrome-report', 'test-e2e-firefox-report'],
+  // For mobile
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
     ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
-    : ['test-e2e-chrome-report', 'test-e2e-firefox-report'],
-  TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
-  // For mobile, you can override these:
-  // REPOSITORY=metamask-mobile TEST_REPORT_ARTIFACTS=test-e2e-android-report,test-e2e-ios-report
+    : ['test-e2e-android-report', 'test-e2e-ios-report'],
 };
 
 function getDateRange() {
