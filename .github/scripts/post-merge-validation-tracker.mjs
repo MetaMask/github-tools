@@ -5,7 +5,7 @@ const githubToken = process.env.GITHUB_TOKEN;
 const spreadsheetId = process.env.SHEET_ID;
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
 const repo = process.env.REPO;
-const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '2');
+const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
 const START_MINUTE_UTC = 0;
