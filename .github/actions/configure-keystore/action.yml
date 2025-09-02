@@ -138,15 +138,17 @@ runs:
         fi
 
         ### DEBUGGING
-        # Decode .mobileprovision to a readable plist
-        security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+        P12_CERT_SUBJECT=$(openssl pkcs12 -in "$CERT_PATH" -nokeys -passin pass:"$CERT_PW" \
+          | openssl x509 -noout -subject | sed 's/^subject= //')
 
-        # Show the embedded certificates (base64 DER)
-        plutil -extract DeveloperCertificates xml1 -o - "$RUNNER_TEMP/profile.plist"
+        echo "🔑 Imported cert subject: $P12_CERT_SUBJECT"
 
-        # Or pipe each into openssl to get subject/issuer
-        plutil -extract DeveloperCertificates.0 raw -o - "$RUNNER_TEMP/profile.plist" | \
-          openssl x509 -inform DER -noout -subject -issuer
+        if [[ "$PROFILE_CERT_SUBJECT" == "$P12_CERT_SUBJECT" ]]; then
+          echo "✅ Profile certificate matches imported .p12"
+        else
+          echo "❌ Mismatch: profile cert does not match imported .p12"
+        fi
+
         ### END DEBUGGING
 
 
