@@ -141,7 +141,8 @@ runs:
         # Fingerprint of cert from provisioning profile
         TMP_PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
         security cms -D -i "$PROFILE_PATH" -o "$TMP_PROFILE_PLIST"
-        PROFILE_FP=$(plutil -extract DeveloperCertificates.0 raw -o - profile.plist \
+
+        PROFILE_FP=$(plutil -extract DeveloperCertificates.0 raw -o - "$TMP_PROFILE_PLIST" \
           | base64 -D \
           | openssl x509 -inform DER -noout -fingerprint -sha1 | cut -d'=' -f2)
 
@@ -149,14 +150,15 @@ runs:
         P12_FP=$(openssl pkcs12 -in "$CERT_PATH" -nokeys -passin pass:"$CERT_PW" \
           | openssl x509 -noout -fingerprint -sha1 | cut -d'=' -f2)
 
-        echo "Profile fingerprint: $PROFILE_FP"
-        echo "P12 fingerprint:     $P12_FP"
+        echo "📄 Provisioning profile fingerprint: $PROFILE_FP"
+        echo "🔑 Imported .p12 fingerprint:        $P12_FP"
 
         if [[ "$PROFILE_FP" == "$P12_FP" ]]; then
           echo "✅ Certificates match"
         else
           echo "❌ Certificates do not match"
         fi
+
 
 
         ### END DEBUGGING
