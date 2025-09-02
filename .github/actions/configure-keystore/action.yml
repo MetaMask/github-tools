@@ -138,16 +138,26 @@ runs:
         fi
 
         ### DEBUGGING
-        P12_CERT_SUBJECT=$(openssl pkcs12 -in "$CERT_PATH" -nokeys -passin pass:"$CERT_PW" \
-          | openssl x509 -noout -subject | sed 's/^subject= //')
+        # Fingerprint of cert from provisioning profile
+        TMP_PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+        security cms -D -i "$PROFILE_PATH" -o "$TMP_PROFILE_PLIST"
+        PROFILE_FP=$(plutil -extract DeveloperCertificates.0 raw -o - profile.plist \
+          | base64 -D \
+          | openssl x509 -inform DER -noout -fingerprint -sha1 | cut -d'=' -f2)
 
-        echo "🔑 Imported cert subject: $P12_CERT_SUBJECT"
+        # Fingerprint of cert from .p12
+        P12_FP=$(openssl pkcs12 -in "$CERT_PATH" -nokeys -passin pass:"$CERT_PW" \
+          | openssl x509 -noout -fingerprint -sha1 | cut -d'=' -f2)
 
-        if [[ "$PROFILE_CERT_SUBJECT" == "$P12_CERT_SUBJECT" ]]; then
-          echo "✅ Profile certificate matches imported .p12"
+        echo "Profile fingerprint: $PROFILE_FP"
+        echo "P12 fingerprint:     $P12_FP"
+
+        if [[ "$PROFILE_FP" == "$P12_FP" ]]; then
+          echo "✅ Certificates match"
         else
-          echo "❌ Mismatch: profile cert does not match imported .p12"
+          echo "❌ Certificates do not match"
         fi
+
 
         ### END DEBUGGING
 
