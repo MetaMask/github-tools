@@ -137,6 +137,19 @@ runs:
           echo "✅ Code signing identity is available (alias not parsed)"
         fi
 
+        ### DEBUGGING
+        # Decode .mobileprovision to a readable plist
+        security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+
+        # Show the embedded certificates (base64 DER)
+        plutil -extract DeveloperCertificates xml1 -o - "$RUNNER_TEMP/profile.plist"
+
+        # Or pipe each into openssl to get subject/issuer
+        plutil -extract DeveloperCertificates.0 raw -o - "$RUNNER_TEMP/profile.plist" | \
+          openssl x509 -inform DER -noout -subject -issuer
+        ### END DEBUGGING
+
+
 
         # Install provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
