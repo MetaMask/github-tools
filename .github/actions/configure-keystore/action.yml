@@ -169,3 +169,8 @@ runs:
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
         echo "✅ Installed provisioning profile"
+
+        echo "Configuring default keychain"
+        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
+
