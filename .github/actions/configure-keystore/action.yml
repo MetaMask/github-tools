@@ -143,7 +143,6 @@ runs:
         echo "✅ Installed provisioning profile"
 
         echo "Configuring default keychain"
-        security list-keychains -d user -s "$KEYCHAIN_PATH"
         security default-keychain -s "$KEYCHAIN_PATH"
-        security find-identity -p codesigning -v
+        echo "✅ default keychain set"
 
