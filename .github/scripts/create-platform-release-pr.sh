@@ -92,7 +92,16 @@ get_release_branch_name() {
     if [[ "$platform" == "mobile" ]]; then
       echo "release/${new_version}"
     elif [[ "$platform" == "extension" ]]; then
-      echo "Version-v${new_version}"
+      local candidate_primary="Version-v${new_version}"
+      local candidate_alt="release/${new_version}"
+      # Prefer Version-v... if it exists on origin; otherwise use release/... if present; else default to Version-v...
+      if git ls-remote --heads origin "${candidate_primary}" | grep -q "."; then
+        echo "${candidate_primary}"
+      elif git ls-remote --heads origin "${candidate_alt}" | grep -q "."; then
+        echo "${candidate_alt}"
+      else
+        echo "${candidate_primary}"
+      fi
     fi
 }
 
