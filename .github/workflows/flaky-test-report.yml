@@ -1,23 +1,26 @@
 name: Flaky Test Report
 
 on:
-  workflow_call:
-    inputs:
-      repository:
-        description: 'Repository name (e.g. metamask-extension)'
-        required: true
-        type: string
-      workflow_id:
-        description: 'Workflow ID to analyze (e.g. main.yml)'
-        required: true
-        type: string
-    secrets:
-      github-token:
-        description: 'GitHub token with repo and actions:read access'
-        required: true
-      slack-webhook-flaky-tests:
-        description: 'Slack webhook URL for flaky test reports'
-        required: true
+  push:
+    branches:
+      - ci-flaky-tests-bot
+  # workflow_call:
+  #   inputs:
+  #     repository:
+  #       description: 'Repository name (e.g. metamask-extension)'
+  #       required: true
+  #       type: string
+  #     workflow_id:
+  #       description: 'Workflow ID to analyze (e.g. main.yml)'
+  #       required: true
+  #       type: string
+  #   secrets:
+  #     github-token:
+  #       description: 'GitHub token with repo and actions:read access'
+  #       required: true
+  #     slack-webhook-flaky-tests:
+  #       description: 'Slack webhook URL for flaky test reports'
+  #       required: true
 
 jobs:
   flaky-test-report:
@@ -46,9 +49,9 @@ jobs:
 
       - name: Run flaky test report script
         env:
-          REPOSITORY: ${{ inputs.repository }}
-          WORKFLOW_ID: ${{ inputs.workflow_id }}
-          GITHUB_TOKEN: ${{ secrets.github-token }}
-          SLACK_WEBHOOK_FLAKY_TESTS: ${{ secrets.slack-webhook-flaky-tests }}
+          # REPOSITORY: ${{ inputs.repository }}
+          # WORKFLOW_ID: ${{ inputs.workflow_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_FLAKY_TESTS: ${{ secrets.SLACK_WEBHOOK_FLAKY_TESTS2 }}
         working-directory: ./github-tools
         run: node .github/scripts/create-flaky-test-report.mjs
