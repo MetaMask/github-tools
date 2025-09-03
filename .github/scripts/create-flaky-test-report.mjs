@@ -12,8 +12,8 @@ const env = {
   LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
   TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
   OWNER: process.env.OWNER || 'MetaMask',
-  REPOSITORY: process.env.REPOSITORY || 'metamask-mobile',
-  WORKFLOW_ID: process.env.WORKFLOW_ID || 'ci.yml',
+  REPOSITORY: process.env.REPOSITORY || 'metamask-extension',
+  WORKFLOW_ID: process.env.WORKFLOW_ID || 'main.yml',
   BRANCH: process.env.BRANCH || 'main',
   SLACK_WEBHOOK_FLAKY_TESTS: process.env.SLACK_WEBHOOK_FLAKY_TESTS || '',
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
@@ -60,7 +60,13 @@ async function getWorkflowRuns(github, from, to) {
       }
     );
 
-    return runs;
+    // Filter to only completed runs
+    const completedRuns = runs.filter(run => run.status === 'completed');
+
+    // Sort by created date (newest first)
+    completedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return completedRuns;
   } catch (error) {
     if (error.status === 404) {
       throw new Error(`Workflow '${env.WORKFLOW_ID}' not found in ${env.OWNER}/${env.REPOSITORY}`);
@@ -314,7 +320,7 @@ function summarizeFailures(realFailures, flakyTests = []) {
     });
 }
 
-async function sendSlackReport(summary, dateDisplay, workflowCount) {
+async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount) {
   if (!env.SLACK_WEBHOOK_FLAKY_TESTS || !env.SLACK_WEBHOOK_FLAKY_TESTS.startsWith('https://')) {
     console.log('Skipping Slack notification');
     return;
@@ -323,7 +329,7 @@ async function sendSlackReport(summary, dateDisplay, workflowCount) {
   console.log('\n📤 Sending report to Slack...');
   try {
     const webhook = new IncomingWebhook(env.SLACK_WEBHOOK_FLAKY_TESTS);
-    const blocks = createSlackBlocks(summary, dateDisplay, workflowCount);
+    const blocks = createSlackBlocks(summary, dateDisplay, workflowCount, failedCount);
 
     // Slack has a limit of 50 blocks per message
     const BATCH_SIZE = 50;
@@ -338,14 +344,14 @@ async function sendSlackReport(summary, dateDisplay, workflowCount) {
   }
 }
 
-function createSlackBlocks(summary, dateDisplay, workflowCount = 0) {
+function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount = 0) {
   const blocks = [];
 
   blocks.push({
     type: 'header',
     text: {
       type: 'plain_text',
-      text: 'Flaky Test Report',
+      text: 'Flaky Test Report - Top 10',
       emoji: true
     }
   });
@@ -358,7 +364,7 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0) {
     type: 'context',
     elements: [{
       type: 'mrkdwn',
-      text: `Period (UTC): ${dateDisplay} | Repo: ${env.REPOSITORY} | Branch: ${env.BRANCH} | ${workflowCount} CI runs | Found: ${realFailures.length} failures, ${flakyTests.length} flaky`
+      text: `Period (UTC): ${dateDisplay} | Repo: ${env.REPOSITORY} | Failed CI Runs: ${failedCount}/${workflowCount} from ${env.BRANCH} branch\nFound: ${realFailures.length} tests failing, ${flakyTests.length} flaky (eventually passed)`
     }]
   });
 
@@ -434,12 +440,16 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0) {
           elements: [{
             type: 'rich_text_section',
             elements: [
-              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}` }  // 5 spaces indent for error
+              { type: 'text', text: `  ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
             ]
           }]
         });
       }
     });
+  }
+
+  if (realFailures.length >= 10) {
+    return blocks;
   }
 
   // Divider between sections if both exist
@@ -462,9 +472,13 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0) {
       }]
     });
 
-    // Each flaky test
-    top10.filter(test => test.realFailures === 0).forEach((test, idx) => {
-      const globalIndex = top10.indexOf(test) + 1;
+    // Each flaky test (respecting the 10-item limit)
+    const displayedRealFailures = Math.min(realFailures.length, 10);
+    const remainingSlots = 10 - displayedRealFailures;
+    const flakyTestsToShow = flakyTests.slice(0, remainingSlots);
+
+    flakyTestsToShow.forEach((test, idx) => {
+      const globalIndex = displayedRealFailures + idx + 1;
       const retryText = test.totalRetries === 1 ? 'retry' : 'retries';
 
       // Create GitHub file URL
@@ -507,16 +521,6 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0) {
           }]
         });
       }
-    });
-  }
-
-  if (summary.length > 10) {
-    blocks.push({
-      type: 'context',
-      elements: [{
-        type: 'mrkdwn',
-        text: `_... and ${summary.length - 10} other tests_`
-      }]
     });
   }
 
@@ -611,6 +615,11 @@ async function main() {
     }
 
     console.log(`Found ${workflowRuns.length} workflow run(s)`);
+
+    // Count failed runs
+    const failedRuns = workflowRuns.filter(run => run.conclusion !== 'success');
+    console.log(`Failed CI Runs: ${failedRuns.length}/${workflowRuns.length} from ${env.BRANCH}`);
+
     console.log('Downloading their test artifacts...');
     const testData = await downloadTestArtifacts(github, workflowRuns);
 
@@ -627,7 +636,7 @@ async function main() {
 
     const summary = summarizeFailures(realFailures, flakyTests);
     displayResults(summary, dateRange.display);
-    await sendSlackReport(summary, dateRange.display, workflowRuns.length);
+    await sendSlackReport(summary, dateRange.display, workflowRuns.length, failedRuns.length);
 
   } catch (error) {
     console.error('❌ Error:', error.message);
