@@ -47,6 +47,6 @@ jobs:
           REPOSITORY: ${{ inputs.repository }}
           WORKFLOW_ID: ${{ inputs.workflow_id }}
           GITHUB_TOKEN: ${{ secrets.github-token }}
-          # TODO: Temporary hardcoded secret for testing - remove this and use input secret later 
+          # TODO: Temporary hardcoded secret for testing - remove this and use input secret later
           SLACK_WEBHOOK_FLAKY_TESTS: ${{ secrets.SLACK_WEBHOOK_FLAKY_TESTS2 }}
         run: node .github/scripts/create-flaky-test-report.mjs
