@@ -137,40 +137,6 @@ runs:
           echo "✅ Code signing identity is available (alias not parsed)"
         fi
 
-        ### DEBUGGING
-        # Fingerprint of cert from provisioning profile
-        TMP_PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
-        if security cms -D -i "$PROFILE_PATH" -o "$TMP_PROFILE_PLIST" 2>/dev/null; then
-          PROFILE_FP=$(plutil -extract DeveloperCertificates.0 raw -o - "$TMP_PROFILE_PLIST" \
-            | base64 -D \
-            | openssl x509 -inform DER -noout -fingerprint -sha1 2>/dev/null | cut -d'=' -f2)
-
-          # Fingerprint of cert from .p12 (use -legacy flag for OpenSSL 3.0 compatibility)
-          P12_FP=$(openssl pkcs12 -legacy -in "$CERT_PATH" -nokeys -passin pass:"$CERT_PW" 2>/dev/null \
-            | openssl x509 -noout -fingerprint -sha1 2>/dev/null | cut -d'=' -f2)
-
-          if [[ -n "$PROFILE_FP" && -n "$P12_FP" ]]; then
-            echo "📄 Provisioning profile fingerprint: $PROFILE_FP"
-            echo "🔑 Imported .p12 fingerprint:        $P12_FP"
-
-            if [[ "$PROFILE_FP" == "$P12_FP" ]]; then
-              echo "✅ Certificates match"
-            else
-              echo "❌ Certificates do not match"
-            fi
-          else
-            echo "⚠️ Could not extract certificate fingerprints for comparison"
-          fi
-        else
-          echo "⚠️ Could not decode provisioning profile for certificate verification"
-        fi
-
-
-
-        ### END DEBUGGING
-
-
-
         # Install provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
