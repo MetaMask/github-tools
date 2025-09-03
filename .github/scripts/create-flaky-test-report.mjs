@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// Based on the original script done by @itsyoboieltr on Extension repo
+
 import { Octokit } from '@octokit/rest';
 import unzipper from 'unzipper';
 import { IncomingWebhook } from '@slack/webhook';
@@ -516,7 +518,7 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
           elements: [{
             type: 'rich_text_section',
             elements: [
-              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}` }  // 5 spaces indent for error
+              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}` }
             ]
           }]
         });
