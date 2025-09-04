@@ -518,7 +518,7 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
           elements: [{
             type: 'rich_text_section',
             elements: [
-              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}` }
+              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
             ]
           }]
         });

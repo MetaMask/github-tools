@@ -2,9 +2,11 @@ import { google } from 'googleapis';
 import { Octokit } from '@octokit/rest';
 
 const githubToken = process.env.GITHUB_TOKEN;
-const spreadsheetId = process.env.SHEET_ID;
+// can be found in the excel url e.g. https://docs.google.com/spreadsheets/d/1uSERA-Mczy0pjlrr1vv../
+const spreadsheetId = process.env.SHEET_ID; // 1uSERA-Mczy0pjlrr1vv...
+// GOOGLE_APPLICATION_CREDENTIALS_BASE64 can be found in MM QA 1pasword vault
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
-const repo = process.env.REPO;
+const repo = process.env.REPO || "MetaMask/metamask-extension";
 const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
@@ -57,8 +59,8 @@ function tabTitleFor(repo, releaseLabel) {
 
 function headerRowFor(type) {
   const isMobile = String(type).toLowerCase() === 'mobile';
-  const colF = isMobile ? 'Validated (Android)' : 'Validated (Chrome)';
-  const colG = isMobile ? 'Validated (iOS)' : 'Validated (Firefox)';
+  const colG = isMobile ? 'Validated (Android)' : 'Validated (Chrome)';
+  const colH = isMobile ? 'Validated (iOS)' : 'Validated (Firefox)';
   return [
     'Pull Request',
     'Merged Time (UTC)',
@@ -66,9 +68,8 @@ function headerRowFor(type) {
     'PR Size',
     'Auto Tests',
     'Team Responsible',
-    colF,
     colG,
-    'Comments',
+    colH,
   ];
 }
 
