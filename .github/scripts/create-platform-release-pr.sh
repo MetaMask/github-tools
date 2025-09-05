@@ -22,9 +22,18 @@ set -e
 set -u
 set -o pipefail
 
+# Log all positional arguments for debugging
+echo "Script called with arguments:"
+echo "1 (PLATFORM): $1"
+echo "2 (PREVIOUS_VERSION_REF): $2"
+echo "3 (NEW_VERSION): $3"
+echo "4 (NEW_VERSION_NUMBER): $4"
+echo "5 (GIT_USER_NAME): $5"
+echo "6 (GIT_USER_EMAIL): $6"
+
 # Input validation
 PLATFORM="${1}"
-PREVIOUS_VERSION_REF="${2}"
+PREVIOUS_VERSION_REF="${2//[[:space:]]/}" # Trim whitespace
 NEW_VERSION="${3}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
