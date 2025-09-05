@@ -22,15 +22,27 @@ set -e
 set -u
 set -o pipefail
 
-# Input validation
+# Input assignments (quoted args prevent shifting). Use defaults only for optional args.
 PLATFORM="${1}"
-PREVIOUS_VERSION_REF="${2}"
+PREVIOUS_VERSION_REF="${2:-}"
+# Trim whitespace-only values to truly empty for hotfix handling
+PREVIOUS_VERSION_REF="${PREVIOUS_VERSION_REF//[[:space:]]/}"
 NEW_VERSION="${3}"
+NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
 
-# Validate required parameters
+# Log assigned variables for debugging (after defaults and trimming)
+echo "Assigned variables:"
+echo "PLATFORM: $PLATFORM"
+echo "PREVIOUS_VERSION_REF: $PREVIOUS_VERSION_REF"
+echo "NEW_VERSION: $NEW_VERSION"
+echo "NEW_VERSION_NUMBER: $NEW_VERSION_NUMBER"
+echo "GIT_USER_NAME: $GIT_USER_NAME"
+echo "GIT_USER_EMAIL: $GIT_USER_EMAIL"
+
+# Validate required parameters (allow empty PREVIOUS_VERSION_REF for hotfixes)
 if [[ -z $PLATFORM ]]; then
   echo "Error: No platform specified."
   exit 1
@@ -46,7 +58,7 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
-
+# Note: Skip PREVIOUS_VERSION_REF validation to allow empty for hotfixes
 
 
 # Helper Functions
@@ -312,43 +324,52 @@ create_changelog_pr() {
     echo "Generating changelog via auto-changelog.."
     npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
 
-    # Need to run from .github-tools context to inherit it's dependencies/environment
-    echo "Current Directory: $(pwd)"
-    PROJECT_GIT_DIR=$(pwd)
-
-    # By default, DIFF_BASE is set to the provided `previous_version_ref` (which can be a branch name, tag, or commit hash).
-    # If `previous_version_ref` matches a remote branch on origin, we fetch it and update DIFF_BASE to the fully qualified remote ref (`origin/<branch>`).
-    # This is required for the `generate-rc-commits.mjs` script to resolve the branch and successfully run the `git log` command.
-    # Otherwise, DIFF_BASE remains unchanged.
-    DIFF_BASE="${previous_version_ref}"
-
-    # Only consider known release branch patterns to avoid regex pitfalls:
-    # - Extension: Version-vx.y.z
-    # - Mobile:    release/x.y.z
-    if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      echo "Previous version looks like a release branch: ${previous_version_ref}"
-      # Check if the exact branch exists on origin without interpolating into a regex
-      if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
-        echo "Detected remote branch for previous version: ${previous_version_ref}"
-        git fetch origin "${previous_version_ref}"
-        DIFF_BASE="origin/${previous_version_ref}"
-      else
-        echo "Remote branch not found on origin: ${previous_version_ref}. Will use as-is."
-      fi
+    # Skip commits.csv for hotfix releases (previous_version_ref empty)
+    local skip_csv=false
+    if [[ -z "${previous_version_ref}" ]]; then
+      echo "Hotfix release detected (previous-version-ref empty); skipping commits.csv generation."
+      skip_csv=true
     else
-      echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
+      # Need to run from .github-tools context to inherit it's dependencies/environment
+      echo "Current Directory: $(pwd)"
+      PROJECT_GIT_DIR=$(pwd)
+
+      # By default, DIFF_BASE is set to the provided `previous_version_ref` (which can be a branch name, tag, or commit hash).
+      # If `previous_version_ref` matches a remote branch on origin, we fetch it and update DIFF_BASE to the fully qualified remote ref (`origin/<branch>`).
+      # This is required for the `generate-rc-commits.mjs` script to resolve the branch and successfully run the `git log` command.
+      # Otherwise, DIFF_BASE remains unchanged.
+      DIFF_BASE="${previous_version_ref}"
+
+      # Only consider known release branch patterns to avoid regex pitfalls:
+      # - Extension: Version-vx.y.z
+      # - Mobile:    release/x.y.z
+      if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Previous version looks like a release branch: ${previous_version_ref}"
+        # Check if the exact branch exists on origin without interpolating into a regex
+        if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
+          echo "Detected remote branch for previous version: ${previous_version_ref}"
+          git fetch origin "${previous_version_ref}"
+          DIFF_BASE="origin/${previous_version_ref}"
+        else
+          echo "Remote branch not found on origin: ${previous_version_ref}. Will use as-is."
+        fi
+      else
+        echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
+      fi
+
+      # Switch to github-tools directory
+      cd ./github-tools/
+      ls -ltra
+      corepack prepare yarn@4.5.1 --activate
+      # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
+      yarn --cwd install
+
+      echo "Generating test plan csv.."
+      yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
+      # Return to project root after generating commits.csv
+      cd ../
     fi
 
-    # Switch to github-tools directory
-    cd ./github-tools/
-    ls -ltra
-    corepack prepare yarn@4.5.1 --activate
-    # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
-    yarn --cwd install
-
-    echo "Generating test plan csv.."
-    yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
-    
     # Skipping Google Sheets update since there is no need for it anymore
     # TODO: Remove this once the current post-main validation approach is stable
     # if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
@@ -356,16 +377,22 @@ create_changelog_pr() {
     #   # Create a new Release Sheet Page for the new version with our commits.csv content
     #   yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
     # fi
-    cd ../
+    # Note: Only change directories when we actually entered ./github-tools/
 
     # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
-    if ! (git commit -am "update changelog for ${new_version}"); then
-        echo "Error: No changes detected."
-        exit 1
+    local commit_msg="update changelog for ${new_version}"
+    if $skip_csv; then
+      commit_msg="${commit_msg} (hotfix - no test plan)"
+    fi
+    if ! (git commit -am "${commit_msg}"); then
+      echo "No changes detected; skipping commit."
     fi
 
     local pr_body="This PR updates the change log for ${new_version}."
+    if $skip_csv; then
+      pr_body="${pr_body} (Hotfix - no test plan generated.)"
+    fi
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${changelog_branch_name}"
@@ -411,6 +438,18 @@ Release version: ${new_version}
 New ${main_branch} version: ${next_version}
 Platform: ${platform}"
         echo "Version bump committed"
+    fi
+
+    # Ensure base branch exists locally; fetch from origin if missing
+    if ! git rev-parse --verify --quiet "refs/heads/${main_branch}" >/dev/null; then
+        echo "Base branch ${main_branch} not found locally. Attempting to fetch from origin..."
+        if git ls-remote --heads origin "${main_branch}" | grep -q "."; then
+            git fetch origin "${main_branch}:${main_branch}" || git fetch origin "${main_branch}"
+            echo "Fetched base branch ${main_branch} from origin."
+        else
+            echo "Error: Base branch not found on origin: ${main_branch}"
+            exit 1
+        fi
     fi
 
     # If the version bump branch has no commits ahead of main, skip pushing/PR creation
@@ -492,7 +531,7 @@ main() {
     fi
 
     # Step 3: Create version bump PR for main branch
-    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
+    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "$BASE_BRANCH"
 
     # Final summary
     echo ""

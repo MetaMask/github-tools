@@ -139,12 +139,12 @@ jobs:
         run: |
           # Execute the script from github-tools
           ./github-tools/.github/scripts/create-platform-release-pr.sh \
-            ${{ inputs.platform }} \
-            ${{ inputs.previous-version-ref }} \
-            ${{ inputs.semver-version }} \
-            ${{ inputs.mobile-build-version }} \
-            ${{ inputs.git-user-name }} \
-            ${{ inputs.git-user-email }}
+            "${{ inputs.platform }}" \
+            "${{ inputs.previous-version-ref }}" \
+            "${{ inputs.semver-version }}" \
+            "${{ inputs.mobile-build-version }}" \
+            "${{ inputs.git-user-name }}" \
+            "${{ inputs.git-user-email }}"
 
       # Step 6: Upload commits.csv as artifact (if generated)
       - name: Upload commits.csv artifact
