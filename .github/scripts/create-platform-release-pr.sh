@@ -39,6 +39,18 @@ NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
 
+# Move logging here
+echo "Assigned variables:"
+echo "PLATFORM: $PLATFORM"
+echo "PREVIOUS_VERSION_REF: $PREVIOUS_VERSION_REF"
+echo "NEW_VERSION: $NEW_VERSION"
+echo "NEW_VERSION_NUMBER: $NEW_VERSION_NUMBER"
+echo "GIT_USER_NAME: $GIT_USER_NAME"
+echo "GIT_USER_EMAIL: $GIT_USER_EMAIL"
+
+# Add trimming for NEW_VERSION
+NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
+
 # Validate required parameters
 if [[ -z $PLATFORM ]]; then
   echo "Error: No platform specified."
