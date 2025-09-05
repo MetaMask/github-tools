@@ -46,6 +46,11 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
+if [[ -z $PREVIOUS_VERSION_REF ]]; then
+  echo "Error: No previous version reference specified."
+  exit 1
+fi
+
 
 
 
