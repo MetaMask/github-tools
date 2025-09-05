@@ -440,6 +440,18 @@ Platform: ${platform}"
         echo "Version bump committed"
     fi
 
+    # Ensure base branch exists locally; fetch from origin if missing
+    if ! git rev-parse --verify --quiet "refs/heads/${main_branch}" >/dev/null; then
+        echo "Base branch ${main_branch} not found locally. Attempting to fetch from origin..."
+        if git ls-remote --heads origin "${main_branch}" | grep -q "."; then
+            git fetch origin "${main_branch}:${main_branch}" || git fetch origin "${main_branch}"
+            echo "Fetched base branch ${main_branch} from origin."
+        else
+            echo "Error: Base branch not found on origin: ${main_branch}"
+            exit 1
+        fi
+    fi
+
     # If the version bump branch has no commits ahead of main, skip pushing/PR creation
     # Validate refs before computing ahead count to avoid masking errors
     # Fail fast with a error message if the base branch doesn’t exist locally (or isn’t fetched)
@@ -519,7 +531,7 @@ main() {
     fi
 
     # Step 3: Create version bump PR for main branch
-    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
+    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "$BASE_BRANCH"
 
     # Final summary
     echo ""
