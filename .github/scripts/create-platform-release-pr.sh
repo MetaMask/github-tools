@@ -22,24 +22,15 @@ set -e
 set -u
 set -o pipefail
 
-# Log all positional arguments for debugging
-echo "Script called with arguments:"
-echo "1 (PLATFORM): $1"
-echo "2 (PREVIOUS_VERSION_REF): $2"
-echo "3 (NEW_VERSION): $3"
-echo "4 (NEW_VERSION_NUMBER): $4"
-echo "5 (GIT_USER_NAME): $5"
-echo "6 (GIT_USER_EMAIL): $6"
-
 # Input validation
 PLATFORM="${1}"
 PREVIOUS_VERSION_REF="${2//[[:space:]]/}" # Trim whitespace
-NEW_VERSION="${3}"
+NEW_VERSION="${3//[[:space:]]/}" # Trim whitespace
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
 
-# Move logging here
+# Log assigned variables for debugging (after defaults and trimming)
 echo "Assigned variables:"
 echo "PLATFORM: $PLATFORM"
 echo "PREVIOUS_VERSION_REF: $PREVIOUS_VERSION_REF"
@@ -47,9 +38,6 @@ echo "NEW_VERSION: $NEW_VERSION"
 echo "NEW_VERSION_NUMBER: $NEW_VERSION_NUMBER"
 echo "GIT_USER_NAME: $GIT_USER_NAME"
 echo "GIT_USER_EMAIL: $GIT_USER_EMAIL"
-
-# Add trimming for NEW_VERSION
-NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
 
 # Validate required parameters
 if [[ -z $PLATFORM ]]; then
@@ -68,8 +56,8 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
 fi
 
 if [[ -z $PREVIOUS_VERSION_REF ]]; then
-    echo "Error: No previous version reference specified."
-    exit 1
+  echo "Error: No previous version reference specified."
+  exit 1
 fi
 
 
