@@ -22,10 +22,13 @@ set -e
 set -u
 set -o pipefail
 
-# Input assignments with defaults to handle shifting/empty args
-PLATFORM="${1:-}"
-PREVIOUS_VERSION_REF="${2//[[:space:]]/:-}" # Trim whitespace, default empty for hotfixes
-NEW_VERSION="${3//[[:space:]]/:-}" # Trim whitespace, default empty
+# Input assignments (quoted args prevent shifting). Use defaults only for optional args.
+PLATFORM="${1}"
+PREVIOUS_VERSION_REF="${2:-}"
+# Trim whitespace-only values to truly empty for hotfix handling
+PREVIOUS_VERSION_REF="${PREVIOUS_VERSION_REF//[[:space:]]/}"
+NEW_VERSION="${3}"
+NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
