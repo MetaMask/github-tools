@@ -366,6 +366,8 @@ create_changelog_pr() {
 
       echo "Generating test plan csv.."
       yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
+      # Return to project root after generating commits.csv
+      cd ../
     fi
 
     # Skipping Google Sheets update since there is no need for it anymore
@@ -375,7 +377,7 @@ create_changelog_pr() {
     #   # Create a new Release Sheet Page for the new version with our commits.csv content
     #   yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
     # fi
-    cd ../
+    # Note: Only change directories when we actually entered ./github-tools/
 
     # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
