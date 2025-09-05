@@ -22,10 +22,10 @@ set -e
 set -u
 set -o pipefail
 
-# Input validation
-PLATFORM="${1}"
-PREVIOUS_VERSION_REF="${2//[[:space:]]/}" # Trim whitespace
-NEW_VERSION="${3//[[:space:]]/}" # Trim whitespace
+# Input assignments with defaults to handle shifting/empty args
+PLATFORM="${1:-}"
+PREVIOUS_VERSION_REF="${2//[[:space:]]/:-}" # Trim whitespace, default empty for hotfixes
+NEW_VERSION="${3//[[:space:]]/:-}" # Trim whitespace, default empty
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
@@ -39,7 +39,7 @@ echo "NEW_VERSION_NUMBER: $NEW_VERSION_NUMBER"
 echo "GIT_USER_NAME: $GIT_USER_NAME"
 echo "GIT_USER_EMAIL: $GIT_USER_EMAIL"
 
-# Validate required parameters
+# Validate required parameters (allow empty PREVIOUS_VERSION_REF for hotfixes)
 if [[ -z $PLATFORM ]]; then
   echo "Error: No platform specified."
   exit 1
@@ -55,10 +55,7 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   exit 1
 fi
 
-if [[ -z $PREVIOUS_VERSION_REF ]]; then
-  echo "Error: No previous version reference specified."
-  exit 1
-fi
+# Note: Skip PREVIOUS_VERSION_REF validation to allow empty for hotfixes
 
 
 # Helper Functions
