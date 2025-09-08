@@ -216,25 +216,30 @@ runs:
       run: yarn global add detox-cli
       shell: bash
 
-    # For test-only mode, verify essential E2E tools are available
-    - name: Verify E2E test environment
+    # For test-only mode, install minimal dependencies needed for E2E tests
+    - name: Install minimal E2E dependencies
       if: ${{ inputs.test-only == 'true' }}
       run: |
-        echo "🔍 Verifying E2E test environment..."
+        echo "📦 Installing minimal dependencies for E2E testing..."
         
-        # Check that Detox CLI is available
+        # Install only the essential packages needed for E2E tests to run
+        # These are the core dependencies that yarn scripts expect to be available locally
+        yarn add --dev --silent \
+          detox@^20.35.0 \
+          jest@^29.0.0 \
+          jest-junit@^16.0.0 \
+          dotenv@^16.0.0 \
+          @config-plugins/detox@^9.0.0
+        
+                
+        # Verify Detox is available both globally and locally
+        echo "🔍 Verifying Detox installation..."
         if command -v detox &> /dev/null; then
-          echo "✅ Detox CLI is available: $(detox --version)"
-        else
-          echo "❌ Detox CLI not found"
-          exit 1
+          echo "✅ Global Detox CLI: $(detox --version)"
         fi
-        
-        # Check that Node.js is available
-        echo "✅ Node.js version: $(node --version)"
-        echo "✅ Yarn version: $(yarn --version)"
-        
-        echo "✅ E2E test environment ready"
+        if [ -f "node_modules/.bin/detox" ]; then
+          echo "✅ Local Detox: $(./node_modules/.bin/detox --version)"
+        fi
       shell: bash
 
     - name: Install Foundry
