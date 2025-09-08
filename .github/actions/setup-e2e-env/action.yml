@@ -81,6 +81,10 @@ inputs:
     description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
+  test-only:
+    description: 'Whether to setup minimal environment for testing only (skips build dependencies)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -100,7 +104,7 @@ runs:
       shell: bash
 
     - name: Configure Android Signing Certificates
-      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
+      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' && inputs.test-only == 'false' }}
       uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
       with:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
@@ -110,7 +114,7 @@ runs:
 
     ## JDK Setup
     - name: Setup Java
-      if: ${{ inputs.platform == 'android' }}
+      if: ${{ inputs.platform == 'android' && inputs.test-only == 'false' }}
       uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
       with:
         java-version: ${{ inputs.jdk-version }}
@@ -132,7 +136,7 @@ runs:
     ## Android SDK Setup (SDK pre-installed in container)
 
     - name: Install additional Android SDK components if needed
-      if: ${{ inputs.platform == 'android' && (inputs.android-api-level != '34' || inputs.android-abi != 'x86_64') }}
+      if: ${{ inputs.platform == 'android' && (inputs.android-api-level != '34' || inputs.android-abi != 'x86_64') && inputs.test-only == 'false' }}
       run: |
         # Only install if different from pre-installed defaults (API 34, x86_64)
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
@@ -167,7 +171,7 @@ runs:
     ## iOS Platform Setup ##
     
     - name: Configure iOS Signing Certificates
-      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
+      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' && inputs.test-only == 'false' }}
       uses: MetaMask/github-tools/.github/actions/configure-keystore@self-hosted-runners-config
       with:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
@@ -190,6 +194,7 @@ runs:
       shell: bash
 
     - name: Restore Yarn cache
+      if: ${{ inputs.test-only == 'false' }}
       uses: actions/cache@v4
       with:
         path: |
@@ -199,6 +204,7 @@ runs:
           ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
     - name: Install JavaScript dependencies
+      if: ${{ inputs.test-only == 'false' }}
       id: yarn-install
       run: yarn install --frozen-lockfile
       shell: bash
@@ -210,7 +216,33 @@ runs:
       run: yarn global add detox-cli
       shell: bash
 
+    # For test-only mode, install minimal E2E dependencies
+    - name: Install minimal E2E dependencies for testing
+      if: ${{ inputs.test-only == 'true' }}
+      run: |        
+        # Create minimal package.json for E2E dependencies
+        mkdir -p /tmp/e2e-deps
+        cd /tmp/e2e-deps
+        
+        # Initialize and install only what's needed for running tests
+        yarn init -y
+        yarn add --silent \
+          detox@^20.35.0 \
+          jest@^29.0.0 \
+          jest-junit@^16.0.0 \
+          dotenv@^16.0.0
+        
+        # Copy node_modules to workspace for test execution
+        cp -r node_modules "${{ github.workspace }}/"
+        
+        # Cleanup
+        rm -rf /tmp/e2e-deps
+        
+        echo "✅ Minimal E2E dependencies installed"
+      shell: bash
+
     - name: Install Foundry
+      if: ${{ inputs.test-only == 'false' }}
       shell: bash
       run: |
         echo "Installing Foundry via foundryup..."
@@ -231,21 +263,21 @@ runs:
 
     ## Ruby Setup & Cache Management
     - name: Setup Ruby
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
       with:
         ruby-version: ${{ inputs.ruby-version }}
 
     # Install Bundler first
     - name: Install bundler
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: gem install bundler -v ${{ inputs.bundler-version }}
       working-directory: ios
       shell: bash
 
     # Restore cached Ruby gems
     - name: Restore Bundler cache
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       uses: actions/cache@v4
       with:
         path: ios/vendor/bundle
@@ -255,33 +287,33 @@ runs:
 
     # Configure bundler to use a specific path for gem installation
     - name: Configure bundler install path
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: bundle config set path 'vendor/bundle'
       working-directory: ios
       shell: bash
 
     # Install Ruby gems into ios/vendor/bundle ( cache management & awareness )
     - name: Install Ruby gems via bundler
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: bundle install
       working-directory: ios
       shell: bash
 
     - name: Generate binstubs for CocoaPods
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: bundle binstubs cocoapods --force --path=vendor/bundle/bin
 
       working-directory: ios
       shell: bash
 
     - name: Add binstubs to PATH
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: echo "$(pwd)/ios/vendor/bundle/bin" >> "$GITHUB_PATH"
       shell: bash
 
     # Verify CocoaPods is available
     - name: Verify CocoaPods
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: |
         bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
         bundle exec pod --version
@@ -290,7 +322,7 @@ runs:
 
     # Verify CocoaPods is available
     - name: Verify CocoaPods BinStub
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: |
         bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
         pod --version
@@ -299,7 +331,7 @@ runs:
 
     # Select Xcode version
     - name: Select Xcode version
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
       shell: bash
 
@@ -315,13 +347,13 @@ runs:
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
-      if: ${{ inputs.platform == 'ios'}}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: bundle exec pod install --repo-update
       working-directory: ios
       shell: bash
 
     - name: Install applesimutils
-      if: ${{ inputs.platform == 'ios' }}
+      if: ${{ inputs.platform == 'ios' && inputs.test-only == 'false' }}
       run: brew tap wix/brew && brew install applesimutils
       shell: bash
 
