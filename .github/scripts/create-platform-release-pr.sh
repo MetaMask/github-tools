@@ -25,7 +25,7 @@ set -o pipefail
 # Input assignments (quoted args prevent shifting). Use defaults only for optional args.
 PLATFORM="${1}"
 PREVIOUS_VERSION_REF="${2:-}"
-# Trim whitespace-only values to truly empty for hotfix handling
+# Normalize whitespace-only values; hotfixes are indicated by the literal string 'null'
 PREVIOUS_VERSION_REF="${PREVIOUS_VERSION_REF//[[:space:]]/}"
 NEW_VERSION="${3}"
 NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
@@ -57,9 +57,6 @@ if [[ -z $NEW_VERSION_NUMBER && $PLATFORM == "mobile" ]]; then
   echo "Error: No new version number specified for mobile platform."
   exit 1
 fi
-
-# Note: Skip PREVIOUS_VERSION_REF validation to allow empty for hotfixes
-
 
 # Helper Functions
 # ---------------
@@ -324,11 +321,11 @@ create_changelog_pr() {
     echo "Generating changelog via auto-changelog.."
     npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
 
-    # Skip commits.csv for hotfix releases (previous_version_ref empty)
-    local skip_csv=false
-    if [[ -z "${previous_version_ref}" ]]; then
-      echo "Hotfix release detected (previous-version-ref empty); skipping commits.csv generation."
-      skip_csv=true
+    # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
+    # - When we create a new major/minor releases, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
+    # - When we create a new hotfix releases, there are no commits included in the release by default (they will be cherry-picked one by one). So we don't have previous version reference, which is why the value is set to 'null'.
+    if [[ "${previous_version_ref,,}" == "null" ]]; then
+      echo "Hotfix release detected (previous-version-ref is 'null'); skipping commits.csv generation."
     else
       # Need to run from .github-tools context to inherit it's dependencies/environment
       echo "Current Directory: $(pwd)"
@@ -382,7 +379,7 @@ create_changelog_pr() {
     # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
     local commit_msg="update changelog for ${new_version}"
-    if $skip_csv; then
+    if [[ "${previous_version_ref,,}" == "null" ]]; then
       commit_msg="${commit_msg} (hotfix - no test plan)"
     fi
     if ! (git commit -am "${commit_msg}"); then
@@ -390,7 +387,7 @@ create_changelog_pr() {
     fi
 
     local pr_body="This PR updates the change log for ${new_version}."
-    if $skip_csv; then
+    if [[ "${previous_version_ref,,}" == "null" ]]; then
       pr_body="${pr_body} (Hotfix - no test plan generated.)"
     fi
 
@@ -531,7 +528,7 @@ main() {
     fi
 
     # Step 3: Create version bump PR for main branch
-    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "$BASE_BRANCH"
+    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
 
     # Final summary
     echo ""
