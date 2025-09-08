@@ -216,29 +216,25 @@ runs:
       run: yarn global add detox-cli
       shell: bash
 
-    # For test-only mode, install minimal E2E dependencies
-    - name: Install minimal E2E dependencies for testing
+    # For test-only mode, verify essential E2E tools are available
+    - name: Verify E2E test environment
       if: ${{ inputs.test-only == 'true' }}
-      run: |        
-        # Create minimal package.json for E2E dependencies
-        mkdir -p /tmp/e2e-deps
-        cd /tmp/e2e-deps
+      run: |
+        echo "🔍 Verifying E2E test environment..."
         
-        # Initialize and install only what's needed for running tests
-        yarn init -y
-        yarn add --silent \
-          detox@^20.35.0 \
-          jest@^29.0.0 \
-          jest-junit@^16.0.0 \
-          dotenv@^16.0.0
+        # Check that Detox CLI is available
+        if command -v detox &> /dev/null; then
+          echo "✅ Detox CLI is available: $(detox --version)"
+        else
+          echo "❌ Detox CLI not found"
+          exit 1
+        fi
         
-        # Copy node_modules to workspace for test execution
-        cp -r node_modules "${{ github.workspace }}/"
+        # Check that Node.js is available
+        echo "✅ Node.js version: $(node --version)"
+        echo "✅ Yarn version: $(yarn --version)"
         
-        # Cleanup
-        rm -rf /tmp/e2e-deps
-        
-        echo "✅ Minimal E2E dependencies installed"
+        echo "✅ E2E test environment ready"
       shell: bash
 
     - name: Install Foundry
