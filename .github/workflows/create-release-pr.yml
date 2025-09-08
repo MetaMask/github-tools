@@ -22,7 +22,7 @@ on:
       previous-version-ref:
         required: true
         type: string
-        description: 'Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)'
+        description: 'Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d). For hotfix releases, pass the literal string "null".'
       # Flag to indicate if the release is a test release for development purposes only
       mobile-template-sheet-id:
         required: false
@@ -139,12 +139,12 @@ jobs:
         run: |
           # Execute the script from github-tools
           ./github-tools/.github/scripts/create-platform-release-pr.sh \
-            ${{ inputs.platform }} \
-            ${{ inputs.previous-version-ref }} \
-            ${{ inputs.semver-version }} \
-            ${{ inputs.mobile-build-version }} \
-            ${{ inputs.git-user-name }} \
-            ${{ inputs.git-user-email }}
+            "${{ inputs.platform }}" \
+            "${{ inputs.previous-version-ref }}" \
+            "${{ inputs.semver-version }}" \
+            "${{ inputs.mobile-build-version }}" \
+            "${{ inputs.git-user-name }}" \
+            "${{ inputs.git-user-email }}"
 
       # Step 6: Upload commits.csv as artifact (if generated)
       - name: Upload commits.csv artifact
