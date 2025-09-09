@@ -527,8 +527,12 @@ main() {
         create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
     fi
 
-    # Step 3: Create version bump PR for main branch
-    create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
+    # Step 3: Create version bump PR for main branch (skip for hotfix releases)
+    if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
+        echo "Skipping version bump PR for hotfix release (previous-version-ref is 'null')."
+    else
+        create_version_bump_pr "$PLATFORM" "$NEW_VERSION" "$next_version" "$version_bump_branch_name" "$release_branch_name" "main"
+    fi
 
     # Final summary
     echo ""
@@ -539,9 +543,17 @@ main() {
     echo "1. Release PR: release: ${NEW_VERSION}"
     if [ "$TEST_ONLY" != "true" ]; then
         echo "2. Changelog PR: chore: ${changelog_branch_name}"
-        echo "3. Version bump PR: Bump main version to ${next_version}"
+        if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
+            echo "(Hotfix) Skipped version bump PR"
+        else
+            echo "3. Version bump PR: Bump main version to ${next_version}"
+        fi
     else
-        echo "2. Version bump PR: Bump main version to ${next_version} (test mode - changelog skipped)"
+        if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
+            echo "(Hotfix) Skipped version bump PR (test mode - changelog skipped)"
+        else
+            echo "2. Version bump PR: Bump main version to ${next_version} (test mode - changelog skipped)"
+        fi
     fi
     echo "========================================="
 }
