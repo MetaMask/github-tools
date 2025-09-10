@@ -319,14 +319,7 @@ create_changelog_pr() {
 
     # Generate Changelog and Test Plan
     echo "Generating changelog via auto-changelog.."
-    if [ -f "./github-tools/node_modules/@metamask/auto-changelog/dist/cli.mjs" ]; then
-      echo "Using local @metamask/auto-changelog from github-tools node_modules"
-      node ./github-tools/node_modules/@metamask/auto-changelog/dist/cli.mjs update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink \
-        || { echo "Local auto-changelog failed; falling back to GitHub branch"; npx --yes github:MetaMask/auto-changelog#parse-changelog-entry-adjustments update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink; }
-    else
-      echo "Local @metamask/auto-changelog not found; falling back to GitHub branch"
-      npx --yes github:MetaMask/auto-changelog#parse-changelog-entry-adjustments update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
-    fi
+    npx --no-install @metamask/auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize  --useChangelogEntry --useShortPrLink
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
@@ -366,7 +359,7 @@ create_changelog_pr() {
       ls -ltra
       corepack prepare yarn@4.5.1 --activate
       # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
-      yarn install
+      yarn --cwd install
 
       echo "Generating test plan csv.."
       yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
