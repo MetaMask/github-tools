@@ -142,19 +142,18 @@ runs:
 
     ## Launch AVD
 
-    - name: Set ANDROID_AVD_HOME for downstream steps
+    - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
       shell: bash
       run: |
-        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
-        mkdir -p "$HOME/.android/avd"
+        # Determine real cmdline-tools path (fallback if 'latest' is not available)
+        CMDLINE_TOOLS_BIN=$(find /opt/android-sdk/cmdline-tools -type f -name avdmanager | grep -v latest | head -n 1)
+        echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
 
-    - name: Create Android Virtual Device (AVD)
-      if: ${{ inputs.platform == 'android'}}
-      run: |
         IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
         echo "Creating AVD with image: $IMAGE"
-        "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" --verbose create avd \
+
+        "$CMDLINE_TOOLS_BIN" --verbose create avd \
           --force \
           --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
@@ -162,7 +161,7 @@ runs:
           --tag "${{ inputs.android-tag }}" \
           --abi "${{ inputs.android-abi }}" \
           --sdcard "${{ inputs.android-sdcard-size }}"
-      shell: bash
+
 
     ## iOS Platform Setup ##
     
