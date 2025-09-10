@@ -141,6 +141,12 @@ runs:
       shell: bash
 
     ## Launch AVD
+    - name: Install Android SDK cmdline-tools (avdmanager)
+      if: ${{ inputs.platform == 'android'}}
+      shell: bash
+      run: |
+        yes | sudo /usr/local/lib/android/sdk/tools/bin/sdkmanager --licenses || true
+        sdkmanager --install "cmdline-tools;latest" "platform-tools" "platforms;android-${{ inputs.android-api-level }}" "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
 
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
