@@ -141,32 +141,32 @@ runs:
       shell: bash
 
     ## Launch AVD
-    - name: Install Android SDK cmdline-tools (avdmanager)
-      if: ${{ inputs.platform == 'android'}}
-      shell: bash
-      run: |
-        yes | sudo /usr/local/lib/android/sdk/tools/bin/sdkmanager --licenses || true
-        sdkmanager --install "cmdline-tools;latest" "platform-tools" "platforms;android-${{ inputs.android-api-level }}" "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+    # - name: Install Android SDK cmdline-tools (avdmanager)
+    #   if: ${{ inputs.platform == 'android'}}
+    #   shell: bash
+    #   run: |
+    #     yes | sudo /usr/local/lib/android/sdk/tools/bin/sdkmanager --licenses || true
+    #     sdkmanager --install "cmdline-tools;latest" "platform-tools" "platforms;android-${{ inputs.android-api-level }}" "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
 
-    - name: Create Android Virtual Device (AVD)
-      if: ${{ inputs.platform == 'android'}}
-      shell: bash
-      run: |
-        # Determine real cmdline-tools path (fallback if 'latest' is not available)
-        CMDLINE_TOOLS_BIN=$(find /opt/android-sdk/cmdline-tools -type f -name avdmanager | grep -v latest | head -n 1)
-        echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
+    # - name: Create Android Virtual Device (AVD)
+    #   if: ${{ inputs.platform == 'android'}}
+    #   shell: bash
+    #   run: |
+    #     # Determine real cmdline-tools path (fallback if 'latest' is not available)
+    #     CMDLINE_TOOLS_BIN=$(find /opt/android-sdk/cmdline-tools -type f -name avdmanager | grep -v latest | head -n 1)
+    #     echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
 
-        IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
-        echo "Creating AVD with image: $IMAGE"
+    #     IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+    #     echo "Creating AVD with image: $IMAGE"
 
-        "$CMDLINE_TOOLS_BIN" --verbose create avd \
-          --force \
-          --name "${{ inputs.android-avd-name }}" \
-          --package "$IMAGE" \
-          --device "${{ inputs.android-device }}" \
-          --tag "${{ inputs.android-tag }}" \
-          --abi "${{ inputs.android-abi }}" \
-          --sdcard "${{ inputs.android-sdcard-size }}"
+    #     "$CMDLINE_TOOLS_BIN" --verbose create avd \
+    #       --force \
+    #       --name "${{ inputs.android-avd-name }}" \
+    #       --package "$IMAGE" \
+    #       --device "${{ inputs.android-device }}" \
+    #       --tag "${{ inputs.android-tag }}" \
+    #       --abi "${{ inputs.android-abi }}" \
+    #       --sdcard "${{ inputs.android-sdcard-size }}"
 
 
     ## iOS Platform Setup ##
