@@ -378,9 +378,9 @@ create_changelog_pr() {
 
     # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
-    local commit_msg="update changelog for ${new_version}"
+    local commit_msg="update changelog for ${new_version} [skip-e2e]"
     if [[ "${previous_version_ref,,}" == "null" ]]; then
-      commit_msg="${commit_msg} (hotfix - no test plan)"
+      commit_msg="${commit_msg} (hotfix - no test plan) [skip-e2e]"
     fi
     if ! (git commit -am "${commit_msg}"); then
       echo "No changes detected; skipping commit."
