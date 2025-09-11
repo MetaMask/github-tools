@@ -198,25 +198,17 @@ runs:
         restore-keys: |
           ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
-    - name: Install JavaScript dependencies with retry
+    - name: Install JavaScript dependencies
       id: yarn-install
-      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
-      with:
-        timeout_minutes: 10
-        max_attempts: 3
-        retry_wait_seconds: 30
-        command: yarn install --frozen-lockfile
+      run: yarn install --frozen-lockfile
+      shell: bash
       env:
         NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
 
-    - name: Install Detox CLI with retry
+    - name: Install Detox CLI
       id: install-detox-cli
-      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
-      with:
-        timeout_minutes: 10
-        max_attempts: 3
-        retry_wait_seconds: 30
-        command: yarn global add detox-cli
+      run: yarn global add detox-cli
+      shell: bash
 
     - name: Install Foundry
       shell: bash
