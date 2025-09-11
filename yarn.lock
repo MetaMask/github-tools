@@ -943,7 +943,7 @@ __metadata:
 
 "@metamask/auto-changelog@github:MetaMask/auto-changelog#parse-changelog-entry-adjustments":
   version: 5.0.2
-  resolution: "@metamask/auto-changelog@https://github.com/MetaMask/auto-changelog.git#commit=3298e5259680fc2d3a917ec7f05268be9ad7a4cd"
+  resolution: "@metamask/auto-changelog@https://github.com/MetaMask/auto-changelog.git#commit=0b8e0cb3c89b855e18b1961b0965a733dd4b70a7"
   dependencies:
     "@octokit/rest": "npm:^20.0.0"
     diff: "npm:^5.0.0"
@@ -953,8 +953,8 @@ __metadata:
   peerDependencies:
     prettier: ">=3.0.0"
   bin:
-    auto-changelog: dist/cli.mjs
-  checksum: 10/df2e1604626f415b2bda6ed5bafc35fecb2b5e0834bfcfb2328f387a351372ac996ed64f3f8ad6eb4a817a8bb1186d3030cba20e6fe2f6a602284c0bc9082652
+    auto-changelog: dist/cli.js
+  checksum: 10/3c28df861768f81367474f8516790143690fc46d2e52a6cc5459747a616f345bfc92c2937b5c73381eea92dfda86c00ce82c81093f953539f22a88c1c3c6518e
   languageName: node
   linkType: hard
 
