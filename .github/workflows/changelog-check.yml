@@ -77,11 +77,18 @@ jobs:
           cache-dependency-path: ./github-tools/yarn.lock
           cache: yarn
 
-      - name: Install dependencies
+      - name: Install dependencies with retry
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
-        run: yarn --immutable
-        shell: bash
-        working-directory: ./github-tools
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
+        with:
+          max_attempts: 2
+          timeout_minutes: 15
+          retry_wait_seconds: 30
+          retry_on: error
+          shell: bash
+          command: |
+            cd ./github-tools
+            yarn --immutable
 
       - name: Check Changelog
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
