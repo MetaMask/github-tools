@@ -105,6 +105,8 @@ jobs:
         run: |
           git config --global user.name "metamaskbot"
           git config --global user.email "metamaskbot@users.noreply.github.com"
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
 
       - name: Run stable sync
         id: run-stable-sync
