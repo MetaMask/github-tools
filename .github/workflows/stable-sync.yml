@@ -113,6 +113,7 @@ jobs:
           CREATE_BRANCH: 'false' # let the script handle the branch creation
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
         run: |
           # Execute the script from github-tools
           node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
