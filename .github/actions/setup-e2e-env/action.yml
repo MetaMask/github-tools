@@ -95,8 +95,8 @@ runs:
     - name: Set Android environment variables
       if: ${{ inputs.platform == 'android' }}
       run: |
-        echo "ANDROID_HOME=/opt/android-sdk" >> "$GITHUB_ENV"
-        echo "ANDROID_SDK_ROOT=/opt/android-sdk" >> "$GITHUB_ENV"
+        echo "ANDROID_HOME=$HOME/android-sdk" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
       shell: bash
 
     - name: Configure Android Signing Certificates
@@ -129,6 +129,27 @@ runs:
         echo "✅ Linux dependencies installed successfully"
       shell: bash
 
+
+    - name: Install Android SDK cmdline-tools (latest)
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        # Create base directories
+        mkdir -p "$HOME/android-sdk/cmdline-tools"
+
+        # Download cmdline-tools (latest)
+        curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+        unzip -q cmdline-tools.zip
+
+        # Move into proper structure expected by sdkmanager
+        mv cmdline-tools "$HOME/android-sdk/cmdline-tools/latest"
+
+        # Set ANDROID_HOME and update PATH
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+      shell: bash
+
+
     ## Android SDK Setup (SDK pre-installed in container)
 
     - name: Install additional Android SDK components if needed
@@ -137,36 +158,28 @@ runs:
         # Only install if different from pre-installed defaults (API 34, x86_64)
         IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
         echo "Installing additional system image: $IMAGE"
-        echo "y" | "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" "$IMAGE"
+        echo "y" | "$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager" "$IMAGE"
       shell: bash
 
-    ## Launch AVD
-    # - name: Install Android SDK cmdline-tools (avdmanager)
-    #   if: ${{ inputs.platform == 'android'}}
-    #   shell: bash
-    #   run: |
-    #     yes | sudo /usr/local/lib/android/sdk/tools/bin/sdkmanager --licenses || true
-    #     sdkmanager --install "cmdline-tools;latest" "platform-tools" "platforms;android-${{ inputs.android-api-level }}" "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+    - name: Create Android Virtual Device (AVD)
+      if: ${{ inputs.platform == 'android'}}
+      shell: bash
+      run: |
+        # Determine real cmdline-tools path (fallback if 'latest' is not available)
+        CMDLINE_TOOLS_BIN="$HOME/android-sdk/cmdline-tools/latest/bin/avdmanager"
+        echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
 
-    # - name: Create Android Virtual Device (AVD)
-    #   if: ${{ inputs.platform == 'android'}}
-    #   shell: bash
-    #   run: |
-    #     # Determine real cmdline-tools path (fallback if 'latest' is not available)
-    #     CMDLINE_TOOLS_BIN=$(find /opt/android-sdk/cmdline-tools -type f -name avdmanager | grep -v latest | head -n 1)
-    #     echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
+        IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+        echo "Creating AVD with image: $IMAGE"
 
-    #     IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
-    #     echo "Creating AVD with image: $IMAGE"
-
-    #     "$CMDLINE_TOOLS_BIN" --verbose create avd \
-    #       --force \
-    #       --name "${{ inputs.android-avd-name }}" \
-    #       --package "$IMAGE" \
-    #       --device "${{ inputs.android-device }}" \
-    #       --tag "${{ inputs.android-tag }}" \
-    #       --abi "${{ inputs.android-abi }}" \
-    #       --sdcard "${{ inputs.android-sdcard-size }}"
+        "$CMDLINE_TOOLS_BIN" --verbose create avd \
+          --force \
+          --name "${{ inputs.android-avd-name }}" \
+          --package "$IMAGE" \
+          --device "${{ inputs.android-device }}" \
+          --tag "${{ inputs.android-tag }}" \
+          --abi "${{ inputs.android-abi }}" \
+          --sdcard "${{ inputs.android-sdcard-size }}"
 
 
     ## iOS Platform Setup ##
