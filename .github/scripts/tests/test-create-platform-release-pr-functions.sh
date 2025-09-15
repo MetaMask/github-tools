@@ -42,12 +42,12 @@ echo ""
 # Test get_release_branch_name function (safe - no external calls)
 echo "Testing get_release_branch_name (SAFE):"
 export TEST_ONLY="false"
-echo "  Mobile (prod): $(get_release_branch_name "mobile" "1.5.3")"
-echo "  Extension (prod): $(get_release_branch_name "extension" "1.5.3")"
+echo "  Mobile (prod): $(get_release_branch_name "1.5.3")"
+echo "  Extension (prod): $(get_release_branch_name "1.5.3")"
 
 export TEST_ONLY="true"
-echo "  Mobile (test): $(get_release_branch_name "mobile" "1.5.3")"
-echo "  Extension (test): $(get_release_branch_name "extension" "1.5.3")"
+echo "  Mobile (test): $(get_release_branch_name "1.5.3")"
+echo "  Extension (test): $(get_release_branch_name "1.5.3")"
 
 echo ""
 

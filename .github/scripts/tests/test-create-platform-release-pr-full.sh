@@ -118,8 +118,8 @@ fi
 echo ""
 echo "Testing branch naming (test mode):"
 export TEST_ONLY="true"
-echo "  Mobile release: $(get_release_branch_name "mobile" "1.5.3")"
-echo "  Extension release: $(get_release_branch_name "extension" "1.5.3")"
+echo "  Mobile release: $(get_release_branch_name "1.5.3")"
+echo "  Extension release: $(get_release_branch_name "1.5.3")"
 echo "  Version bump: $(get_version_bump_branch_name "1.6.0")"
 
 echo ""
@@ -165,8 +165,8 @@ echo "================================"
 
 echo ""
 echo "Testing with different platforms:"
-echo "Mobile release branch: $(get_release_branch_name "mobile" "2.0.0")"
-echo "Extension release branch: $(get_release_branch_name "extension" "2.0.0")"
+echo "Mobile release branch: $(get_release_branch_name "2.0.0")"
+echo "Extension release branch: $(get_release_branch_name "2.0.0")"
 
 echo ""
 echo "Testing production vs test mode:"
