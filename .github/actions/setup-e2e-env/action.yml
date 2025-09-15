@@ -68,7 +68,7 @@ inputs:
   android-sdcard-size:
     description: 'SD card size for AVD (e.g. 8092M)'
     required: false
-    default: '8092M'
+    default: '512M'   # 👈 much smaller
   configure-keystores:
     description: 'Whether to configure keystores for E2E tests'
     required: false
