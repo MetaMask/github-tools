@@ -48,7 +48,7 @@ inputs:
   android-avd-name:
     description: 'Name of AVD to create and boot (for Android)'
     required: false
-    default: 'test_e2e_avd'
+    default: 'emulator'
   android-device:
     description: 'AVD device profile (e.g. "pixel_5", "pixel", "Nexus 6")'
     required: false
