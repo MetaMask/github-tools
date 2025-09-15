@@ -153,13 +153,17 @@ runs:
     - name: Install Android SDK components
       if: ${{ inputs.platform == 'android' }}
       run: |
+        # Accept all licenses
         $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses <<< "y" || true
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+
+        # Install required SDK components (no yes pipe needed — sdkmanager respects --licenses)
+        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
           "platform-tools" \
           "platforms;android-${{ inputs.android-api-level }}" \
           "emulator" \
           "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
       shell: bash
+
 
 
 
