@@ -150,18 +150,22 @@ runs:
         echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
       shell: bash
 
+    - name: Accept Android SDK licenses
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        echo "Accepting Android SDK licenses..."
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
+      shell: bash
+
     - name: Install Android SDK components
       if: ${{ inputs.platform == 'android' }}
       run: |
-        # Accept all licenses
-        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses <<< "y" || true
-
-        # Install required SDK components (no yes pipe needed — sdkmanager respects --licenses)
-        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+        echo "Installing Android SDK components..."
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
           "platform-tools" \
           "platforms;android-${{ inputs.android-api-level }}" \
           "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+          "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}" || true
       shell: bash
 
 
