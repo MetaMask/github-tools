@@ -82,14 +82,7 @@ get_expected_changed_files() {
 # For all platforms: release/{version}
 # If TEST_ONLY=true: release-testing/{version}
 get_release_branch_name() {
-    local platform="$1"
-    local new_version="$2"
-
-    # Validate platform
-    if [[ "$platform" != "mobile" && "$platform" != "extension" ]]; then
-        echo "Error: Unknown platform '$platform'. Must be 'mobile' or 'extension'."
-        exit 1
-    fi
+    local new_version="$1"
 
     # Use test branch if TEST_ONLY is true
     if [ "$TEST_ONLY" == "true" ]; then
@@ -97,21 +90,7 @@ get_release_branch_name() {
         return 0
     fi
 
-    # Different release branch naming for different platforms
-    if [[ "$platform" == "mobile" ]]; then
-      echo "release/${new_version}"
-    elif [[ "$platform" == "extension" ]]; then
-      local candidate_primary="Version-v${new_version}"
-      local candidate_alt="release/${new_version}"
-      # Prefer Version-v... if it exists on origin; otherwise use release/... if present; else default to Version-v...
-      if git ls-remote --heads origin "${candidate_primary}" | grep -q "."; then
-        echo "${candidate_primary}"
-      elif git ls-remote --heads origin "${candidate_alt}" | grep -q "."; then
-        echo "${candidate_alt}"
-      else
-        echo "${candidate_primary}"
-      fi
-    fi
+    echo "release/${new_version}"
 }
 
 # Calculate next version for main branch bump
@@ -512,7 +491,7 @@ main() {
 
     # Initialize branch names
     local release_branch_name changelog_branch_name version_bump_branch_name
-    release_branch_name=$(get_release_branch_name "$PLATFORM" "$NEW_VERSION")
+    release_branch_name=$(get_release_branch_name "$NEW_VERSION")
     changelog_branch_name="chore/${NEW_VERSION}-Changelog"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
     configure_git
