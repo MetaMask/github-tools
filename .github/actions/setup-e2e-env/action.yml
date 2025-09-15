@@ -174,13 +174,13 @@ runs:
         yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
           "platform-tools" \
           "platforms;android-${{ inputs.android-api-level }}" \
+          "build-tools;34.0.0" \
           "emulator" \
           "system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}" || true
+
+        echo "✅ Installed SDK components:"
+        ls -l $HOME/android-sdk/build-tools || true
       shell: bash
-
-
-
-
 
     ## Android SDK Setup (SDK pre-installed in container)
 
