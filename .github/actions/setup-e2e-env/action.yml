@@ -186,6 +186,7 @@ runs:
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
       run: |
+        export ANDROID_SDK_HOME=$HOME
         CMDLINE_TOOLS_BIN="$HOME/android-sdk/cmdline-tools/latest/bin/avdmanager"
         IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
 
