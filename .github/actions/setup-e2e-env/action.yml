@@ -185,16 +185,15 @@ runs:
 
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
-      shell: bash
       run: |
-        # Determine real cmdline-tools path (fallback if 'latest' is not available)
         CMDLINE_TOOLS_BIN="$HOME/android-sdk/cmdline-tools/latest/bin/avdmanager"
-        echo "Using avdmanager from: $CMDLINE_TOOLS_BIN"
-
         IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
-        echo "Creating AVD with image: $IMAGE"
 
-        "$CMDLINE_TOOLS_BIN" --verbose create avd \
+        echo "Creating AVD named: ${{ inputs.android-avd-name }}"
+        echo "Using image: $IMAGE"
+
+        # 👇 prevent interactive prompt about hardware profile
+        echo no | "$CMDLINE_TOOLS_BIN" create avd \
           --force \
           --name "${{ inputs.android-avd-name }}" \
           --package "$IMAGE" \
@@ -202,6 +201,12 @@ runs:
           --tag "${{ inputs.android-tag }}" \
           --abi "${{ inputs.android-abi }}" \
           --sdcard "${{ inputs.android-sdcard-size }}"
+
+        echo "✅ Listing available AVDs:"
+        $HOME/android-sdk/cmdline-tools/latest/bin/avdmanager list avd
+        ls -R ~/.android/avd || true
+      shell: bash
+
 
 
     ## iOS Platform Setup ##
