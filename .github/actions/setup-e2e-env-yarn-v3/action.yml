@@ -1,5 +1,6 @@
-name: 'Setup E2E Test Environment (Yarn v3)'
-description: 'Sets up the environment for running E2E tests with Yarn v3 support'
+name: 'Setup E2E Test Environment'
+description: 'Sets up the environment for running E2E tests'
+
 inputs:
   platform:
     description: 'Platform (ios or android)'
@@ -40,10 +41,6 @@ inputs:
     description: JDK distribution to use (only for Android)
     required: false
     default: 'temurin'
-  ndk-version:
-    description: NDK version to use (only for Android)
-    required: false
-    default: '26.1.10909125'
   foundry-version:
     description: Foundry version to install
     required: false
@@ -53,9 +50,9 @@ inputs:
     required: false
     default: 'test_e2e_avd'
   android-device:
-    description: 'AVD device profile (e.g. "pixel")'
+    description: 'AVD device profile (e.g. "pixel_5", "pixel", "Nexus 6")'
     required: false
-    default: 'pixel'
+    default: 'pixel_5'
   android-api-level:
     description: 'Android API level to use (e.g. "34")'
     required: false
@@ -64,6 +61,14 @@ inputs:
     description: 'System architecture ABI for the Android system image (e.g. x86_64, arm64-v8a, armeabi-v7a)'
     required: false
     default: 'x86_64'
+  android-tag:
+    description: 'Android system image tag (e.g. google_apis, default)'
+    required: false
+    default: 'google_apis'
+  android-sdcard-size:
+    description: 'SD card size for AVD (e.g. 8092M)'
+    required: false
+    default: '8092M'
   configure-keystores:
     description: 'Whether to configure keystores for E2E tests'
     required: false
@@ -73,24 +78,111 @@ inputs:
     required: false
     default: 'arn:aws:iam::363762752069:role/metamask-mobile-build-signer-qa'
   target:
-    description: 'target for which the keystore is being configured (e.g., qa, flask, main)'
+    description: 'Target for which the keystore is being configured (e.g., qa, flask, main)'
     required: false
     default: 'qa'
-
 
 runs:
   using: 'composite'
   steps:
     ## Common Setup ##
-    - run: echo "Setup E2E Environment (Yarn v3) started"
+    - run: echo "Setup E2E Environment started"
       shell: bash
+
+    ## Android Setup (early for fail-fast) ##
+
+    # Set Android environment variables (self-hosted runner has SDK pre-installed)
+    - name: Set Android environment variables
+      if: ${{ inputs.platform == 'android' }}
+      run: |
+        echo "ANDROID_HOME=/opt/android-sdk" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=/opt/android-sdk" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: Configure Android Signing Certificates
+      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
+      with:
+        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
+        aws-region: 'us-east-2'
+        platform: 'android'
+        target: ${{ inputs.target }}
+
+    ## JDK Setup
+    - name: Setup Java
+      if: ${{ inputs.platform == 'android' }}
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+      with:
+        java-version: ${{ inputs.jdk-version }}
+        distribution: ${{ inputs.jdk-distribution }}
+
+    - name: Install required emulator dependencies
+      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libpulse0 \
+          libglu1-mesa \
+          libnss3 \
+          libxss1
+
+        echo "✅ Linux dependencies installed successfully"
+      shell: bash
+
+    ## Android SDK Setup (SDK pre-installed in container)
+
+    - name: Install additional Android SDK components if needed
+      if: ${{ inputs.platform == 'android' && (inputs.android-api-level != '34' || inputs.android-abi != 'x86_64') }}
+      run: |
+        # Only install if different from pre-installed defaults (API 34, x86_64)
+        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
+        echo "Installing additional system image: $IMAGE"
+        echo "y" | "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" "$IMAGE"
+      shell: bash
+
+    ## Launch AVD
+
+    - name: Set ANDROID_AVD_HOME for downstream steps
+      if: ${{ inputs.platform == 'android'}}
+      shell: bash
+      run: |
+        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
+        mkdir -p "$HOME/.android/avd"
+
+    - name: Create Android Virtual Device (AVD)
+      if: ${{ inputs.platform == 'android'}}
+      run: |
+        IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+        echo "Creating AVD with image: $IMAGE"
+        "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" --verbose create avd \
+          --force \
+          --name "${{ inputs.android-avd-name }}" \
+          --package "$IMAGE" \
+          --device "${{ inputs.android-device }}" \
+          --tag "${{ inputs.android-tag }}" \
+          --abi "${{ inputs.android-abi }}" \
+          --sdcard "${{ inputs.android-sdcard-size }}"
+      shell: bash
+
+    ## iOS Platform Setup ##
+
+    - name: Configure iOS Signing Certificates
+      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
+      uses: MetaMask/github-tools/.github/actions/configure-keystore@self-hosted-runners-config
+      with:
+        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
+        aws-region: 'us-east-2'
+        platform: 'ios'
+        target: ${{ inputs.target }}
+
+    ## Node.js & JavaScript Dependencies Setup ##
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
 
-    ## Yarn v3 Setup & Cache Management
+    ## Yarn Setup & Cache Management
 
     - name: Corepack
       id: corepack
@@ -101,33 +193,30 @@ runs:
       uses: actions/cache@v4
       with:
         path: |
-          .yarn/cache
-          .yarn/install-state.gz
           node_modules
-        key: ${{ inputs.cache-prefix }}-yarn-v3-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('yarn.lock', '.yarnrc.yml') }}
+        key: ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
         restore-keys: |
-          ${{ inputs.cache-prefix }}-yarn-v3-${{ inputs.platform }}-${{ runner.os }}-
+          ${{ inputs.cache-prefix }}-yarn-${{ inputs.platform }}-${{ runner.os }}-
 
     - name: Install JavaScript dependencies with retry
       id: yarn-install
-      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
       with:
-        timeout_minutes: 10
+        timeout_minutes: 15
         max_attempts: 3
         retry_wait_seconds: 30
-        command: |
-          if ! yarn install --immutable; then
-            echo "Immutable install failed, likely due to checksum mismatch. Attempting to update yarn.lock..."
-            yarn install
-            echo "yarn.lock updated. Verifying with immutable install..."
-            yarn install --immutable
-          fi
+        command: yarn install --immutable
       env:
         NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
 
     - name: Verify Detox CLI
-      run: yarn detox --version
-      shell: bash
+      id: install-detox-cli
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
+      with:
+        timeout_minutes: 15
+        max_attempts: 3
+        retry_wait_seconds: 30
+        command: yarn detox --version
 
     - name: Install Foundry
       shell: bash
@@ -147,14 +236,6 @@ runs:
         "$FOUNDRY_BIN/foundryup"
 
     ## IOS Setup ##
-    - name: Configure iOS Signing Certificates
-      if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
-      with:
-        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
-        aws-region: 'us-east-2'
-        platform: 'ios'
-        target: ${{ inputs.target }}
 
     ## Ruby Setup & Cache Management
     - name: Setup Ruby
@@ -167,6 +248,7 @@ runs:
     - name: Install bundler
       if: ${{ inputs.platform == 'ios' }}
       run: gem install bundler -v ${{ inputs.bundler-version }}
+      working-directory: ios
       shell: bash
 
     # Restore cached Ruby gems
@@ -193,10 +275,40 @@ runs:
       working-directory: ios
       shell: bash
 
+    - name: Generate binstubs for CocoaPods
+      if: ${{ inputs.platform == 'ios' }}
+      run: bundle binstubs cocoapods --force --path=vendor/bundle/bin
+
+      working-directory: ios
+      shell: bash
+
+    - name: Add binstubs to PATH
+      if: ${{ inputs.platform == 'ios' }}
+      run: echo "$(pwd)/ios/vendor/bundle/bin" >> "$GITHUB_PATH"
+      shell: bash
+
+    # Verify CocoaPods is available
+    - name: Verify CocoaPods
+      if: ${{ inputs.platform == 'ios' }}
+      run: |
+        bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
+        bundle exec pod --version
+      working-directory: ios
+      shell: bash
+
+    # Verify CocoaPods is available
+    - name: Verify CocoaPods BinStub
+      if: ${{ inputs.platform == 'ios' }}
+      run: |
+        bundle show cocoapods || (echo "❌ CocoaPods not installed from ios/Gemfile" && exit 1)
+        pod --version
+      working-directory: ios
+      shell: bash
+
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
-      run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
       shell: bash
 
     # Restore CocoaPods cache
@@ -211,8 +323,8 @@ runs:
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
-      if: ${{ inputs.platform == 'ios' }}
-      run: bundle exec pod install --repo-update --verbose
+      if: ${{ inputs.platform == 'ios'}}
+      run: bundle exec pod install --repo-update
       working-directory: ios
       shell: bash
 
@@ -224,117 +336,4 @@ runs:
     - name: Check simutils
       if: ${{ inputs.platform == 'ios' }}
       run: xcrun simctl list devices
-      shell: bash
-
-    ## Android Setup ##
-
-    ## JDK Setup
-    - name: Setup Java
-      if: ${{ inputs.platform == 'android' }}
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
-      with:
-        java-version: ${{ inputs.jdk-version }}
-        distribution: ${{ inputs.jdk-distribution }}
-
-    - name: Configure Android Signing Certificates
-      if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@e2e-env-actions
-      with:
-        aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
-        aws-region: 'us-east-2'
-        platform: 'android'
-        target: ${{ inputs.target }}
-
-    - name: Enable KVM group perms (Ubuntu only)
-      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --name-match=kvm
-      shell: bash
-
-    ## Android SDK Setup
-
-    - name: Install required emulator dependencies
-      if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libpulse0 \
-          libglu1-mesa \
-          libnss3 \
-          libxss1
-
-        echo "✅ Linux dependencies installed successfully"
-      shell: bash
-
-    - name: Install Android SDK packages
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "Accepting SDK licenses..."
-        printf 'y\n%.0s' {1..10} | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
-
-        echo "Installing Android SDK components..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
-          "platform-tools" \
-          "platforms;android-${{ inputs.android-api-level }}" \
-          "build-tools;34.0.0" \
-          "emulator" \
-          "system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}" \
-
-        echo "Updating SDK packages..."
-        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update
-
-        echo "✅ Android SDK packages installed successfully"
-      shell: bash
-
-    ## NDK Setup
-
-    - name: Debug Android SDK Paths
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-      shell: bash
-
-    - name: Install Android NDK
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${{ inputs.ndk-version }}"
-      shell: bash
-
-    - name: Add Android tools to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-        echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
-        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-      shell: bash
-
-    - name: Add NDK related toolchains to PATH
-      if: ${{ inputs.platform == 'android' }}
-      run: |
-        NDK_TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-        echo "$NDK_TOOLCHAIN" >> "$GITHUB_PATH"
-        echo "$ANDROID_SDK_ROOT/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_PATH"
-      shell: bash
-
-    ## Launch AVD
-
-    - name: Set ANDROID_AVD_HOME for downstream steps
-      if: ${{ inputs.platform == 'android'}}
-      shell: bash
-      run: |
-        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
-        mkdir -p "$HOME/.android/avd"
-
-    - name: Create Android Virtual Device (AVD)
-      if: ${{ inputs.platform == 'android'}}
-      run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
-        echo "Creating AVD with image: $IMAGE"
-        echo "no" | "${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager" create avd \
-          --name "${{ inputs.android-avd-name }}" \
-          --package "$IMAGE" \
-          --device "${{ inputs.android-device }}"
       shell: bash
