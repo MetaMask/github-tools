@@ -127,6 +127,7 @@ runs:
 
     - name: Verify Detox CLI
       run: yarn detox --version
+      shell: bash
 
     - name: Install Foundry
       shell: bash
