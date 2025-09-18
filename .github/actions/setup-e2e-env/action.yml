@@ -184,10 +184,19 @@ runs:
 
     ## Yarn Setup & Cache Management
 
+    # - name: Corepack
+    #   id: corepack
+    #   run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
+    #   shell: bash
+
     - name: Corepack
       id: corepack
-      run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
-      shell: bash
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
+      with:
+        timeout_minutes: 15
+        max_attempts: 3
+        retry_wait_seconds: 30
+        command: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
 
     - name: Restore Yarn cache
       uses: actions/cache@v4
