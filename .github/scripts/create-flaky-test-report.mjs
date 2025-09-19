@@ -619,7 +619,7 @@ async function main() {
     console.log(`Found ${workflowRuns.length} workflow run(s)`);
 
     // Count failed runs
-    const failedRuns = workflowRuns.filter(run => run.conclusion !== 'success');
+    const failedRuns = workflowRuns.filter(run => run.conclusion === 'failure');
     console.log(`Failed CI Runs: ${failedRuns.length}/${workflowRuns.length} from ${env.BRANCH}`);
 
     console.log('Downloading their test artifacts...');
