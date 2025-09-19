@@ -21,7 +21,7 @@
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "github:MetaMask/auto-changelog#dcc88e3686caaec40e4fbe62e2df962258ee4f8a",
     "@metamask/utils": "^7.1.0",
     "@octokit/graphql": "^7.0.1",
     "@octokit/request": "^8.1.1",
