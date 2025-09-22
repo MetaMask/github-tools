@@ -298,8 +298,7 @@ create_changelog_pr() {
 
     # Generate Changelog and Test Plan
     echo "Generating changelog via auto-changelog.."
-    npx github:MetaMask/auto-changelog#dcc88e3686caaec40e4fbe62e2df962258ee4f8a update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
-
+    npx @metamask/auto-changelog@5.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
     # - When we create a new hotfix release, there are no commits included in the release by default (they will be cherry-picked one by one). So we don't have previous version reference, which is why the value is set to 'null'.

@@ -941,9 +941,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@github:MetaMask/auto-changelog#dcc88e3686caaec40e4fbe62e2df962258ee4f8a":
-  version: 5.0.2
-  resolution: "@metamask/auto-changelog@https://github.com/MetaMask/auto-changelog.git#commit=dcc88e3686caaec40e4fbe62e2df962258ee4f8a"
+"@metamask/auto-changelog@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "@metamask/auto-changelog@npm:5.1.0"
   dependencies:
     "@octokit/rest": "npm:^20.0.0"
     diff: "npm:^5.0.0"
@@ -954,7 +954,7 @@ __metadata:
     prettier: ">=3.0.0"
   bin:
     auto-changelog: dist/cli.mjs
-  checksum: 10/5abb04fe7b86a07c7d98243fcfb4b59abfc561d9b52fe51455b2934314999f41e308a59651d1089c106752cbdbf092a498da5277ec70a5856435e644e82fa2dd
+  checksum: 10/ee9f651c313a2377a21a304383f56f1872b4ce6411a0b61cf0b70b23bff9d3204332cd5a052cdfcaf363ce15424a7a1fdbde99a6b4352f2472fbe6b6d27c5791
   languageName: node
   linkType: hard
 
@@ -1014,7 +1014,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^2.3.1"
     "@lavamoat/preinstall-always-fail": "npm:^1.0.0"
-    "@metamask/auto-changelog": "github:MetaMask/auto-changelog#dcc88e3686caaec40e4fbe62e2df962258ee4f8a"
+    "@metamask/auto-changelog": "npm:^5.1.0"
     "@metamask/eslint-config": "npm:^12.0.0"
     "@metamask/eslint-config-jest": "npm:^12.0.0"
     "@metamask/eslint-config-nodejs": "npm:^12.0.0"
