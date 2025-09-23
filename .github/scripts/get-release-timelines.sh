@@ -32,7 +32,7 @@ echo "release_pr_merged_at,release_submitted_at,rollout_1_at,rollout_10_at,rollo
 release_branch="Version-v${VERSION}"
 release_pr_title="Version v${VERSION}"
 
-release_pr=$(gh pr list --repo "${OWNER}/${REPOSITORY}" --head "${release_branch}" --base master --state merged --json title,mergedAt | jq --arg title "${release_pr_title}" '.[] | select(.title == $title)')
+release_pr=$(gh pr list --repo "${OWNER}/${REPOSITORY}" --head "${release_branch}" --base stable --state merged --json title,mergedAt | jq --arg title "${release_pr_title}" '.[] | select(.title == $title)')
 release_pr_merged_at=$(echo "${release_pr}" | jq -r '.mergedAt')
 
 if [[ -z "${release_pr_merged_at}" || "${release_pr_merged_at}" == "null" ]]; then

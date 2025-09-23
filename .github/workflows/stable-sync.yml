@@ -18,7 +18,7 @@ on:
       stable-branch-name:
         required: false
         type: string
-        description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
+        description: 'The name of the stable branch to sync to (e.g., stable, main)'
         default: 'stable'
       github-tools-version:
         required: false
@@ -39,13 +39,17 @@ on:
       stable-branch-name:
         required: false
         type: string
-        description: 'The name of the stable branch to sync to (e.g., stable, master, main)'
+        description: 'The name of the stable branch to sync to (e.g., stable, main)'
         default: 'stable'
       github-tools-version:
         required: false
         type: string
         description: 'The version of github-tools to use. Defaults to main.'
         default: ${{ github.action_ref }}
+    secrets:
+      github-token:
+        description: 'GitHub token for creating pull requests'
+        required: true
 
 jobs:
   stable-sync:
@@ -128,7 +132,7 @@ jobs:
       - name: Create Pull Request
         if: steps.check-pr.outputs.result != 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
           BRANCH_NAME: stable-main-${{ inputs.semver-version }}
           VERSION: ${{ inputs.semver-version }}
         run: |

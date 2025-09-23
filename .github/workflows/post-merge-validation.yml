@@ -1,0 +1,66 @@
+name: Post Merge Validation
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: 'The repo owner/name to process (e.g. MetaMask/metamask-extension)'
+        required: true
+        type: string
+      start_hour_utc:
+        description: 'The hour of the day (UTC) to start processing the PRs merged in main'
+        required: true
+        type: number
+      spreadsheet_id:
+        description: 'Google Spreadsheet ID to update'
+        required: false
+        type: string
+        default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
+      lookback_days:
+        description: 'Number of days to look back for PRs'
+        required: false
+        type: number
+        default: 1
+    secrets:
+      github-token:
+        description: 'GitHub token with repo access'
+        required: true
+      google-application-creds-base64:
+        description: 'Base64 encoded Google service account credentials'
+        required: true
+
+jobs:
+  post-merge-validation-tracker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          path: github-tools
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
+
+      - name: Enable Corepack
+        run: corepack enable
+        working-directory: ./github-tools
+
+      - name: Install dependencies
+        working-directory: ./github-tools
+        run: yarn --immutable
+
+      - name: Run post-merge-validation script
+        working-directory: ./github-tools
+        env:
+          SHEET_ID: ${{ inputs.spreadsheet_id }}
+          START_HOUR_UTC: ${{ inputs.start_hour_utc }}
+          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+          REPO: ${{ inputs.repo }}
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
+        run: node .github/scripts/post-merge-validation-tracker.mjs
