@@ -199,7 +199,7 @@ runs:
         command: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
 
     - name: Restore Yarn cache
-      uses: cirruslabs/cache@v1
+      uses: cirruslabs/cache@2117272bcd4b0620d8272c9e51d60bd43e64f6fc # v4 branch, latest commit
       with:
         path: |
           node_modules
@@ -263,7 +263,7 @@ runs:
     # Restore cached Ruby gems
     - name: Restore Bundler cache
       if: ${{ inputs.platform == 'ios' }}
-      uses: cirruslabs/cache@v1
+      uses: cirruslabs/cache@2117272bcd4b0620d8272c9e51d60bd43e64f6fc # v4 branch, latest commit
       with:
         path: ios/vendor/bundle
         key: ${{ inputs.cache-prefix }}-bundler-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Gemfile.lock') }}
