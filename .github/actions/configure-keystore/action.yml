@@ -145,4 +145,3 @@ runs:
         echo "Configuring default keychain"
         security default-keychain -s "$KEYCHAIN_PATH"
         echo "✅ default keychain set"
-
