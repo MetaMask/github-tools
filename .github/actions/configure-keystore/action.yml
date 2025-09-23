@@ -8,9 +8,6 @@ inputs:
   aws-region:
     description: 'The AWS region where the secret is stored'
     required: true
-  secret-name:
-    description: 'The name of the secret in AWS Secrets Manager'
-    required: true
   platform:
     description: 'The platform for which the keystore is being configured (e.g., ios, android)'
     required: true
