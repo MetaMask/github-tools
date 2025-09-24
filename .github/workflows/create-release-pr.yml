@@ -120,7 +120,6 @@ jobs:
           echo "Git User Name: ${{ inputs.git-user-name }}"
           echo "Git User Email: ${{ inputs.git-user-email }}"
           echo "-------------"
-          cat node_modules/.bin/auto-changelog
 
       # Step 5: Create Release PR
       - name: Create Release PR
