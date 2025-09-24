@@ -372,7 +372,7 @@ create_changelog_pr() {
 
     # Use helper functions for push and PR creation
     push_branch_with_handling "${changelog_branch_name}"
-    create_pr_if_not_exists "${changelog_branch_name}" "chore: ${changelog_branch_name}" "${pr_body}" "${release_branch_name}" "" "search"
+    create_pr_if_not_exists "${changelog_branch_name}" "release: ${changelog_branch_name}" "${pr_body}" "${release_branch_name}" "" "search"
 
     echo "Changelog PR Ready"
 }
@@ -492,7 +492,7 @@ main() {
     # Initialize branch names
     local release_branch_name changelog_branch_name version_bump_branch_name
     release_branch_name=$(get_release_branch_name "$NEW_VERSION")
-    changelog_branch_name="chore/${NEW_VERSION}-Changelog"
+    changelog_branch_name="release/${NEW_VERSION}-Changelog"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
     configure_git
 
@@ -521,7 +521,7 @@ main() {
     echo "Created PRs:"
     echo "1. Release PR: release: ${NEW_VERSION}"
     if [ "$TEST_ONLY" != "true" ]; then
-        echo "2. Changelog PR: chore: ${changelog_branch_name}"
+        echo "2. Changelog PR: release: ${changelog_branch_name}"
         if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
             echo "(Hotfix) Skipped version bump PR"
         else
