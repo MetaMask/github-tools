@@ -97,7 +97,7 @@ jobs:
       - name: Checkout and setup environment
         uses: ./github-tools/.github/actions/checkout-and-setup
         with:
-          is-high-risk-environment: true
+          is-high-risk-environment: false
 
       # Step 4: Print Input Values
       - name: Print Input Values
