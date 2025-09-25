@@ -152,7 +152,7 @@ configure_git
 
 echo ""
 echo "Testing create_release_pr:"
-create_release_pr "extension" "1.5.3" "100" "Version-v1.5.3" "chore/1.5.3-Changelog"
+create_release_pr "extension" "1.5.3" "100" "Version-v1.5.3" "release/1.5.3-Changelog"
 
 echo ""
 echo "Testing create_version_bump_pr:"

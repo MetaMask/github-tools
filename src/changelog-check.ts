@@ -389,7 +389,7 @@ async function checkChangelogFile({
     if (
       !Object.values(changelogChanges)
         .flat()
-        .some((entry) => entry.includes(`[#${prNumber}]`))
+        .some((entry) => entry.prNumbers.includes(prNumber))
     ) {
       throw new Error(
         `There are changes made to this package that may not be reflected in the changelog ("${changelogPath}"). If the changes you've introduced are user-facing, please document them under the "${releaseSection}" section, making sure to link the entries to the current PR. If the changelog is up to date, you can bypass this check by adding the 'no-changelog' label to the PR.`,
