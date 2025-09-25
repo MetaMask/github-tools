@@ -138,7 +138,7 @@ jobs:
         run: |
           # Create PR using GitHub CLI
           gh pr create \
-            --title "chore: sync stable to main for version $VERSION" \
+            --title "release: sync stable to main for version $VERSION" \
             --body "This PR syncs the stable branch to main for version $VERSION.
 
           *Synchronization Process:*
@@ -156,7 +156,7 @@ jobs:
             - android/app/build.gradle
             - ios/MetaMask.xcodeproj/project.pbxproj
             - package.json
-           
+
             Indicates the next version candidate of main to $VERSION" \
             --base main \
             --head "$BRANCH_NAME"
