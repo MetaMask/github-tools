@@ -30,9 +30,9 @@ inputs:
     required: false
     default: '3.1'
   xcode-version:
-    description: Xcode version to select (e.g., 16.2)
+    description: Xcode version to select (e.g., 16.3)
     required: false
-    default: '16.2'
+    default: '16.3'
   jdk-version:
     description: JDK version to use (only for Android)
     required: false
