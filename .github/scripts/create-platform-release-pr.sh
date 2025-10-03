@@ -260,22 +260,21 @@ create_release_pr() {
         fi
     fi
 
+    local platform_team_name
+    if [ "$platform" = "extension" ]; then
+        platform_team_name="Extension Platform"
+    elif [ "$platform" = "mobile" ]; then
+        platform_team_name="Mobile Platform"
+    else
+        echo "Error: Unknown platform '$platform'. Must be 'extension' or 'mobile'."
+        exit 1
+    fi
+
     # Prepare release PR body with team sign-off checklist
     local release_body="This is the release candidate for version ${new_version}. The changelog will be found in another PR ${changelog_branch_name}.
 
   # Team sign-off checklist
-  - [ ] team-accounts
-  - [ ] team-assets
-  - [ ] team-confirmations
-  - [ ] team-design-system
-  - [ ] team-notifications
-  - [ ] team-platform
-  - [ ] team-security
-  - [ ] team-snaps-platform
-  - [ ] team-sdk
-  - [ ] team-stake
-  - [ ] team-tiger
-  - [ ] team-wallet-framework
+  - [ ] ${platform_team_name}
 
   # Reference
   - Testing plan sheet - https://docs.google.com/spreadsheets/d/1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ/edit?gid=404070372#gid=404070372"
