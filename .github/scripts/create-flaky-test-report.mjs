@@ -62,8 +62,11 @@ async function getWorkflowRuns(github, from, to) {
       }
     );
 
-    // Filter to only completed runs
-    const completedRuns = runs.filter(run => run.status === 'completed');
+    // Filter to only completed runs from push or schedule events (excludes fork PRs)
+    const completedRuns = runs.filter(run =>
+      run.status === 'completed' &&
+      (run.event === 'push' || run.event === 'schedule')
+    );
 
     // Sort by created date (newest first)
     completedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
