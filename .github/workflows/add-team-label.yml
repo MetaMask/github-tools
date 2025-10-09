@@ -18,8 +18,8 @@ jobs:
           GH_TOKEN: ${{ secrets.TEAM_LABEL_TOKEN }}
           USER: ${{ github.event.pull_request.user.login }}
         run: |
-          # Stream topology.json through jq, find the first team whose members array contains the USER, and emit its githubLabel.name value.
-          team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/topology.json' | jq -r --arg USER "$USER" '.[] | select((.members // []) | index($USER)) | .githubLabel.name' | head -n 1)
+          # Stream topology.json through jq, find the first team where USER matches any of the members, pm, em or tl fields, and emit its githubLabel.name value.
+          team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/topology.json' | jq -r --arg USER "$USER" '.[] | select((.members // []) | index($USER) or (.pm // empty) == $USER or (.em // empty) == $USER or (.tl // empty) == $USER) | .githubLabel.name' | head -n 1)
           if [ -z "$team_label" ]; then
             echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update topology.json at https://github.com/MetaMask/MetaMask-planning/blob/main/topology.json"
             exit 1
