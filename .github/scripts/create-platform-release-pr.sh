@@ -271,13 +271,63 @@ create_release_pr() {
     fi
 
     # Prepare release PR body with team sign-off checklist
-    local release_body="This is the release candidate for version ${new_version}. The changelog will be found in another PR ${changelog_branch_name}.
+    local release_body="# 🚀 v${new_version} Testing & Release Quality Process
 
-  # Team sign-off checklist
-  - [ ] ${platform_team_name}
+Hi Team,  
+As part of our new **MetaMask Release Quality Process**, here’s a quick overview of the key processes, testing strategies, and milestones to ensure a smooth and high-quality deployment.
 
-  # Reference
-  - Testing plan sheet - https://docs.google.com/spreadsheets/d/1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ/edit?gid=404070372#gid=404070372"
+---
+
+## 📋 Key Processes
+
+### Testing Strategy
+- **Developer Teams:**  
+  Conduct regression and exploratory testing for your functional areas, including automated and manual tests for critical workflows.  
+- **QA Team:**  
+  Focus on exploratory testing across the wallet, prioritize high-impact areas, and triage any Sentry errors found during testing.  
+- **Customer Success Team:**  
+  Validate new functionalities and provide feedback to support release monitoring.
+
+### GitHub Signoff
+- Each team must **sign off on the Release Candidate (RC)** via GitHub by the end of the validation timeline (**Tuesday EOD PT**).  
+- Ensure all tests outlined in the Testing Plan are executed, and any identified issues are addressed.
+
+### Issue Resolution
+- **Resolve all Release Blockers** (Sev0 and Sev1) by **Tuesday EOD PT**.  
+- For unresolved blockers, PRs may be reverted, or feature flags disabled to maintain release quality and timelines.
+
+### Cherry-Picking Criteria
+- Only **critical fixes** meeting outlined criteria will be cherry-picked.  
+- Developers must ensure these fixes are thoroughly reviewed, tested, and merged by **Tuesday EOD PT**.
+
+---
+
+## 🗓️ Timeline and Milestones
+
+1. **Today (Friday):** Begin Release Candidate validation.  
+2. **Tuesday EOD PT:** Finalize RC with all fixes and cherry-picks.  
+3. **Wednesday:** Buffer day for final checks.  
+4. **Thursday:** Submit release to app stores and begin rollout to 1% of users.  
+5. **Monday:** Scale deployment to 10%.  
+6. **Tuesday:** Full rollout to 100%.
+
+---
+
+## ✅ Signoff Checklist
+
+Each team is responsible for signing off via GitHub. Use the checkbox below to track signoff completion:
+
+# Team sign-off checklist
+- [ ] ${platform_team_name}
+
+This process is a major step forward in ensuring release stability and quality. Let’s stay aligned and make this release a success! 🚀  
+
+Feel free to reach out if you have questions or need clarification. 
+
+Many thanks in advance
+
+# Reference
+- Testing plan sheet - https://docs.google.com/spreadsheets/d/1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ/edit?gid=404070372#gid=404070372"
 
     # Push and create PR using helper functions
     push_branch_with_handling "${release_branch_name}"
