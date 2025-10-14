@@ -63,6 +63,7 @@ jobs:
 
       # Step 4: Update changelog using shared helper script
       - name: Update changelog branch
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.github-token }}
           GIT_AUTHOR_NAME: metamaskbot
@@ -73,7 +74,7 @@ jobs:
           corepack enable
           yarn install --immutable
 
-          bash .github/scripts/update-release-changelog.sh \
+          ./github-tools/.github/scripts/update-release-changelog.sh \
             "${{ inputs.release-branch }}" \
             "${{ inputs.platform }}" \
             "${{ inputs.repository-url }}" \
