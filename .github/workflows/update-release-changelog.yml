@@ -39,42 +39,41 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
       - name: Checkout invoking repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ inputs.release-branch }}
-          path: repo
+          token: ${{ secrets.github-token }}
 
+      # Step 2: Checkout github-tools repository
       - name: Checkout github-tools repository
         uses: actions/checkout@v4
         with:
           repository: MetaMask/github-tools
           ref: ${{ inputs.github-tools-version }}
-          path: repo/github-tools
+          path: github-tools
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      # Step 3: Setup environment from github-tools
+      - name: Checkout and setup environment
+        uses: ./github-tools/.github/actions/checkout-and-setup
         with:
-          node-version: '18'
+          is-high-risk-environment: true
 
-      - name: Install dependencies
-        working-directory: repo
-        run: |
-          set -euo pipefail
-          corepack enable
-          yarn install --immutable
-
+      # Step 4: Update changelog using shared helper script
       - name: Update changelog branch
         env:
           GH_TOKEN: ${{ secrets.github-token }}
           GIT_AUTHOR_NAME: metamaskbot
           GIT_AUTHOR_EMAIL: metamaskbot@users.noreply.github.com
-        working-directory: repo
         run: |
           set -euo pipefail
 
-          bash github-tools/.github/scripts/update-release-changelog.sh \
+          corepack enable
+          yarn install --immutable
+
+          bash .github/scripts/update-release-changelog.sh \
             "${{ inputs.release-branch }}" \
             "${{ inputs.platform }}" \
             "${{ inputs.repository-url }}" \
