@@ -1,0 +1,82 @@
+name: Update Release Changelog
+
+on:
+  workflow_call:
+    inputs:
+      release-branch:
+        required: true
+        type: string
+        description: 'Release branch name (e.g., Version-v13.3.0 or release/6.20.0).'
+      platform:
+        required: false
+        type: string
+        default: 'extension'
+        description: 'Target platform (extension | mobile). Defaults to extension.'
+      repository-url:
+        required: true
+        type: string
+        description: 'Full HTTPS URL for the invoking repository.'
+      previous-version-ref:
+        required: false
+        type: string
+        default: 'null'
+        description: 'Previous release version reference (branch/tag/SHA). Use "null" for hotfixes.'
+      github-tools-version:
+        required: false
+        type: string
+        default: 'main'
+        description: 'Version of github-tools to use (branch, tag, or SHA).'
+    secrets:
+      github-token:
+        required: true
+        description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+
+jobs:
+  update-changelog:
+    name: Update release changelog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout invoking repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release-branch }}
+          path: repo
+
+      - name: Checkout github-tools repository
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/github-tools
+          ref: ${{ inputs.github-tools-version }}
+          path: repo/github-tools
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          corepack enable
+          yarn install --immutable
+
+      - name: Update changelog branch
+        env:
+          GH_TOKEN: ${{ secrets.github-token }}
+          GIT_AUTHOR_NAME: metamaskbot
+          GIT_AUTHOR_EMAIL: metamaskbot@users.noreply.github.com
+        working-directory: repo
+        run: |
+          set -euo pipefail
+
+          bash github-tools/.github/scripts/update-release-changelog.sh \
+            "${{ inputs.release-branch }}" \
+            "${{ inputs.platform }}" \
+            "${{ inputs.repository-url }}" \
+            "${{ inputs.previous-version-ref }}"
+
