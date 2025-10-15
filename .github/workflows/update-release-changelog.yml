@@ -65,6 +65,7 @@ jobs:
       - name: Update changelog branch
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
           GH_TOKEN: ${{ secrets.github-token }}
           GIT_AUTHOR_NAME: metamaskbot
           GIT_AUTHOR_EMAIL: metamaskbot@users.noreply.github.com
