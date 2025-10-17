@@ -5,7 +5,7 @@
 # so it can run standalone (e.g. from automation) without sourcing the original script.
 #
 # Required arguments:
-#   1. release_branch      - Name of the release branch (e.g., Version-v13.3.0, release/6.20.0)
+#   1. release_branch      - Name of the release branch (e.g., release/6.20.0)
 #   2. platform            - Target platform (extension | mobile). Defaults to extension if empty.
 #   3. repository_url      - Full HTTPS URL for the invoking repository.
 #
@@ -152,45 +152,6 @@ determine_changelog_branch() {
     fi
 }
 
-generate_commits_csv_if_needed() {
-    # Reproduce the release automation behaviour: for non-hotfix releases,
-    # generate commits.csv using the github-tools helper so QA sheets can be
-    # produced; skip entirely for hotfixes.
-    local platform="$1"
-    local previous_version_ref="$2"
-    local release_branch="$3"
-
-    if [[ "${previous_version_ref,,}" == "null" ]]; then
-        echo "Hotfix release detected (previous-version-ref is 'null'); skipping commits.csv generation."
-        return 0
-    fi
-
-    local project_git_dir
-    project_git_dir=$(pwd)
-
-    local diff_base="${previous_version_ref}"
-    if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "Previous version looks like a release branch: ${previous_version_ref}"
-        if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
-            echo "Detected remote branch for previous version: ${previous_version_ref}"
-            git fetch origin "${previous_version_ref}"
-            diff_base="origin/${previous_version_ref}"
-        else
-            echo "Remote branch not found on origin: ${previous_version_ref}. Will use as-is."
-        fi
-    else
-        echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
-    fi
-
-    pushd ./github-tools/ > /dev/null
-    ls -ltra
-    corepack prepare yarn@4.5.1 --activate
-    yarn --cwd install
-
-    echo "Generating test plan csv.."
-    yarn run gen:commits "${platform}" "${diff_base}" "${release_branch}" "${project_git_dir}"
-    popd > /dev/null
-}
 
 commit_and_push_changelog() {
     # Commit changelog updates (with the same messaging as the release script),
@@ -221,10 +182,8 @@ commit_and_push_changelog() {
 
 # -----------------------------------------------------------------
 
-# Derive the semantic version from the branch naming convention.
-if [[ "${RELEASE_BRANCH}" =~ ^Version-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  VERSION="${BASH_REMATCH[1]}"
-elif [[ "${RELEASE_BRANCH}" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+# Derive the semantic version from the branch naming convention (release/x.y.z only).
+if [[ "${RELEASE_BRANCH}" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   VERSION="${BASH_REMATCH[1]}"
 else
   echo "Release branch '${RELEASE_BRANCH}' does not match known patterns." >&2
@@ -247,7 +206,7 @@ else
     npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize
 fi
 
-generate_commits_csv_if_needed "${PLATFORM}" "${PREVIOUS_VERSION_REF}" "${RELEASE_BRANCH}"
+# commits.csv generation removed (no longer required)
 
 commit_and_push_changelog "${VERSION}" "${PREVIOUS_VERSION_REF}" "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
