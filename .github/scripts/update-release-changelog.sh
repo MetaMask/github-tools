@@ -14,7 +14,7 @@
 #                             so that commits.csv generation is skipped, matching hotfix behaviour.
 #
 # Environment (optional):
-#   GH_TOKEN             - Token for GitHub CLI operations (falls back to gh auth config)
+#   GITHUB_TOKEN         - Token for GitHub CLI operations (falls back to gh auth config)
 #   GIT_AUTHOR_NAME      - Commit author name (defaults to metamaskbot)
 #   GIT_AUTHOR_EMAIL     - Commit author email (defaults to metamaskbot@users.noreply.github.com)
 #   TEST_ONLY            - When set to "true" the helper mirrors release automation test mode.
@@ -187,7 +187,7 @@ if [[ "${RELEASE_BRANCH}" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   VERSION="${BASH_REMATCH[1]}"
 else
   echo "Release branch '${RELEASE_BRANCH}' does not match known patterns." >&2
-  exit 0
+  exit 1
 fi
 
 GITHUB_REPOSITORY_URL="${REPOSITORY_URL}"
