@@ -20,7 +20,7 @@ const env = {
   SLACK_WEBHOOK_FLAKY_TESTS: process.env.SLACK_WEBHOOK_FLAKY_TESTS || '',
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
     ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
-    : ['test-e2e-android-report', 'test-e2e-ios-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
+    : ['e2e-android-json-report', 'e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
 };
 
 function getDateRange() {
