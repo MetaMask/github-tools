@@ -119,6 +119,18 @@ runs:
     - name: Install required emulator dependencies
       if: ${{ inputs.platform == 'android' && runner.os == 'Linux' }}
       run: |
+        # Remove problematic apt.fury.io repository if it exists
+        if [ -f /etc/apt/sources.list.d/cirruslabs.list ]; then
+          sudo rm /etc/apt/sources.list.d/cirruslabs.list
+        fi
+        # Also check for any other cirruslabs-related files
+        for file in /etc/apt/sources.list.d/*cirruslabs*; do
+          if [ -f "$file" ]; then
+            echo "Removing $file"
+            sudo rm "$file"
+          fi
+        done
+        # Update package lists
         sudo apt-get update
         sudo apt-get install -y \
           libpulse0 \
