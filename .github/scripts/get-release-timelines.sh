@@ -29,8 +29,8 @@ release_timelines_filename="release-timelines-${VERSION}.csv"
 
 echo "release_pr_merged_at,release_submitted_at,rollout_1_at,rollout_10_at,rollout_100_at,issue_created_at,last_team_assigned_at,triage_completed_at,bugfix_pr_created_at,bugfix_pr_merged_at,cherry_pick_pr_created_at,cherry_pick_pr_merged_at" > "${release_timelines_filename}"
 
-release_branch="Version-v${VERSION}"
-release_pr_title="Version v${VERSION}"
+release_branch="release/${VERSION}"
+release_pr_title="release: ${VERSION}"
 
 release_pr=$(gh pr list --repo "${OWNER}/${REPOSITORY}" --head "${release_branch}" --base stable --state merged --json title,mergedAt | jq --arg title "${release_pr_title}" '.[] | select(.title == $title)')
 release_pr_merged_at=$(echo "${release_pr}" | jq -r '.mergedAt')
