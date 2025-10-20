@@ -351,7 +351,7 @@ create_changelog_pr() {
         yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
     else
         echo "Generating changelog for mobile via yarn auto-changelog.."
-        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
+        npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize
     fi
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
