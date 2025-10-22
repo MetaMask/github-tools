@@ -12,7 +12,7 @@ if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 const env = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
-  TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'json-test-report',
+  TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
   OWNER: process.env.OWNER || 'MetaMask',
   REPOSITORY: process.env.REPOSITORY || 'metamask-mobile',
   WORKFLOW_ID: process.env.WORKFLOW_ID || 'ci.yml',
@@ -20,7 +20,7 @@ const env = {
   SLACK_WEBHOOK_FLAKY_TESTS: process.env.SLACK_WEBHOOK_FLAKY_TESTS || '',
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
     ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
-    : ['e2e-android-json-report', 'e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
+    : ['test-e2e-android-json-report', 'test-e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
 };
 
 function getDateRange() {
