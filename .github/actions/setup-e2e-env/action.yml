@@ -89,6 +89,13 @@ runs:
     - run: echo "Setup E2E Environment started"
       shell: bash
 
+    # Set user path for Bitrise vagrant user
+    - name: Set user paths for Bitrise runner
+      run: |
+        echo "USER_HOME=/Users/vagrant" >> "$GITHUB_ENV"
+        echo "Using hardcoded vagrant user path: /Users/vagrant"
+      shell: bash
+
     ## Android Setup (early for fail-fast) ##
 
     # Set Android environment variables (self-hosted runner has SDK pre-installed)
@@ -146,8 +153,8 @@ runs:
       if: ${{ inputs.platform == 'android'}}
       shell: bash
       run: |
-        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
-        mkdir -p "$HOME/.android/avd"
+        echo "ANDROID_AVD_HOME=$USER_HOME/.android/avd" >> "$GITHUB_ENV"
+        mkdir -p "$USER_HOME/.android/avd"
 
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
@@ -223,7 +230,7 @@ runs:
       run: |
         echo "Installing Foundry via foundryup..."
 
-        export FOUNDRY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/.foundry"
+        export FOUNDRY_DIR="${XDG_CONFIG_HOME:-$USER_HOME/.config}/.foundry"
         export FOUNDRY_BIN="$FOUNDRY_DIR/bin"
 
         mkdir -p "$FOUNDRY_BIN"
