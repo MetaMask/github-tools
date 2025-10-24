@@ -44,7 +44,7 @@ inputs:
   foundry-version:
     description: Foundry version to install
     required: false
-    default: 'v1.2.3'
+    default: 'v0.3.0'
   android-avd-name:
     description: 'Name of AVD to create and boot (for Android)'
     required: false
@@ -228,7 +228,7 @@ runs:
 
         mkdir -p "$FOUNDRY_BIN"
 
-        curl -sL https://raw.githubusercontent.com/foundry-rs/foundry/master/foundryup/foundryup -o "$FOUNDRY_BIN/foundryup"
+        curl -sL https://raw.githubusercontent.com/foundry-rs/foundry/${{ inputs.foundry-version }}/foundryup/foundryup -o "$FOUNDRY_BIN/foundryup"
         chmod +x "$FOUNDRY_BIN/foundryup"
 
         echo "$FOUNDRY_BIN" >> "$GITHUB_PATH"
