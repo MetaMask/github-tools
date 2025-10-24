@@ -228,7 +228,7 @@ runs:
 
         mkdir -p "$FOUNDRY_BIN"
 
-        curl -sL https://raw.githubusercontent.com/foundry-rs/foundry/${{ inputs.foundry-version }}/foundryup/foundryup -o "$FOUNDRY_BIN/foundryup"
+        curl -sL https://raw.githubusercontent.com/foundry-rs/foundry/master/foundryup/foundryup -o "$FOUNDRY_BIN/foundryup"
         chmod +x "$FOUNDRY_BIN/foundryup"
 
         echo "$FOUNDRY_BIN" >> "$GITHUB_PATH"
