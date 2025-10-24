@@ -256,6 +256,17 @@ runs:
       run: |
         # Use system Ruby instead of ruby/setup-ruby action to avoid permission issues
         echo "Using system Ruby for vagrant user"
+        
+        # Check if rbenv is being used and install required Ruby version
+        if command -v rbenv &> /dev/null; then
+          echo "rbenv detected, installing Ruby ${{ inputs.ruby-version }}"
+          # Install the required Ruby version if not already installed
+          rbenv install -s ${{ inputs.ruby-version }}
+          rbenv global ${{ inputs.ruby-version }}
+          # Reload rbenv
+          eval "$(rbenv init -)"
+        fi
+        
         ruby --version
         gem --version
         # Install bundler globally
