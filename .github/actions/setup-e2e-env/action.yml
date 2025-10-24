@@ -357,7 +357,32 @@ runs:
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
-      run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
+      run: |
+        # Check available Xcode versions
+        echo "Available Xcode versions:"
+        ls -la /Applications/ | grep -i xcode || echo "No Xcode apps found in /Applications/"
+        
+        # Try to find the correct Xcode path
+        REQUESTED_VERSION="${{ inputs.xcode-version }}"
+        if [ -d "/Applications/Xcode_${REQUESTED_VERSION}.app" ]; then
+          XCODE_PATH="/Applications/Xcode_${REQUESTED_VERSION}.app"
+        elif [ -d "/Applications/Xcode.app" ]; then
+          XCODE_PATH="/Applications/Xcode.app"
+          echo "Using default Xcode.app since Xcode_${REQUESTED_VERSION}.app not found"
+        else
+          # Find any available Xcode version
+          XCODE_PATH=$(find /Applications -name "Xcode*.app" -type d | head -1)
+          if [ -n "$XCODE_PATH" ]; then
+            echo "Using available Xcode: $XCODE_PATH"
+          else
+            echo "No Xcode installation found"
+            exit 1
+          fi
+        fi
+        
+        echo "Setting Xcode path to: $XCODE_PATH"
+        sudo xcode-select -s "$XCODE_PATH"
+        xcode-select -p
       shell: bash
 
     # Restore CocoaPods cache
