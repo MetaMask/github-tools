@@ -257,19 +257,23 @@ runs:
         # Use system Ruby instead of ruby/setup-ruby action to avoid permission issues
         echo "Using system Ruby for vagrant user"
         
-        # Check if rbenv is being used and install required Ruby version
+        # Check if rbenv is being used and set Ruby version
         if command -v rbenv &> /dev/null; then
-          echo "rbenv detected, installing Ruby ${{ inputs.ruby-version }}"
-          # Use full version number for rbenv install
-          RUBY_FULL_VERSION="${{ inputs.ruby-version }}"
-          # If version is just "3.1", use latest patch version
-          if [ "$RUBY_FULL_VERSION" = "3.1" ]; then
-            RUBY_FULL_VERSION="3.1.7"
+          echo "rbenv detected, checking available Ruby versions"
+          rbenv versions
+          
+          # Map requested version to available version on Bitrise stack
+          REQUESTED_VERSION="${{ inputs.ruby-version }}"
+          if [ "$REQUESTED_VERSION" = "3.1" ]; then
+            # Ruby 3.1 not available on Bitrise, use Ruby 3.2 (closest available)
+            RUBY_VERSION="3.2"
+            echo "Ruby 3.1 not available, using Ruby 3.2 instead"
+          else
+            RUBY_VERSION="$REQUESTED_VERSION"
           fi
-          echo "Installing Ruby version: $RUBY_FULL_VERSION"
-          # Install the required Ruby version if not already installed
-          rbenv install -s "$RUBY_FULL_VERSION"
-          rbenv global "$RUBY_FULL_VERSION"
+          
+          echo "Setting Ruby version to: $RUBY_VERSION"
+          rbenv global "$RUBY_VERSION"
           # Reload rbenv
           eval "$(rbenv init -)"
         fi
