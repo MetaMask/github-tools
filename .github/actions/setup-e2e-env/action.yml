@@ -94,6 +94,11 @@ runs:
       run: |
         echo "USER_HOME=/Users/vagrant" >> "$GITHUB_ENV"
         echo "HOME=/Users/vagrant" >> "$GITHUB_ENV"
+        echo "RUNNER_TOOL_CACHE=/Users/vagrant/hostedtoolcache" >> "$GITHUB_ENV"
+        echo "RUNNER_TEMP=/Users/vagrant/tmp" >> "$GITHUB_ENV"
+        # Create the directories if they don't exist
+        mkdir -p /Users/vagrant/hostedtoolcache
+        mkdir -p /Users/vagrant/tmp
         echo "Using hardcoded vagrant user path: /Users/vagrant"
       shell: bash
 
