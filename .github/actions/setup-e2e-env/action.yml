@@ -251,18 +251,18 @@ runs:
     ## IOS Setup ##
 
     ## Ruby Setup & Cache Management
-    - name: Setup Ruby
+    - name: Setup Ruby (use system Ruby for vagrant user)
       if: ${{ inputs.platform == 'ios' }}
-      uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
-      with:
-        ruby-version: ${{ inputs.ruby-version }}
-
-    # Install Bundler first
-    - name: Install bundler
-      if: ${{ inputs.platform == 'ios' }}
-      run: gem install bundler -v ${{ inputs.bundler-version }}
-      working-directory: ios
+      run: |
+        # Use system Ruby instead of ruby/setup-ruby action to avoid permission issues
+        echo "Using system Ruby for vagrant user"
+        ruby --version
+        gem --version
+        # Install bundler globally
+        gem install bundler -v ${{ inputs.bundler-version }}
       shell: bash
+
+    # Install Bundler first (now handled in Ruby setup step above)
 
     # Restore cached Ruby gems
     - name: Restore Bundler cache
@@ -291,7 +291,6 @@ runs:
     - name: Generate binstubs for CocoaPods
       if: ${{ inputs.platform == 'ios' }}
       run: bundle binstubs cocoapods --force --path=vendor/bundle/bin
-
       working-directory: ios
       shell: bash
 
