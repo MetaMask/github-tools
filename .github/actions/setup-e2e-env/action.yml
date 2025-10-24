@@ -282,6 +282,12 @@ runs:
           fi
           
           echo "Setting Ruby version to: $RUBY_VERSION"
+          # Remove any local .ruby-version file that might conflict
+          if [ -f ".ruby-version" ]; then
+            echo "Found .ruby-version file, backing it up and updating it"
+            cp .ruby-version .ruby-version.backup
+            echo "$RUBY_VERSION" > .ruby-version
+          fi
           rbenv global "$RUBY_VERSION"
           # Reload rbenv
           eval "$(rbenv init -)"
