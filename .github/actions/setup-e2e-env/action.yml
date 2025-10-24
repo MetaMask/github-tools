@@ -93,6 +93,7 @@ runs:
     - name: Set user paths for Bitrise runner
       run: |
         echo "USER_HOME=/Users/vagrant" >> "$GITHUB_ENV"
+        echo "HOME=/Users/vagrant" >> "$GITHUB_ENV"
         echo "Using hardcoded vagrant user path: /Users/vagrant"
       shell: bash
 
