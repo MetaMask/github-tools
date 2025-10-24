@@ -89,6 +89,19 @@ runs:
     - run: echo "Setup E2E Environment started"
       shell: bash
 
+    # Set user path for Bitrise vagrant user
+    - name: Set user paths for Bitrise runner
+      run: |
+        echo "USER_HOME=/Users/vagrant" >> "$GITHUB_ENV"
+        echo "HOME=/Users/vagrant" >> "$GITHUB_ENV"
+        echo "RUNNER_TOOL_CACHE=/Users/vagrant/hostedtoolcache" >> "$GITHUB_ENV"
+        echo "RUNNER_TEMP=/Users/vagrant/tmp" >> "$GITHUB_ENV"
+        # Create the directories if they don't exist
+        mkdir -p /Users/vagrant/hostedtoolcache
+        mkdir -p /Users/vagrant/tmp
+        echo "Using hardcoded vagrant user path: /Users/vagrant"
+      shell: bash
+
     ## Android Setup (early for fail-fast) ##
 
     # Set Android environment variables (self-hosted runner has SDK pre-installed)
@@ -146,8 +159,8 @@ runs:
       if: ${{ inputs.platform == 'android'}}
       shell: bash
       run: |
-        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
-        mkdir -p "$HOME/.android/avd"
+        echo "ANDROID_AVD_HOME=$USER_HOME/.android/avd" >> "$GITHUB_ENV"
+        mkdir -p "$USER_HOME/.android/avd"
 
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
@@ -223,7 +236,7 @@ runs:
       run: |
         echo "Installing Foundry via foundryup..."
 
-        export FOUNDRY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/.foundry"
+        export FOUNDRY_DIR="${XDG_CONFIG_HOME:-$USER_HOME/.config}/.foundry"
         export FOUNDRY_BIN="$FOUNDRY_DIR/bin"
 
         mkdir -p "$FOUNDRY_BIN"
@@ -238,18 +251,55 @@ runs:
     ## IOS Setup ##
 
     ## Ruby Setup & Cache Management
-    - name: Setup Ruby
+    - name: Setup Ruby (use system Ruby for vagrant user)
       if: ${{ inputs.platform == 'ios' }}
-      uses: ruby/setup-ruby@a4effe49ee8ee5b8b5091268c473a4628afb5651
-      with:
-        ruby-version: ${{ inputs.ruby-version }}
-
-    # Install Bundler first
-    - name: Install bundler
-      if: ${{ inputs.platform == 'ios' }}
-      run: gem install bundler -v ${{ inputs.bundler-version }}
-      working-directory: ios
+      run: |
+        # Use system Ruby instead of ruby/setup-ruby action to avoid permission issues
+        echo "Using system Ruby for vagrant user"
+        
+        # Check if rbenv is being used and set Ruby version
+        if command -v rbenv &> /dev/null; then
+          echo "rbenv detected, checking available Ruby versions"
+          rbenv versions
+          
+          # Map requested version to available version on Bitrise stack
+          REQUESTED_VERSION="${{ inputs.ruby-version }}"
+          if [ "$REQUESTED_VERSION" = "3.1" ]; then
+            # Use the available 3.1.7 version
+            RUBY_VERSION="3.1.7"
+            echo "Using available Ruby 3.1.7"
+          elif [ "$REQUESTED_VERSION" = "3.2" ]; then
+            RUBY_VERSION="3.2.9"
+            echo "Using available Ruby 3.2.9"
+          elif [ "$REQUESTED_VERSION" = "3.3" ]; then
+            RUBY_VERSION="3.3.9"
+            echo "Using available Ruby 3.3.9"
+          elif [ "$REQUESTED_VERSION" = "3.4" ]; then
+            RUBY_VERSION="3.4.5"
+            echo "Using available Ruby 3.4.5"
+          else
+            RUBY_VERSION="$REQUESTED_VERSION"
+          fi
+          
+          echo "Setting Ruby version to: $RUBY_VERSION"
+          # Remove any local .ruby-version file that might conflict
+          if [ -f ".ruby-version" ]; then
+            echo "Found .ruby-version file, backing it up and updating it"
+            cp .ruby-version .ruby-version.backup
+            echo "$RUBY_VERSION" > .ruby-version
+          fi
+          rbenv global "$RUBY_VERSION"
+          # Reload rbenv
+          eval "$(rbenv init -)"
+        fi
+        
+        ruby --version
+        gem --version
+        # Install bundler globally
+        gem install bundler -v ${{ inputs.bundler-version }}
       shell: bash
+
+    # Install Bundler first (now handled in Ruby setup step above)
 
     # Restore cached Ruby gems
     - name: Restore Bundler cache
@@ -278,7 +328,6 @@ runs:
     - name: Generate binstubs for CocoaPods
       if: ${{ inputs.platform == 'ios' }}
       run: bundle binstubs cocoapods --force --path=vendor/bundle/bin
-
       working-directory: ios
       shell: bash
 
@@ -308,7 +357,32 @@ runs:
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
-      run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
+      run: |
+        # Check available Xcode versions
+        echo "Available Xcode versions:"
+        ls -la /Applications/ | grep -i xcode || echo "No Xcode apps found in /Applications/"
+        
+        # Try to find the correct Xcode path
+        REQUESTED_VERSION="${{ inputs.xcode-version }}"
+        if [ -d "/Applications/Xcode_${REQUESTED_VERSION}.app" ]; then
+          XCODE_PATH="/Applications/Xcode_${REQUESTED_VERSION}.app"
+        elif [ -d "/Applications/Xcode.app" ]; then
+          XCODE_PATH="/Applications/Xcode.app"
+          echo "Using default Xcode.app since Xcode_${REQUESTED_VERSION}.app not found"
+        else
+          # Find any available Xcode version
+          XCODE_PATH=$(find /Applications -name "Xcode*.app" -type d | head -1)
+          if [ -n "$XCODE_PATH" ]; then
+            echo "Using available Xcode: $XCODE_PATH"
+          else
+            echo "No Xcode installation found"
+            exit 1
+          fi
+        fi
+        
+        echo "Setting Xcode path to: $XCODE_PATH"
+        sudo xcode-select -s "$XCODE_PATH"
+        xcode-select -p
       shell: bash
 
     # Restore CocoaPods cache
