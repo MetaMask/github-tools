@@ -66,7 +66,7 @@ function headerRowFor(type) {
     'Merged Time (UTC)',
     'Author',
     'PR Size',
-    'Auto Tests',
+    'Tests changes?',
     'Team Responsible',
     colG,
     colH,
@@ -88,10 +88,23 @@ async function ensureSheetExists(authClient, title, platformType) {
   });
 
   const sheetsList = meta.data.sheets || [];
-  const existing = sheetsList.find((s) => s.properties?.title === title);
-  if (existing) return { sheetId: existing.properties.sheetId, isNew: false };
 
-  return createSheetFromTemplateOrBlank(authClient, sheetsList, title, platformType);
+  // First, try to find the exact title (with "pre-" prefix)
+  let existing = sheetsList.find((s) => s.properties?.title === title);
+  if (existing) return { sheetId: existing.properties.sheetId, actualTitle: title, isNew: false };
+
+  // If not found and title starts with "pre-", try without the "pre-" prefix
+  if (title.startsWith('pre-')) {
+    const titleWithoutPrefix = title.replace(/^pre-/, '');
+    existing = sheetsList.find((s) => s.properties?.title === titleWithoutPrefix);
+    if (existing) {
+      console.log(`Found renamed tab: "${titleWithoutPrefix}" (originally looking for "${title}")`);
+      return { sheetId: existing.properties.sheetId, actualTitle: titleWithoutPrefix, isNew: false };
+    }
+  }
+
+  const result = await createSheetFromTemplateOrBlank(authClient, sheetsList, title, platformType);
+  return { ...result, actualTitle: title };
 }
 
 async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, platformType) {
@@ -127,7 +140,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A2:I2`,
+      range: `${title}!A2:H2`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headerRowFor(platformType)] },
     });
@@ -183,7 +196,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A2:I2`,
+    range: `${title}!A2:H2`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
@@ -210,7 +223,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:I`,
+      range: `${title}!A3:H`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -224,7 +237,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:I`,
+    range: `${title}!A4:H`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -535,7 +548,6 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
         extractTeam(pr.labels || []),
         '',
         '',
-        '',
       ];
       tabToRows.get(title).entries.push({ row, mergedAtIso: pr.closed_at || '' });
     }
@@ -660,9 +672,9 @@ async function checkAutomatedTestFiles(owner, repo, prNumber) {
 }
 
 async function processTab(authClient, title, entries, platformType) {
-  const { sheetId, isNew } = await ensureSheetExists(authClient, title, platformType);
-  const existing = await readRows(authClient, title);
-  console.log(`Tab=${title} existingRows=${existing.length}, incomingRows=${entries.length}`);
+  const { sheetId, actualTitle, isNew } = await ensureSheetExists(authClient, title, platformType);
+  const existing = await readRows(authClient, actualTitle);
+  console.log(`Tab=${actualTitle} existingRows=${existing.length}, incomingRows=${entries.length}`);
   const existingKeys = new Set(
     existing
       .map((r) => parsePrNumberFromCell(r[0]))
@@ -682,10 +694,10 @@ async function processTab(authClient, title, entries, platformType) {
       if (key) existingKeys.add(key);
     }
   }
-  console.log(`Tab=${title} toInsertAfterDedup=${deduped.length}`);
+  console.log(`Tab=${actualTitle} toInsertAfterDedup=${deduped.length}`);
   let inserted = 0;
   if (deduped.length) {
-    await appendRows(authClient, title, deduped);
+    await appendRows(authClient, actualTitle, deduped);
     inserted += deduped.length;
   }
   if (isNew) {
