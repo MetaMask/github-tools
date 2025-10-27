@@ -233,7 +233,7 @@ runs:
 
         echo "$FOUNDRY_BIN" >> "$GITHUB_PATH"
 
-        "$FOUNDRY_BIN/foundryup" -i '${{ inputs.foundry-version }}'
+        "$FOUNDRY_BIN/foundryup" -i "${{ inputs.foundry-version }}"
 
     ## IOS Setup ##
 
