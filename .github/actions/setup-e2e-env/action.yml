@@ -44,7 +44,7 @@ inputs:
   foundry-version:
     description: Foundry version to install
     required: false
-    default: 'v1.2.3'
+    default: 'v0.3.0'
   android-avd-name:
     description: 'Name of AVD to create and boot (for Android)'
     required: false
@@ -233,7 +233,7 @@ runs:
 
         echo "$FOUNDRY_BIN" >> "$GITHUB_PATH"
 
-        "$FOUNDRY_BIN/foundryup"
+        "$FOUNDRY_BIN/foundryup" -i "${{ inputs.foundry-version }}"
 
     ## IOS Setup ##
 
