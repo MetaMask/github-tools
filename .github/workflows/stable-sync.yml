@@ -132,7 +132,7 @@ jobs:
       - name: Create Pull Request
         if: steps.check-pr.outputs.result != 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GITHUB_TOKEN: ${{ secrets.PR_TOKEN }}
           BRANCH_NAME: stable-main-${{ inputs.semver-version }}
           VERSION: ${{ inputs.semver-version }}
         run: |
