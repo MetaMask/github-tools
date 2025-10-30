@@ -130,7 +130,22 @@ jobs:
           fi
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            git pull --rebase --strategy-option=theirs
+            # Configure git to ignore submodules during operations
+            git config submodule.recurse false
+            git config diff.ignoreSubmodules all
+            
+            # Start the rebase
+            if ! git pull --rebase --strategy-option=theirs --no-recurse-submodules; then
+              echo "Rebase had conflicts, attempting to resolve..."
+              # If rebase failed, likely due to submodule conflict
+              # Remove github-tools and mark as resolved
+              rm -rf github-tools
+              git rm -rf --cached github-tools 2>/dev/null || true
+              git add -A
+              # Continue the rebase
+              git rebase --continue || true
+            fi
+            
             # Remove github-tools again after rebase in case it was reintroduced
             rm -rf github-tools
             git rm -rf --cached github-tools 2>/dev/null || true
