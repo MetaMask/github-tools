@@ -119,9 +119,15 @@ jobs:
           # Check if branch exists remotely
           echo "Cleaning up github-tools"
           rm -rf github-tools
+          # Ensure github-tools is not staged or tracked
+          git rm -rf --cached github-tools 2>/dev/null || true
+          git clean -fd github-tools 2>/dev/null || true
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             git pull --rebase
+            # Remove github-tools again after rebase in case it was reintroduced
+            rm -rf github-tools
+            git rm -rf --cached github-tools 2>/dev/null || true
             echo "Branch $BRANCH_NAME exists remotely, pushing normally"
             git push origin "$BRANCH_NAME" --force
           else

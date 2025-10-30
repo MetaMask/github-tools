@@ -101,15 +101,10 @@ async function runGitCommands() {
     // Execute extension-specific commands if REPO is 'extension'
     else if (process.env.REPO === 'extension') {
       console.log('Executing extension-specific commands...');
-
-      const { stdout: packageJsonContent } = await exec(
-        `git show origin/${baseBranch}:package.json`,
-      );
-      const packageJson = JSON.parse(packageJsonContent);
-      const packageVersion = packageJson.version;
-
-      await exec(`yarn version "${packageVersion}"`);
-      console.log('Executed: yarn version');
+      
+      // Preserve package.json from stable branch (no version bump)
+      await exec(`git checkout origin/${baseBranch} -- package.json`);
+      console.log(`Executed: git checkout origin/${baseBranch} -- package.json`);
     }
     // If REPO is not set or has an invalid value, skip both
     else {
