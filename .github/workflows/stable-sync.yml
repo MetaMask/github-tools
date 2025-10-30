@@ -122,12 +122,22 @@ jobs:
           # Ensure github-tools is not staged or tracked
           git rm -rf --cached github-tools 2>/dev/null || true
           git clean -fd github-tools 2>/dev/null || true
+          # Commit the removal if it's staged
+          if git diff --cached --quiet; then
+            echo "No staged changes for github-tools"
+          else
+            git commit -m "Remove github-tools directory" --no-verify || true
+          fi
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            git pull --rebase
+            git pull --rebase --strategy-option=theirs
             # Remove github-tools again after rebase in case it was reintroduced
             rm -rf github-tools
             git rm -rf --cached github-tools 2>/dev/null || true
+            # Amend the commit if github-tools reappeared
+            if ! git diff --cached --quiet; then
+              git commit --amend --no-edit --no-verify || true
+            fi
             echo "Branch $BRANCH_NAME exists remotely, pushing normally"
             git push origin "$BRANCH_NAME" --force
           else
