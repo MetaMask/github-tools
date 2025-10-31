@@ -114,46 +114,17 @@ jobs:
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
         run: |
+          # Ensure github-tools is in .gitignore to prevent it from being committed
+          if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
+            echo "github-tools/" >> .gitignore
+            echo "Added github-tools/ to .gitignore"
+          fi
+          
           # Execute the script from github-tools
           node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
-          # Check if branch exists remotely
-          echo "Cleaning up github-tools"
-          rm -rf github-tools
-          # Ensure github-tools is not staged or tracked
-          git rm -rf --cached github-tools 2>/dev/null || true
-          git clean -fd github-tools 2>/dev/null || true
-          # Commit the removal if it's staged
-          if git diff --cached --quiet; then
-            echo "No staged changes for github-tools"
-          else
-            git commit -m "Remove github-tools directory" --no-verify || true
-          fi
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            # Configure git to ignore submodules during operations
-            git config submodule.recurse false
-            git config diff.ignoreSubmodules all
-            
-            # Start the rebase
-            if ! git pull --rebase --strategy-option=theirs --no-recurse-submodules; then
-              echo "Rebase had conflicts, attempting to resolve..."
-              # If rebase failed, likely due to submodule conflict
-              # Remove github-tools and mark as resolved
-              rm -rf github-tools
-              git rm -rf --cached github-tools 2>/dev/null || true
-              git add -A
-              # Continue the rebase
-              git rebase --continue || true
-            fi
-            
-            # Remove github-tools again after rebase in case it was reintroduced
-            rm -rf github-tools
-            git rm -rf --cached github-tools 2>/dev/null || true
-            # Amend the commit if github-tools reappeared
-            if ! git diff --cached --quiet; then
-              git commit --amend --no-edit --no-verify || true
-            fi
-            echo "Branch $BRANCH_NAME exists remotely, pushing normally"
+            echo "Branch $BRANCH_NAME exists remotely, force pushing to overwrite"
             git push origin "$BRANCH_NAME" --force
           else
             echo "Branch $BRANCH_NAME doesn't exist remotely, pushing with --set-upstream"
