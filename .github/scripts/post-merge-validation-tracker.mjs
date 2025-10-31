@@ -671,6 +671,58 @@ async function checkAutomatedTestFiles(owner, repo, prNumber) {
   return result;
 }
 
+async function removePrePrefixFromSheet(authClient, sheetTitle) {
+  try {
+    // Only process if the title has the "pre-" prefix
+    if (!sheetTitle.startsWith('pre-')) {
+      console.log(`ℹ️ Sheet "${sheetTitle}" doesn't have "pre-" prefix, skipping rename`);
+      return false;
+    }
+
+    const newTitle = sheetTitle.replace(/^pre-/, '');
+
+    // Get sheet metadata to find the sheetId
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId,
+      auth: authClient,
+      fields: 'sheets(properties(sheetId,title))',
+    });
+
+    const sheet = meta.data.sheets?.find(s => s.properties?.title === sheetTitle);
+    if (!sheet) {
+      console.log(`⚠️ Sheet "${sheetTitle}" not found for renaming`);
+      return false;
+    }
+
+    const sheetId = sheet.properties.sheetId;
+
+    // Rename the sheet by removing "pre-" prefix
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      auth: authClient,
+      requestBody: {
+        requests: [
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetId,
+                title: newTitle,
+              },
+              fields: 'title',
+            },
+          },
+        ],
+      },
+    });
+
+    console.log(`✅ Renamed sheet: "${sheetTitle}" → "${newTitle}"`);
+    return true;
+  } catch (e) {
+    console.log(`⚠️ Failed to rename "${sheetTitle}": ${e.message}`);
+    return false;
+  }
+}
+
 async function processTab(authClient, title, entries, platformType) {
   const { sheetId, actualTitle, isNew } = await ensureSheetExists(authClient, title, platformType);
   const existing = await readRows(authClient, actualTitle);
@@ -715,7 +767,7 @@ async function processTab(authClient, title, entries, platformType) {
       },
     });
   }
-  return inserted;
+  return { inserted, isNew, actualTitle };
 }
 
 async function processRepo(authClient, owner, repo, since) {
@@ -732,9 +784,32 @@ async function processRepo(authClient, owner, repo, since) {
   const sortedRelevant = relevant.slice().sort((a, b) => new Date(a.closed_at || '') - new Date(b.closed_at || ''));
   const tabToRows = await buildTabGrouping(owner, repo, sortedRelevant, since);
 
-  for (const [title, group] of tabToRows.entries()) {
-    const inserted = await processTab(authClient, title, group.entries, group.platformType);
+  // Convert tabs to array and sort by version (newest first)
+  const tabsArray = Array.from(tabToRows.entries()).map(([title, group]) => ({ title, group }));
+
+  // Sort tabs by extracting version numbers for proper ordering
+  tabsArray.sort((a, b) => {
+    const versionA = a.title.match(/v[\d.]+/)?.[0] || '';
+    const versionB = b.title.match(/v[\d.]+/)?.[0] || '';
+    return versionB.localeCompare(versionA, undefined, { numeric: true });
+  });
+
+  // Process all tabs and collect their actual titles
+  const processedTabs = [];
+  for (const { title, group } of tabsArray) {
+    const { inserted, isNew, actualTitle } = await processTab(authClient, title, group.entries, group.platformType);
     insertedThisRepo += inserted;
+    processedTabs.push({ title, actualTitle, isNew });
+  }
+
+  // After processing all tabs, rename all except the newest one (remove "pre-" prefix)
+  // The newest version keeps "pre-" because it's still in development
+  if (processedTabs.length > 1) {
+    for (let i = 1; i < processedTabs.length; i++) {
+      const tab = processedTabs[i];
+      console.log(`🔄 Removing "pre-" prefix from older version: "${tab.actualTitle}"`);
+      await removePrePrefixFromSheet(authClient, tab.actualTitle);
+    }
   }
 
   console.log(`✅ [${owner}/${repo}] Inserted PRs: ${insertedThisRepo}`);
