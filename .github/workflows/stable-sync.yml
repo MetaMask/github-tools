@@ -119,7 +119,7 @@ jobs:
             echo "github-tools/" >> .gitignore
             echo "Added github-tools/ to .gitignore"
           fi
-          
+
           # Execute the script from github-tools
           node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
