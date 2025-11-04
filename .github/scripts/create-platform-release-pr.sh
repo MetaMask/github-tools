@@ -346,13 +346,13 @@ create_changelog_pr() {
     checkout_or_create_branch "${changelog_branch_name}"
 
     # Generate Changelog and Test Plan
-    # Note: Extension uses --useChangelogEntry and --useShortPrLink flags which require fetching PR labels from GitHub.
-    # Mobile uses simpler flags to avoid issues when running in fork repositories where PRs don't exist.
+    # Extension includes --useChangelogEntry flag which fetches PR labels from GitHub
+    # Mobile excludes --useChangelogEntry to avoid 404s when testing in fork repos ( can  be safely added after a few working releases)
     if [ "$platform" = "extension" ]; then
-        echo "Generating changelog for extension via yarn auto-changelog.."
+        echo "Generating changelog for extension.."
         yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
     else
-        echo "Generating changelog for mobile via yarn auto-changelog.."
+        echo "Generating changelog for mobile.."
         yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useShortPrLink
     fi
 
