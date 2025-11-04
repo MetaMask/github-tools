@@ -108,28 +108,6 @@ function parseReleaseUpdates(data) {
 }
 
 /**
- * Determines the release branch for a given platform/version
- * @param {string} platform 'mobile' or 'extension'
- * @param {string} version semantic version
- * @returns
- */
-function getReleaseBranchName(platform, version) {
-  let releaseBranchName;
-
-  if (platform === 'mobile') {
-    releaseBranchName = `release/${version}`;
-  } else if (platform === 'extension') {
-    releaseBranchName = `Version-v${version}`;
-  } else {
-    throw new Error(
-      `Unknown platform '${platform}'. Must be 'mobile' or 'extension'.`,
-    );
-  }
-
-  return releaseBranchName;
-}
-
-/**
  * Retrieves the URL of the first pull request for a given branch in a specified GitHub repository.
  *
  * @param {string} owner - The GitHub username or organization name that owns the repository.
@@ -352,9 +330,9 @@ async function publishReleaseTestingStatus(release) {
   const fmtPlatform = formatTitle(release.Platform);
   const teamResults = parseReleaseUpdates(release.testingStatus);
   const releasePrUrl = await findPullRequestUrlByBranch(
-    'MetaMask',
-    `metamask-${release.Platform}`,
-    getReleaseBranchName(release.Platform, release.SemanticVersion),
+    'MetaMask', // repo owner
+    `metamask-${release.Platform}`, // repo name
+    `release/${release.SemanticVersion}`, // release branch name
   );
   const channel = await getPublishChannelName(release);
 

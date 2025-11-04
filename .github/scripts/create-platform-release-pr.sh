@@ -370,10 +370,8 @@ create_changelog_pr() {
       # Otherwise, DIFF_BASE remains unchanged.
       DIFF_BASE="${previous_version_ref}"
 
-      # Only consider known release branch patterns to avoid regex pitfalls:
-      # - Extension: Version-vx.y.z
-      # - Mobile:    release/x.y.z
-      if [[ "${previous_version_ref}" =~ ^Version-v[0-9]+\.[0-9]+\.[0-9]+$ || "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      # Only consider known release branch patterns to avoid regex pitfalls: release/x.y.z
+      if [[ "${previous_version_ref}" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "Previous version looks like a release branch: ${previous_version_ref}"
         # Check if the exact branch exists on origin without interpolating into a regex
         if git ls-remote --heads origin "${previous_version_ref}" | grep -q "."; then
