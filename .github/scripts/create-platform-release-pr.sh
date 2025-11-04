@@ -347,7 +347,7 @@ create_changelog_pr() {
 
     # Generate Changelog and Test Plan
     echo "Generating changelog via npx @metamask/auto-changelog@5.1.0.."
-    npx --yes --package=@metamask/auto-changelog@5.1.0 auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
