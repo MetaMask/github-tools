@@ -346,8 +346,15 @@ create_changelog_pr() {
     checkout_or_create_branch "${changelog_branch_name}"
 
     # Generate Changelog and Test Plan
-    echo "Generating changelog via npx @metamask/auto-changelog@5.1.0.."
-    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+    # Note: Extension uses --useChangelogEntry and --useShortPrLink flags which require fetching PR labels from GitHub.
+    # Mobile uses simpler flags to avoid issues when running in fork repositories where PRs don't exist.
+    if [ "$platform" = "extension" ]; then
+        echo "Generating changelog for extension via yarn auto-changelog.."
+        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+    else
+        echo "Generating changelog for mobile via yarn auto-changelog.."
+        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useShortPrLink
+    fi
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
