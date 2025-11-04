@@ -346,15 +346,9 @@ create_changelog_pr() {
     checkout_or_create_branch "${changelog_branch_name}"
 
     # Generate Changelog and Test Plan
-    # Extension includes --useChangelogEntry flag which fetches PR labels from GitHub
-    # Mobile excludes --useChangelogEntry to avoid 404s when testing in fork repos ( can  be safely added after a few working releases)
-    if [ "$platform" = "extension" ]; then
-        echo "Generating changelog for extension.."
-        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
-    else
-        echo "Generating changelog for mobile.."
-        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useShortPrLink
-    fi
+    echo "Generating changelog for ${platform}.."
+    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.

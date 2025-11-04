@@ -79,4 +79,3 @@ jobs:
             "${{ inputs.platform }}" \
             "${{ inputs.repository-url }}" \
             "${{ inputs.previous-version-ref }}"
-
