@@ -202,7 +202,13 @@ async function analyzePackageJsonChanges(
   try {
     const { stdout } = await execa(
       'git',
-      ['diff', '-U20', `origin/${baseRef}...HEAD`, '--', filePath],
+      [
+        'diff',
+        '-U9999', // Show maximum context to ensure section headers are visible
+        `origin/${baseRef}...HEAD`,
+        '--',
+        filePath,
+      ],
       {
         cwd: repoPath,
       },
