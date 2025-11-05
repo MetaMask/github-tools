@@ -114,15 +114,17 @@ jobs:
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
         run: |
+          # Ensure github-tools is in .gitignore to prevent it from being committed
+          if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
+            echo "github-tools/" >> .gitignore
+            echo "Added github-tools/ to .gitignore"
+          fi
+
           # Execute the script from github-tools
           node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
-          # Check if branch exists remotely
-          echo "Cleaning up github-tools"
-          rm -rf github-tools
           BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            git pull --rebase
-            echo "Branch $BRANCH_NAME exists remotely, pushing normally"
+            echo "Branch $BRANCH_NAME exists remotely, force pushing to overwrite"
             git push origin "$BRANCH_NAME" --force
           else
             echo "Branch $BRANCH_NAME doesn't exist remotely, pushing with --set-upstream"

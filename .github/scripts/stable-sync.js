@@ -98,22 +98,9 @@ async function runGitCommands() {
       await exec(`git checkout origin/${baseBranch} -- package.json`);
       console.log(`Executed: git checkout origin/${baseBranch} -- package.json`);
     }
-    // Execute extension-specific commands if REPO is 'extension'
-    else if (process.env.REPO === 'extension') {
-      console.log('Executing extension-specific commands...');
-
-      const { stdout: packageJsonContent } = await exec(
-        `git show origin/${baseBranch}:package.json`,
-      );
-      const packageJson = JSON.parse(packageJsonContent);
-      const packageVersion = packageJson.version;
-
-      await exec(`yarn version "${packageVersion}"`);
-      console.log('Executed: yarn version');
-    }
-    // If REPO is not set or has an invalid value, skip both
+    // If REPO is not set or is 'extension', skip repo-specific commands
     else {
-      console.log('REPO environment variable not set or invalid. Skipping mobile/extension specific commands.');
+      console.log('No repo-specific commands to execute.');
     }
 
     await exec('git add .');
