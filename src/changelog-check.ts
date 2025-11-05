@@ -140,7 +140,10 @@ const getDevDependencyLines = (
     }
   }
 
-  if (devDependencySectionStart === undefined) {
+  if (
+    devDependencySectionStart === undefined ||
+    devDependencySectionEnd === undefined
+  ) {
     return [];
   }
 
@@ -148,12 +151,10 @@ const getDevDependencyLines = (
   for (const changeLine of nonVersionLines) {
     const lineIndex = allLines.findIndex((line) => line === changeLine);
     if (lineIndex !== -1) {
-      // Check if this line falls within the devDependencies section
-      // If we don't have an end, assume everything after start is in devDependencies
+      // Check if this line falls within any devDependencies section
       const isInDevDeps =
         lineIndex >= devDependencySectionStart &&
-        (devDependencySectionEnd === undefined ||
-          lineIndex <= devDependencySectionEnd);
+        lineIndex <= devDependencySectionEnd;
 
       if (isInDevDeps) {
         devDependencyLines.push(changeLine);
@@ -201,7 +202,13 @@ async function analyzePackageJsonChanges(
   try {
     const { stdout } = await execa(
       'git',
-      ['diff', '-U20', `origin/${baseRef}...HEAD`, '--', filePath],
+      [
+        'diff',
+        '-U9999', // Show maximum context to ensure section headers are visible
+        `origin/${baseRef}...HEAD`,
+        '--',
+        filePath,
+      ],
       {
         cwd: repoPath,
       },
