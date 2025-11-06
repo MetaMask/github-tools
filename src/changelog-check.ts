@@ -374,6 +374,7 @@ async function checkChangelogFile({
     const changelogData = parseChangelog({
       changelogContent,
       repoUrl: '', // Not needed as we're only parsing changes
+      shouldExtractPrLinks: true,
     });
 
     // For release PRs with version changes, check the version section
