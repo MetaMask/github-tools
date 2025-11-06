@@ -86,17 +86,18 @@ async function runGitCommands() {
     if (process.env.REPO === 'mobile') {
       console.log('Executing mobile-specific commands...');
 
-      await exec(`git checkout origin/${baseBranch} -- bitrise.yml`);
-      console.log(`Executed: git checkout origin/${baseBranch} -- bitrise.yml`);
+      // Preserve these files from main to avoid showing them as changes in the PR
+      await exec(`git checkout origin/main -- bitrise.yml`);
+      console.log(`Executed: git checkout origin/main -- bitrise.yml`);
 
-      await exec(`git checkout origin/${baseBranch} -- android/app/build.gradle`);
-      console.log(`Executed: git checkout origin/${baseBranch} -- android/app/build.gradle`);
+      await exec(`git checkout origin/main -- android/app/build.gradle`);
+      console.log(`Executed: git checkout origin/main -- android/app/build.gradle`);
 
-      await exec(`git checkout origin/${baseBranch} -- ios/MetaMask.xcodeproj/project.pbxproj`);
-      console.log(`Executed: git checkout origin/${baseBranch} -- ios/MetaMask.xcodeproj/project.pbxproj`);
+      await exec(`git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`);
+      console.log(`Executed: git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`);
 
-      await exec(`git checkout origin/${baseBranch} -- package.json`);
-      console.log(`Executed: git checkout origin/${baseBranch} -- package.json`);
+      await exec(`git checkout origin/main -- package.json`);
+      console.log(`Executed: git checkout origin/main -- package.json`);
     }
     // If REPO is not set or is 'extension', skip repo-specific commands
     else {
