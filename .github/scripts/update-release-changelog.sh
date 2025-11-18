@@ -201,7 +201,7 @@ checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 if [[ "${PLATFORM}" == "extension" ]]; then
-    AUTO_CHANGELOG_DEBUG=true yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize --useChangelogEntry --useShortPrLink
+    AUTO_CHANGELOG_DEBUG=true yarn node ./node_modules/@metamask/auto-changelog/dist/cli.mjs update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize --useChangelogEntry --useShortPrLink
 else
     AUTO_CHANGELOG_DEBUG=true npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize
 fi
