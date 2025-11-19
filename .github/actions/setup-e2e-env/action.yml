@@ -133,9 +133,12 @@ runs:
 
     - name: Install additional Android SDK components if needed
       if: ${{ inputs.platform == 'android' && (inputs.android-api-level != '34' || inputs.android-abi != 'x86_64') }}
+      env:
+        ANDROID_API_LEVEL: ${{ inputs.android-api-level }}
+        ANDROID_ABI: ${{ inputs.android-abi }}
       run: |
         # Only install if different from pre-installed defaults (API 34, x86_64)
-        IMAGE="system-images;android-${{ inputs.android-api-level }};google_apis;${{ inputs.android-abi }}"
+        IMAGE="system-images;android-$ANDROID_API_LEVEL;google_apis;$ANDROID_ABI"
         echo "Installing additional system image: $IMAGE"
         echo "y" | "/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager" "$IMAGE"
       shell: bash
@@ -151,17 +154,24 @@ runs:
 
     - name: Create Android Virtual Device (AVD)
       if: ${{ inputs.platform == 'android'}}
+      env:
+        ANDROID_API_LEVEL: ${{ inputs.android-api-level }}
+        ANDROID_TAG: ${{ inputs.android-tag }}
+        ANDROID_ABI: ${{ inputs.android-abi }}
+        ANDROID_AVD_NAME: ${{ inputs.android-avd-name }}
+        ANDROID_DEVICE: ${{ inputs.android-device }}
+        ANDROID_SDCARD_SIZE: ${{ inputs.android-sdcard-size }}
       run: |
-        IMAGE="system-images;android-${{ inputs.android-api-level }};${{ inputs.android-tag }};${{ inputs.android-abi }}"
+        IMAGE="system-images;android-$ANDROID_API_LEVEL;$ANDROID_TAG;$ANDROID_ABI"
         echo "Creating AVD with image: $IMAGE"
         "/opt/android-sdk/cmdline-tools/latest/bin/avdmanager" --verbose create avd \
           --force \
-          --name "${{ inputs.android-avd-name }}" \
+          --name "$ANDROID_AVD_NAME" \
           --package "$IMAGE" \
-          --device "${{ inputs.android-device }}" \
-          --tag "${{ inputs.android-tag }}" \
-          --abi "${{ inputs.android-abi }}" \
-          --sdcard "${{ inputs.android-sdcard-size }}"
+          --device "$ANDROID_DEVICE" \
+          --tag "$ANDROID_TAG" \
+          --abi "$ANDROID_ABI" \
+          --sdcard "$ANDROID_SDCARD_SIZE"
       shell: bash
 
     ## iOS Platform Setup ##
@@ -184,10 +194,12 @@ runs:
 
     ## Yarn Setup & Cache Management
 
-    # - name: Corepack
-    #   id: corepack
-    #   run: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
-    #   shell: bash
+    - name: Get Corepack install command
+      env:
+        YARN_VERSION: ${{ inputs.yarn-version }}
+      shell: bash
+      run: |
+        echo "COREPACK_COMMAND=corepack enable && corepack prepare yarn@$YARN_VERSION
 
     - name: Corepack
       id: corepack
@@ -196,7 +208,7 @@ runs:
         timeout_minutes: 15
         max_attempts: 3
         retry_wait_seconds: 30
-        command: corepack enable && corepack prepare yarn@${{ inputs.yarn-version }} --activate
+        command: ${{ steps.get-corepack-command.outputs.COREPACK_COMMAND }}
 
     - name: Restore Yarn cache
       uses: actions/cache@v4
@@ -220,6 +232,8 @@ runs:
 
     - name: Install Foundry
       shell: bash
+      env:
+        FOUNDRY_VERSION: ${{ inputs.foundry-version }}
       run: |
         echo "Installing Foundry via foundryup..."
 
@@ -233,7 +247,7 @@ runs:
 
         echo "$FOUNDRY_BIN" >> "$GITHUB_PATH"
 
-        "$FOUNDRY_BIN/foundryup" -i "${{ inputs.foundry-version }}"
+        "$FOUNDRY_BIN/foundryup" -i "$FOUNDRY_VERSION"
 
     ## IOS Setup ##
 
@@ -308,18 +322,10 @@ runs:
     # Select Xcode version
     - name: Select Xcode version
       if: ${{ inputs.platform == 'ios' }}
-      run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
+      env:
+        XCODE_VERSION: ${{ inputs.xcode-version }}
+      run: sudo xcode-select -s "/Applications/Xcode_$XCODE_VERSION.app"
       shell: bash
-
-    # Restore CocoaPods cache
-    # - name: Restore CocoaPods cache
-    #   if: ${{ inputs.platform == 'ios'}}
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: ios/Pods
-    #     key: ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
-    #     restore-keys: |
-    #       ${{ inputs.cache-prefix }}-pods-${{ inputs.platform }}-${{ runner.os }}-
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler

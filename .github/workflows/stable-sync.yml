@@ -113,6 +113,7 @@ jobs:
           CREATE_BRANCH: 'false' # let the script handle the branch creation
           REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
           BASE_BRANCH: ${{ inputs.stable-branch-name }}
+          SEMVER_VERSION: ${{ inputs.semver-version }}
         run: |
           # Ensure github-tools is in .gitignore to prevent it from being committed
           if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
@@ -121,8 +122,8 @@ jobs:
           fi
 
           # Execute the script from github-tools
-          node ./github-tools/.github/scripts/stable-sync.js "stable-main-${{ inputs.semver-version }}"
-          BRANCH_NAME="stable-main-${{ inputs.semver-version }}"
+          node ./github-tools/.github/scripts/stable-sync.js "stable-main-$SEMVER_VERSION"
+          BRANCH_NAME="stable-main-$SEMVER_VERSION"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists remotely, force pushing to overwrite"
             git push origin "$BRANCH_NAME" --force

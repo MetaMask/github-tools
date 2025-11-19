@@ -26,10 +26,14 @@ runs:
         role-to-assume: ${{ inputs.role-to-assume }}
 
     - name: Upload to S3
+      env:
+        UPLOAD_PATH: ${{ inputs.path }}
+        S3_BUCKET: ${{ inputs.s3-bucket }}
+
       run: |
-        if [ -d "${{ inputs.path }}" ]; then
-          aws s3 cp "${{ inputs.path }}" "s3://${{ inputs.s3-bucket }}" --recursive
+        if [ -d "$UPLOAD_PATH" ]; then
+          aws s3 cp "$UPLOAD_PATH" "s3://$S3_BUCKET" --recursive
         else
-          aws s3 cp "${{ inputs.path }}" "s3://${{ inputs.s3-bucket }}"
+          aws s3 cp "$UPLOAD_PATH" "s3://$S3_BUCKET"
         fi
       shell: bash

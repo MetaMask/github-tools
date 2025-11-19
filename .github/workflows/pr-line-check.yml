@@ -46,24 +46,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Determine base branch
-        id: get-base-branch
-        run: |
-          # Use the PR base branch if available; otherwise use the default input.
-          if [ -n "${{ github.event.pull_request.base.ref }}" ]; then
-            echo "Using PR base branch: ${{ github.event.pull_request.base.ref }}"
-            echo "base_branch=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "Using default base branch: ${{ inputs.base_ref }}"
-            echo "base_branch=${{ inputs.base_ref }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Calculate changed lines
         id: line_count
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref || inputs.base_ref }}
         run: |
           set -e
 
-          BASE_BRANCH="${{ steps.get-base-branch.outputs.base_branch }}"
           echo "Using base branch: $BASE_BRANCH"
 
           # Instead of a full fetch, perform incremental fetches at increasing depth
@@ -112,18 +101,38 @@ jobs:
 
       - name: Check line count limit
         uses: actions/github-script@v7
+        env:
+          LINES_CHANGED: ${{ steps.line_count.outputs.lines_changed }}
+          ADDITIONS: ${{ steps.line_count.outputs.additions }}
+          DELETIONS: ${{ steps.line_count.outputs.deletions }}
+          MAX_LINES: ${{ inputs.max_lines }}
+          XS_MAX_SIZE: ${{ inputs.xs_max_size }}
+          S_MAX_SIZE: ${{ inputs.s_max_size }}
+          M_MAX_SIZE: ${{ inputs.m_max_size }}
+          L_MAX_SIZE: ${{ inputs.l_max_size }}
         with:
           script: |
-            const total = parseInt('${{ steps.line_count.outputs.lines_changed }}') || 0;
-            const additions = parseInt('${{ steps.line_count.outputs.additions }}') || 0;
-            const deletions = parseInt('${{ steps.line_count.outputs.deletions }}') || 0;
+            const {
+              LINES_CHANGED,
+              ADDITIONS,
+              DELETIONS,
+              MAX_LINES,
+              XS_MAX_SIZE,
+              S_MAX_SIZE,
+              M_MAX_SIZE,
+              L_MAX_SIZE,
+            } = process.env;
+
+            const total = parseInt(LINES_CHANGED, 10) || 0;
+            const additions = parseInt(ADDITIONS, 10) || 0;
+            const deletions = parseInt(DELETIONS, 10) || 0;
 
             // Thresholds from inputs with fallback to defaults
-            const maxLines = parseInt('${{ inputs.max_lines }}') || 1000;
-            const xsMaxSize = parseInt('${{ inputs.xs_max_size }}') || 10;
-            const sMaxSize = parseInt('${{ inputs.s_max_size }}') || 100;
-            const mMaxSize = parseInt('${{ inputs.m_max_size }}') || 500;
-            const lMaxSize = parseInt('${{ inputs.l_max_size }}') || 1000;
+            const maxLines = parseInt(MAX_LINES, 10) || 1000;
+            const xsMaxSize = parseInt(XS_MAX_SIZE, 10) || 10;
+            const sMaxSize = parseInt(S_MAX_SIZE, 10) || 100;
+            const mMaxSize = parseInt(M_MAX_SIZE, 10) || 500;
+            const lMaxSize = parseInt(L_MAX_SIZE, 10) || 1000;
 
             // Print summary
             console.log('Summary:');
@@ -155,21 +164,21 @@ jobs:
 
             try {
               const existingSizeLabels = ['size-XS', 'size-S', 'size-M', 'size-L', 'size-XL'];
-              
+
               // Get current labels
               const currentLabels = await github.rest.issues.listLabelsOnIssue({
                 owner,
                 repo,
                 issue_number
               });
-              
+
               const currentLabelNames = currentLabels.data.map(l => l.name);
-              
+
               // Build new label set: keep non-size labels and add the new size label
               const newLabels = currentLabelNames
                 .filter(name => !existingSizeLabels.includes(name))  // Remove all size labels
                 .concat(sizeLabel);  // Add the correct size label
-              
+
               // Check if labels need updating
               const currentSizeLabel = currentLabelNames.find(name => existingSizeLabels.includes(name));
               if (currentSizeLabel === sizeLabel && currentLabelNames.length === newLabels.length) {
@@ -182,7 +191,7 @@ jobs:
                   issue_number,
                   labels: newLabels
                 });
-                
+
                 if (currentSizeLabel && currentSizeLabel !== sizeLabel) {
                   console.log(`  - Replaced '${currentSizeLabel}' with '${sizeLabel}'`);
                 } else if (!currentSizeLabel) {

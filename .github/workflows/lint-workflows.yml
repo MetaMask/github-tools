@@ -17,6 +17,8 @@ jobs:
         shell: bash
 
       - name: Lint workflow files
+        env:
+          EXECUTABLE: ${{ steps.download-actionlint.outputs.executable }}
         # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
-        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        run: "$EXECUTABLE" -color
         shell: bash

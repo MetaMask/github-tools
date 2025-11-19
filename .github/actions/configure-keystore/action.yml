@@ -20,8 +20,10 @@ runs:
   steps:
     - name: Determine signing secret name
       shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
       run: |
-        case "${{ inputs.target }}" in
+        case "$TARGET" in
           qa)
             SECRET_NAME="metamask-mobile-qa-signing-certificates"
             ;;
@@ -32,7 +34,7 @@ runs:
             SECRET_NAME="metamask-mobile-main-signing-certificates"
             ;;
           *)
-            echo "❌ Unknown target: ${{ inputs.target }}"
+            echo "❌ Unknown target: $TARGET"
             exit 1
             ;;
         esac
@@ -46,10 +48,12 @@ runs:
 
     - name: Fetch secret and export as environment variables
       shell: bash
+      env:
+        AWS_REGION: ${{ inputs.aws-region }}
       run: |
         echo "🔐 Fetching secret from Secrets Manager..."
         secret_json=$(aws secretsmanager get-secret-value \
-          --region "${{ inputs.aws-region }}" \
+          --region "$AWS_REGION" \
           --secret-id "${AWS_SIGNING_CERT_SECRET_NAME}" \
           --query SecretString \
           --output text)
