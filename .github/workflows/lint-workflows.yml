@@ -20,5 +20,6 @@ jobs:
         env:
           EXECUTABLE: ${{ steps.download-actionlint.outputs.executable }}
         # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
-        run: "$EXECUTABLE" -color
+        run: |
+          "$EXECUTABLE" -color
         shell: bash
