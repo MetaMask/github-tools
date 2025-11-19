@@ -195,6 +195,7 @@ runs:
     ## Yarn Setup & Cache Management
 
     - name: Get Corepack install command
+      id: get-corepack-command
       env:
         YARN_VERSION: ${{ inputs.yarn-version }}
       shell: bash
