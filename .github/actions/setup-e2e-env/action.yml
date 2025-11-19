@@ -199,7 +199,7 @@ runs:
         YARN_VERSION: ${{ inputs.yarn-version }}
       shell: bash
       run: |
-        echo "COREPACK_COMMAND=corepack enable && corepack prepare yarn@$YARN_VERSION
+        echo "COREPACK_COMMAND=corepack enable && corepack prepare yarn@$YARN_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Corepack
       id: corepack
