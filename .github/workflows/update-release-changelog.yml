@@ -68,6 +68,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           GIT_AUTHOR_NAME: metamaskbot
           GIT_AUTHOR_EMAIL: metamaskbot@users.noreply.github.com
+          RELEASE_BRANCH: ${{ inputs.release-branch }}
+          PLATFORM: ${{ inputs.platform }}
+          REPOSITORY_URL: ${{ inputs.repository-url }}
+          PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
         run: |
           set -euo pipefail
 
@@ -75,7 +79,7 @@ jobs:
           yarn install --immutable
 
           ./github-tools/.github/scripts/update-release-changelog.sh \
-            "${{ inputs.release-branch }}" \
-            "${{ inputs.platform }}" \
-            "${{ inputs.repository-url }}" \
-            "${{ inputs.previous-version-ref }}"
+            "$RELEASE_BRANCH" \
+            "$PLATFORM" \
+            "$REPOSITORY_URL" \
+            "$PREVIOUS_VERSION_REF"

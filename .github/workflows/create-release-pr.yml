@@ -101,24 +101,38 @@ jobs:
 
       # Step 4: Print Input Values
       - name: Print Input Values
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          CHECKOUT_BASE_BRANCH: ${{ inputs.checkout-base-branch }}
+          RELEASE_PR_BASE_BRANCH: ${{ inputs.release-pr-base-branch }}
+          SEMVER_VERSION: ${{ inputs.semver-version }}
+          PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+          TEST_ONLY: ${{ inputs.test-only }}
+          MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
+          MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
+          EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
+          RELEASE_SHEET_GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
+          GITHUB_TOOLS_VERSION: ${{ inputs.github-tools-version }}
+          GIT_USER_NAME: ${{ inputs.git-user-name }}
+          GIT_USER_EMAIL: ${{ inputs.git-user-email }}
         run: |
           echo "Input Values:"
           echo "-------------"
-          echo "Platform: ${{ inputs.platform }}"
-          echo "Checkout Base Branch: ${{ inputs.checkout-base-branch }}"
-          echo "Release PR Base Branch: ${{ inputs.release-pr-base-branch }}"
-          echo "Semver Version: ${{ inputs.semver-version }}"
-          echo "Previous Version Reference: ${{ inputs.previous-version-ref }}"
-          echo "Test Only Mode: ${{ inputs.test-only }}"
-          if [[ "${{ inputs.platform }}" == "mobile" ]]; then
-            echo "Mobile Build Version: ${{ inputs.mobile-build-version }}"
+          echo "Platform: $PLATFORM"
+          echo "Checkout Base Branch: $CHECKOUT_BASE_BRANCH"
+          echo "Release PR Base Branch: $RELEASE_PR_BASE_BRANCH"
+          echo "Semver Version: $SEMVER_VERSION"
+          echo "Previous Version Reference: $PREVIOUS_VERSION_REF"
+          echo "Test Only Mode: $TEST_ONLY"
+          if [[ "$PLATFORM" == "mobile" ]]; then
+            echo "Mobile Build Version: $MOBILE_BUILD_VERSION"
           fi
-          echo "Mobile Template Sheet ID: ${{ inputs.mobile-template-sheet-id }}"
-          echo "Extension Template Sheet ID: ${{ inputs.extension-template-sheet-id }}"
-          echo "Release Sheet Google Document ID: ${{ inputs.release-sheet-google-document-id }}"
-          echo "GitHub Tools Version: ${{ inputs.github-tools-version }}"
-          echo "Git User Name: ${{ inputs.git-user-name }}"
-          echo "Git User Email: ${{ inputs.git-user-email }}"
+          echo "Mobile Template Sheet ID: $MOBILE_TEMPLATE_SHEET_ID"
+          echo "Extension Template Sheet ID: $EXTENSION_TEMPLATE_SHEET_ID"
+          echo "Release Sheet Google Document ID: $RELEASE_SHEET_GOOGLE_DOCUMENT_ID"
+          echo "GitHub Tools Version: $GITHUB_TOOLS_VERSION"
+          echo "Git User Name: $GIT_USER_NAME"
+          echo "Git User Email: $GIT_USER_EMAIL"
           echo "-------------"
 
       # Step 5: Create Release PR
@@ -135,16 +149,22 @@ jobs:
           NEW_VERSION: ${{ inputs.semver-version }}
           MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
           EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
+          PLATFORM: ${{ inputs.platform }}
+          PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+          SEMVER_VERSION: ${{ inputs.semver-version }}
+          MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
+          GIT_USER_NAME: ${{ inputs.git-user-name }}
+          GIT_USER_EMAIL: ${{ inputs.git-user-email }}
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
           ./github-tools/.github/scripts/create-platform-release-pr.sh \
-            "${{ inputs.platform }}" \
-            "${{ inputs.previous-version-ref }}" \
-            "${{ inputs.semver-version }}" \
-            "${{ inputs.mobile-build-version }}" \
-            "${{ inputs.git-user-name }}" \
-            "${{ inputs.git-user-email }}"
+            "$PLATFORM" \
+            "$PREVIOUS_VERSION_REF" \
+            "$SEMVER_VERSION" \
+            "$MOBILE_BUILD_VERSION" \
+            "$GIT_USER_NAME" \
+            "$GIT_USER_EMAIL"
 
       # Step 6: Upload commits.csv as artifact (if generated)
       - name: Upload commits.csv artifact

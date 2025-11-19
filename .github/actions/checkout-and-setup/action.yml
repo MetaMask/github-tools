@@ -28,10 +28,12 @@ runs:
   steps:
     # The "required: true" field is not enforced by GitHub, so we need to check it manually
     - name: Enforce required input is either "true" or "false"
+      env:
+        IS_HIGH_RISK_ENVIRONMENT: ${{ inputs.is-high-risk-environment }}
       run: |
-        if [[ "${{ inputs.is-high-risk-environment }}" == "true" ]]; then
+        if [[ "$IS_HIGH_RISK_ENVIRONMENT" == "true" ]]; then
           echo 'High-risk environment detected. Disabling cache for security.'
-        elif [[ "${{ inputs.is-high-risk-environment }}" == "false" ]]; then
+        elif [[ "$IS_HIGH_RISK_ENVIRONMENT" == "false" ]]; then
           echo 'Low-risk environment detected. Enabling cache for optimized performance.'
         else
           echo "::error::Invalid value for 'is-high-risk-environment'. Must be 'true' (secure, no cache) or 'false' (faster, cache enabled)."
