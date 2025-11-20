@@ -21,11 +21,6 @@ on:
         type: string
         default: 'null'
         description: 'Previous release version reference (branch/tag/SHA). Use "null" for hotfixes.'
-      github-tools-version:
-        required: false
-        type: string
-        default: 'main'
-        description: 'Version of github-tools to use (branch, tag, or SHA).'
     secrets:
       github-token:
         required: true
@@ -48,16 +43,16 @@ jobs:
           token: ${{ secrets.github-token }}
 
       # Step 2: Checkout github-tools repository
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       # Step 3: Setup environment from github-tools
       - name: Checkout and setup environment
-        uses: ./github-tools/.github/actions/checkout-and-setup
+        uses: ./.github-tools/.github/actions/checkout-and-setup
         with:
           is-high-risk-environment: true
 
@@ -78,7 +73,7 @@ jobs:
           corepack enable
           yarn install --immutable
 
-          ./github-tools/.github/scripts/update-release-changelog.sh \
+          ./.github-tools/.github/scripts/update-release-changelog.sh \
             "$RELEASE_BRANCH" \
             "$PLATFORM" \
             "$REPOSITORY_URL" \

@@ -239,7 +239,7 @@ create_release_pr() {
 
     # Version Updates
     echo "Running version update scripts.."
-    ./github-tools/.github/scripts/set-semvar-version.sh "${new_version}" "${platform}"
+    ./.github-tools/.github/scripts/set-semvar-version.sh "${new_version}" "${platform}"
 
     # Commit Changes
     local changed_files
@@ -273,7 +273,7 @@ create_release_pr() {
     # Prepare release PR body with team sign-off checklist
     local release_body="# 🚀 v${new_version} Testing & Release Quality Process
 
-Hi Team,  
+Hi Team,
 As part of our new **MetaMask Release Quality Process**, here’s a quick overview of the key processes, testing strategies, and milestones to ensure a smooth and high-quality deployment.
 
 ---
@@ -281,34 +281,34 @@ As part of our new **MetaMask Release Quality Process**, here’s a quick overvi
 ## 📋 Key Processes
 
 ### Testing Strategy
-- **Developer Teams:**  
-  Conduct regression and exploratory testing for your functional areas, including automated and manual tests for critical workflows.  
-- **QA Team:**  
-  Focus on exploratory testing across the wallet, prioritize high-impact areas, and triage any Sentry errors found during testing.  
-- **Customer Success Team:**  
+- **Developer Teams:**
+  Conduct regression and exploratory testing for your functional areas, including automated and manual tests for critical workflows.
+- **QA Team:**
+  Focus on exploratory testing across the wallet, prioritize high-impact areas, and triage any Sentry errors found during testing.
+- **Customer Success Team:**
   Validate new functionalities and provide feedback to support release monitoring.
 
 ### GitHub Signoff
-- Each team must **sign off on the Release Candidate (RC)** via GitHub by the end of the validation timeline (**Tuesday EOD PT**).  
+- Each team must **sign off on the Release Candidate (RC)** via GitHub by the end of the validation timeline (**Tuesday EOD PT**).
 - Ensure all tests outlined in the Testing Plan are executed, and any identified issues are addressed.
 
 ### Issue Resolution
-- **Resolve all Release Blockers** (Sev0 and Sev1) by **Tuesday EOD PT**.  
+- **Resolve all Release Blockers** (Sev0 and Sev1) by **Tuesday EOD PT**.
 - For unresolved blockers, PRs may be reverted, or feature flags disabled to maintain release quality and timelines.
 
 ### Cherry-Picking Criteria
-- Only **critical fixes** meeting outlined criteria will be cherry-picked.  
+- Only **critical fixes** meeting outlined criteria will be cherry-picked.
 - Developers must ensure these fixes are thoroughly reviewed, tested, and merged by **Tuesday EOD PT**.
 
 ---
 
 ## 🗓️ Timeline and Milestones
 
-1. **Today (Friday):** Begin Release Candidate validation.  
-2. **Tuesday EOD PT:** Finalize RC with all fixes and cherry-picks.  
-3. **Wednesday:** Buffer day for final checks.  
-4. **Thursday:** Submit release to app stores and begin rollout to 1% of users.  
-5. **Monday:** Scale deployment to 10%.  
+1. **Today (Friday):** Begin Release Candidate validation.
+2. **Tuesday EOD PT:** Finalize RC with all fixes and cherry-picks.
+3. **Wednesday:** Buffer day for final checks.
+4. **Thursday:** Submit release to app stores and begin rollout to 1% of users.
+5. **Monday:** Scale deployment to 10%.
 6. **Tuesday:** Full rollout to 100%.
 
 ---
@@ -320,9 +320,9 @@ Each team is responsible for signing off via GitHub. Use the checkbox below to t
 # Team sign-off checklist
 - [ ] ${platform_team_name}
 
-This process is a major step forward in ensuring release stability and quality. Let’s stay aligned and make this release a success! 🚀  
+This process is a major step forward in ensuring release stability and quality. Let’s stay aligned and make this release a success! 🚀
 
-Feel free to reach out if you have questions or need clarification. 
+Feel free to reach out if you have questions or need clarification.
 
 Many thanks in advance
 
@@ -381,8 +381,8 @@ create_changelog_pr() {
         echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
       fi
 
-      # Switch to github-tools directory
-      cd ./github-tools/
+      # Switch to .github-tools directory
+      cd ./.github-tools/
       ls -ltra
       corepack prepare yarn@4.5.1 --activate
       # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
@@ -401,7 +401,7 @@ create_changelog_pr() {
     #   # Create a new Release Sheet Page for the new version with our commits.csv content
     #   yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
     # fi
-    # Note: Only change directories when we actually entered ./github-tools/
+    # Note: Only change directories when we actually entered ./.github-tools/
 
     # Commit and Push Changelog Changes (exclude commits.csv)
     echo "Adding and committing changes.."
@@ -441,7 +441,7 @@ create_version_bump_pr() {
 
     # Update version files on main branch
     echo "Running version update scripts for ${main_branch} branch.."
-    ./github-tools/.github/scripts/set-semvar-version.sh "${next_version}" "${platform}"
+    ./.github-tools/.github/scripts/set-semvar-version.sh "${next_version}" "${platform}"
 
     # Commit version bump changes
     echo "Committing version bump changes.."

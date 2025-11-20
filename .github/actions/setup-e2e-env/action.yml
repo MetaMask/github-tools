@@ -89,6 +89,13 @@ runs:
     - run: echo "Setup E2E Environment started"
       shell: bash
 
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ github.action_repository }}
+        ref: ${{ github.action_ref }}
+        path: ./.github-tools
+
     ## Android Setup (early for fail-fast) ##
 
     # Set Android environment variables (self-hosted runner has SDK pre-installed)
@@ -101,7 +108,7 @@ runs:
 
     - name: Configure Android Signing Certificates
       if: ${{ inputs.platform == 'android' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@0259e8a920318b02a8860e178d79796eaa08de02
+      uses: ./.github-tools/.github/actions/configure-keystore
       with:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'
@@ -178,7 +185,7 @@ runs:
 
     - name: Configure iOS Signing Certificates
       if: ${{ inputs.platform == 'ios' && inputs.configure-keystores == 'true' }}
-      uses: MetaMask/github-tools/.github/actions/configure-keystore@0259e8a920318b02a8860e178d79796eaa08de02
+      uses: ./.github-tools/.github/actions/configure-keystore
       with:
         aws-role-to-assume: ${{ inputs.keystore-role-to-assume }}
         aws-region: 'us-east-2'

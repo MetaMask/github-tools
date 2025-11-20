@@ -20,11 +20,6 @@ on:
         type: string
         description: 'The name of the stable branch to sync to (e.g., stable, main)'
         default: 'stable'
-      github-tools-version:
-        required: false
-        type: string
-        description: 'The version of github-tools to use. Defaults to main.'
-        default: 'main'
   workflow_call:
     inputs:
       semver-version:
@@ -41,11 +36,6 @@ on:
         type: string
         description: 'The name of the stable branch to sync to (e.g., stable, main)'
         default: 'stable'
-      github-tools-version:
-        required: false
-        type: string
-        description: 'The version of github-tools to use. Defaults to main.'
-        default: ${{ github.action_ref }}
     secrets:
       github-token:
         description: 'GitHub token for creating pull requests'
@@ -59,12 +49,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       - name: Setup Node.js Mobile
         if: ${{ inputs.repo-type == 'mobile' }}
@@ -116,13 +106,13 @@ jobs:
           SEMVER_VERSION: ${{ inputs.semver-version }}
         run: |
           # Ensure github-tools is in .gitignore to prevent it from being committed
-          if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
-            echo "github-tools/" >> .gitignore
-            echo "Added github-tools/ to .gitignore"
+          if ! grep -q "^\.github-tools/" .gitignore 2>/dev/null; then
+            echo ".github-tools/" >> .gitignore
+            echo "Added .github-tools/ to .gitignore"
           fi
 
           # Execute the script from github-tools
-          node ./github-tools/.github/scripts/stable-sync.js "stable-main-$SEMVER_VERSION"
+          node ./.github-tools/.github/scripts/stable-sync.js "stable-main-$SEMVER_VERSION"
           BRANCH_NAME="stable-main-$SEMVER_VERSION"
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists remotely, force pushing to overwrite"

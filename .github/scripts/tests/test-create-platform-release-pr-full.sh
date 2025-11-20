@@ -81,12 +81,12 @@ ls() { echo "MOCK: ls $*"; return 0; }
 pwd() { echo "/mock/directory"; return 0; }
 
 # Create mock version script
-mkdir -p ./github-tools/.github/scripts/
-cat > ./github-tools/.github/scripts/set-semvar-version.sh << 'EOF'
+mkdir -p ./.github-tools/.github/scripts/
+cat > ./.github-tools/.github/scripts/set-semvar-version.sh << 'EOF'
 #!/usr/bin/env bash
 echo "MOCK: Version script - Setting $2 to version $1"
 EOF
-chmod +x ./github-tools/.github/scripts/set-semvar-version.sh
+chmod +x ./.github-tools/.github/scripts/set-semvar-version.sh
 
 # Export all mocks
 export -f git gh npx yarn corepack cd ls pwd
@@ -176,7 +176,7 @@ echo "Test version bump: $(get_version_bump_branch_name "2.1.0")"
 echo ""
 echo "5️⃣  CLEANUP"
 echo "==========="
-rm -rf ./github-tools/
+rm -rf ./.github-tools/
 echo "✅ Cleaned up mock files"
 
 echo ""

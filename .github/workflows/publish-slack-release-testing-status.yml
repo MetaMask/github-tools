@@ -30,29 +30,29 @@ jobs:
       pull-requests: write
     steps:
       # Step 2: Checkout github-tools repository
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: main
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./github-tools/.nvmrc
-          cache-dependency-path: ./github-tools/yarn.lock
+          node-version-file: ./.github-tools/.nvmrc
+          cache-dependency-path: ./.github-tools/yarn.lock
           cache: yarn
 
       - name: Enable Corepack
         run: corepack enable
         shell: bash
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
 
       - name: Install dependencies
         run: yarn --immutable
         shell: bash
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
 
       # Step 4: Run Script
       - name: Publish Slack Release Testing Status
@@ -65,6 +65,6 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
           TEST_ONLY: ${{inputs.test-only}}
           PLATFORM: ${{inputs.platform}}
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
         run: |
           yarn run slack:release-testing

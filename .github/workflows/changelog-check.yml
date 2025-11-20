@@ -56,13 +56,13 @@ jobs:
           path: target-repo
           fetch-depth: 0
 
-      - name: Checkout github-tools repository
+      - name: Checkout GitHub tools repository
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.action-sha }}
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       - name: Enable Corepack
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
@@ -73,21 +73,21 @@ jobs:
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./github-tools/.nvmrc
-          cache-dependency-path: ./github-tools/yarn.lock
+          node-version-file: ./.github-tools/.nvmrc
+          cache-dependency-path: ./.github-tools/yarn.lock
           cache: yarn
 
       - name: Install dependencies
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
         run: yarn --immutable
         shell: bash
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
 
       - name: Check Changelog
         if: ${{ steps.label-check.outputs.skip_check != 'true' }}
         id: changelog-check
         shell: bash
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
         env:
           BASE_BRANCH: ${{ inputs.base-branch || 'main' }}
           PR_NUMBER: ${{ inputs.pr-number }}

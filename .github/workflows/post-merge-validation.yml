@@ -33,29 +33,30 @@ jobs:
   post-merge-validation-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./github-tools/.nvmrc
-          cache-dependency-path: ./github-tools/yarn.lock
+          node-version-file: ./.github-tools/.nvmrc
+          cache-dependency-path: ./.github-tools/yarn.lock
           cache: yarn
 
       - name: Enable Corepack
         run: corepack enable
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
 
       - name: Install dependencies
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
         run: yarn --immutable
 
       - name: Run post-merge-validation script
-        working-directory: ./github-tools
+        working-directory: ./.github-tools
         env:
           SHEET_ID: ${{ inputs.spreadsheet_id }}
           START_HOUR_UTC: ${{ inputs.start_hour_utc }}

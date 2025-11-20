@@ -49,10 +49,6 @@ on:
         required: true
         type: string
         description: 'The platform for which the release PR is being created.'
-      github-tools-version:
-        type: string
-        description: 'The version of github-tools to use. Defaults to main.'
-        default: 'main'
       git-user-name:
         type: string
         description: 'Git user name for commits. Defaults to metamaskbot.'
@@ -86,16 +82,16 @@ jobs:
           token: ${{ secrets.github-token }}
 
       # Step 2: Checkout github-tools repository
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       # Step 3: Setup environment from github-tools
       - name: Checkout and setup environment
-        uses: ./github-tools/.github/actions/checkout-and-setup
+        uses: ./.github-tools/.github/actions/checkout-and-setup
         with:
           is-high-risk-environment: true
 
@@ -112,7 +108,6 @@ jobs:
           MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
           EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
           RELEASE_SHEET_GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
-          GITHUB_TOOLS_VERSION: ${{ inputs.github-tools-version }}
           GIT_USER_NAME: ${{ inputs.git-user-name }}
           GIT_USER_EMAIL: ${{ inputs.git-user-email }}
         run: |
@@ -130,7 +125,6 @@ jobs:
           echo "Mobile Template Sheet ID: $MOBILE_TEMPLATE_SHEET_ID"
           echo "Extension Template Sheet ID: $EXTENSION_TEMPLATE_SHEET_ID"
           echo "Release Sheet Google Document ID: $RELEASE_SHEET_GOOGLE_DOCUMENT_ID"
-          echo "GitHub Tools Version: $GITHUB_TOOLS_VERSION"
           echo "Git User Name: $GIT_USER_NAME"
           echo "Git User Email: $GIT_USER_EMAIL"
           echo "-------------"
@@ -158,7 +152,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           # Execute the script from github-tools
-          ./github-tools/.github/scripts/create-platform-release-pr.sh \
+          ./.github-tools/.github/scripts/create-platform-release-pr.sh \
             "$PLATFORM" \
             "$PREVIOUS_VERSION_REF" \
             "$SEMVER_VERSION" \

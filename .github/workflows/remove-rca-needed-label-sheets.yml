@@ -17,11 +17,6 @@ on:
         required: false
         default: 'Form Responses 1'
         type: string
-      github-tools-version:
-        description: 'The version of github-tools to use. Defaults to main.'
-        required: false
-        default: 'main'
-        type: string
     secrets:
       github-token:
         description: 'GitHub token with issues write permissions'
@@ -46,13 +41,12 @@ jobs:
         with:
           token: ${{ secrets.github-token }}
 
-      - name: Checkout github-tools
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
-          token: ${{ secrets.github-token }}
-          path: github-tools
+          repository: ${{ github.action_repository }}
+          ref: ${{ github.action_ref }}
+          path: ./.github-tools
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,8 +55,8 @@ jobs:
 
       - name: Run RCA Google Sheets check
         run: |
-          # Move to github-tools directory where our script lives
-          cd github-tools/.github/scripts
+          # Move to .github-tools directory where our script lives
+          cd ./.github-tools/.github/scripts
 
           # Create a simple package.json for npm to work with
           echo '{}' > package.json
