@@ -1,0 +1,48 @@
+name: 'Add Issue/PR to Project By Team'
+
+inputs:
+  project-url:
+    description: 'URL of the GitHub Project where items should be added.'
+    required: true
+  team-name:
+    description: 'Team name to match for PR review_requested or requested_team.'
+    required: true
+  team-label:
+    description: 'Label that indicates the Issue/PR belongs to the team.'
+    required: true
+  filter-enabled:
+    description: 'If true, only add items that match the team criteria. If false, add every item.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'GitHub token with access to the project.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Add item to project board
+      uses: actions/add-to-project@v1.0.2
+      # If filtering is disabled, the condition is always true.
+      # If filtering is enabled, then:
+      #   - For PRs, check that the PR either has the specified team in requested_team
+      #     or contains the team label.
+      #   - For Issues, check that the issue contains the team label.
+      if: |
+        inputs.filter-enabled != 'true' ||
+        ((github.event_name == 'pull_request' &&
+          (
+            github.event.requested_team.name == inputs.team-name ||
+            contains(github.event.pull_request.labels.*.name, inputs.team-label) ||
+            contains(github.event.pull_request.requested_teams.*.name, inputs.team-name)
+          )
+        )
+        ||
+        (github.event_name == 'issues' &&
+          (
+            contains(github.event.issue.labels.*.name, inputs.team-label)
+          )
+        ))
+      with:
+        project-url: ${{ inputs.project-url }}
+        github-token: ${{ inputs.github-token }}

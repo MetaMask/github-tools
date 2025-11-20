@@ -1,0 +1,77 @@
+name: Update Release Changelog
+
+inputs:
+  release-branch:
+    required: true
+    type: string
+    description: 'Release branch name (e.g., Version-v13.3.0 or release/6.20.0).'
+  platform:
+    required: false
+    type: string
+    default: 'extension'
+    description: 'Target platform (extension | mobile). Defaults to extension.'
+  repository-url:
+    required: true
+    type: string
+    description: 'Full HTTPS URL for the invoking repository.'
+  previous-version-ref:
+    required: false
+    type: string
+    default: 'null'
+    description: 'Previous release version reference (branch/tag/SHA). Use "null" for hotfixes.'
+  github-tools-version:
+    required: false
+    type: string
+    default: 'main'
+    description: 'Version of github-tools to use (branch, tag, or SHA).'
+  github-token:
+    required: true
+    description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+
+runs:
+  using: composite
+  steps:
+    # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
+    - name: Checkout invoking repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.release-branch }}
+        token: ${{ inputs.github-token }}
+
+    # Step 2: Checkout github-tools repository
+    - name: Checkout github-tools repository
+      uses: actions/checkout@v4
+      with:
+        repository: MetaMask/github-tools
+        ref: ${{ inputs.github-tools-version }}
+        path: github-tools
+
+    # Step 3: Setup environment from github-tools
+    - name: Checkout and setup environment
+      uses: ./github-tools/.github/actions/checkout-and-setup
+      with:
+        is-high-risk-environment: true
+
+    # Step 4: Update changelog using shared helper script
+    - name: Update changelog branch
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GIT_AUTHOR_NAME: metamaskbot
+        GIT_AUTHOR_EMAIL: metamaskbot@users.noreply.github.com
+        RELEASE_BRANCH: ${{ inputs.release-branch }}
+        PLATFORM: ${{ inputs.platform }}
+        REPOSITORY_URL: ${{ inputs.repository-url }}
+        PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+      run: |
+        set -euo pipefail
+
+        corepack enable
+        yarn install --immutable
+
+        ./github-tools/.github/scripts/update-release-changelog.sh \
+          "$RELEASE_BRANCH" \
+          "$PLATFORM" \
+          "$REPOSITORY_URL" \
+          "$PREVIOUS_VERSION_REF"

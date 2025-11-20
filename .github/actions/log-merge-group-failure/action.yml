@@ -1,17 +1,18 @@
-name: Log merge group failure
+name: Log Merge Group Failure
 
-on:
-  workflow_call:
-    secrets:
-      GOOGLE_APPLICATION_CREDENTIALS:
-        required: true
-      GOOGLE_SERVICE_ACCOUNT:
-        required: true
-      SPREADSHEET_ID:
-        required: true
-      SHEET_NAME:
-        required: true
-  workflow_dispatch:
+inputs:
+  google-application-credentials:
+    description: 'Path to Google application credentials JSON file.'
+    required: true
+  google-service-account:
+    description: 'Base64 encoded Google service account JSON.'
+    required: true
+  spreadsheet-id:
+    description: 'Google Spreadsheet ID.'
+    required: true
+  sheet-name:
+    description: 'Sheet tab name.'
+    required: true
 
 jobs:
   log-merge-group-failure:
@@ -25,16 +26,16 @@ jobs:
 
       - name: Create service_account.json
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ inputs.google-application-credentials }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ inputs.google-service-account }}
         run: |
           echo "$GOOGLE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Write data to google sheets
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-          SHEET_NAME: ${{ secrets.SHEET_NAME }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ inputs.google-application-credentials }}
+          SPREADSHEET_ID: ${{ inputs.spreadsheet-id }}
+          SHEET_NAME: ${{ inputs.sheet-name }}
         run: |
           current_date=$(date +%Y-%m-%d)
           token=$(oauth2l fetch --scope https://www.googleapis.com/auth/spreadsheets)
