@@ -44,6 +44,16 @@ runs:
         path: target-repo
         fetch-depth: 0
 
+    - name: Debug log
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      env:
+        ACTION_REPOSITORY: ${{ github.action_repository }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+          echo "ACTION_REPOSITORY: $ACTION_REPOSITORY"
+          echo "ACTION_REF: $ACTION_REF"
+      shell: bash
+
     - name: Checkout GitHub tools repository
       if: ${{ steps.label-check.outputs.skip_check != 'true' }}
       uses: actions/checkout@v5
