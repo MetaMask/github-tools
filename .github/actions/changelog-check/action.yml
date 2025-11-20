@@ -1,9 +1,6 @@
 name: Check Changelog
 
 inputs:
-  action-sha:
-    description: 'The SHA of the action to use'
-    required: true
   base-branch:
     description: 'The base branch to compare against'
     required: false
