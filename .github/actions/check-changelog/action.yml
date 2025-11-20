@@ -45,7 +45,7 @@ runs:
 
     - name: Check out target repository
       if: ${{ steps.label-check.outputs.skip_check != 'true' }}
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: ${{ inputs.repo }}
         ref: ${{ inputs.head-ref }}
