@@ -51,29 +51,29 @@ jobs:
           fi
 
       # Check if the PR has the required approval status
-      - name: Verify Approval
-        id: verify-approval
-        if: steps.verify-branches.outputs.should_skip != 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.github-token }}
-          script: |
-            // Fetch all reviews for the PR
-            const { data: reviews } = await github.rest.pulls.listReviews({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-            
-            // Check if there is at least one review with the state 'APPROVED'
-            // (Currently commented out/disabled)
-            /*
-            const approved = reviews.some(review => review.state === 'APPROVED');
-            if (!approved) {
-              core.setFailed('Skipping: PR is not approved.');
-            }
-            */
-            console.log('PR approval check passed (currently disabled/mocked).');
+      # - name: Verify Approval
+      #   id: verify-approval
+      #   if: steps.verify-branches.outputs.should_skip != 'true'
+      #   uses: actions/github-script@v7
+      #   with:
+      #     github-token: ${{ secrets.github-token }}
+      #     script: |
+      #       // Fetch all reviews for the PR
+      #       const { data: reviews } = await github.rest.pulls.listReviews({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         pull_number: context.issue.number
+      #       });
+      #       
+      #       // Check if there is at least one review with the state 'APPROVED'
+      #       // (Currently commented out/disabled)
+      #       /*
+      #       const approved = reviews.some(review => review.state === 'APPROVED');
+      #       if (!approved) {
+      #         core.setFailed('Skipping: PR is not approved.');
+      #       }
+      #       */
+      #       console.log('PR approval check passed (currently disabled/mocked).');
 
       # Execute the merge if all checks pass
       - name: Merge PR
