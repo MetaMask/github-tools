@@ -17,6 +17,14 @@ inputs:
   repo:
     description: 'The repository to check'
     required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use'
+    required: false
+    default: ${{ github.action_ref }}
 
 runs:
   using: composite
@@ -47,8 +55,8 @@ runs:
     - name: Debug log
       if: ${{ steps.label-check.outputs.skip_check != 'true' }}
       env:
-        ACTION_REPOSITORY: ${{ github.action_repository }}
-        ACTION_REF: ${{ github.action_ref }}
+        ACTION_REPOSITORY: ${{ inputs.github-tools-repository }}
+        ACTION_REF: ${{ inputs.github-tools-ref }}
       run: |
           echo "ACTION_REPOSITORY: $ACTION_REPOSITORY"
           echo "ACTION_REF: $ACTION_REF"
@@ -58,8 +66,8 @@ runs:
       if: ${{ steps.label-check.outputs.skip_check != 'true' }}
       uses: actions/checkout@v5
       with:
-        repository: ${{ github.action_repository }}
-        ref: ${{ github.action_ref }}
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
         path: ./.github-tools
 
     - name: Enable Corepack
