@@ -1,0 +1,102 @@
+name: Check Changelog
+
+inputs:
+  base-branch:
+    description: 'The base branch to compare against'
+    required: false
+    default: 'main'
+  head-ref:
+    description: 'The head ref to check out'
+    required: true
+  labels:
+    description: 'JSON string of PR labels'
+    required: true
+  pr-number:
+    description: 'The pull request number'
+    required: true
+  repo:
+    description: 'The repository to check'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check PR Labels
+      id: label-check
+      env:
+        PR_LABELS: ${{ inputs.labels }}
+      run: |
+        if echo "$PR_LABELS" | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
+          echo "no-changelog label found, skipping changelog check."
+          echo "skip_check=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "No no-changelog label found, proceeding with check."
+          echo "skip_check=false" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Check out target repository
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.repo }}
+        ref: ${{ inputs.head-ref }}
+        path: target-repo
+        fetch-depth: 0
+
+    - name: Debug log
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      env:
+        ACTION_REPOSITORY: ${{ inputs.github-tools-repository }}
+        ACTION_REF: ${{ inputs.github-tools-ref }}
+      run: |
+        echo "ACTION_REPOSITORY: $ACTION_REPOSITORY"
+        echo "ACTION_REF: $ACTION_REF"
+      shell: bash
+
+    - name: Checkout GitHub tools repository
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./.github-tools
+
+    - name: Enable Corepack
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      run: corepack enable
+      shell: bash
+      working-directory: ./.github-tools
+
+    - name: Set up Node.js
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ./.github-tools/.nvmrc
+        cache-dependency-path: ./.github-tools/yarn.lock
+        cache: yarn
+
+    - name: Install dependencies
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      run: yarn --immutable
+      shell: bash
+      working-directory: ./.github-tools
+
+    - name: Check Changelog
+      if: ${{ steps.label-check.outputs.skip_check != 'true' }}
+      id: changelog-check
+      shell: bash
+      working-directory: ./.github-tools
+      env:
+        BASE_BRANCH: ${{ inputs.base-branch }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        yarn run changelog:check ../target-repo "$BASE_BRANCH" "$PR_NUMBER"
