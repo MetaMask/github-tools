@@ -58,8 +58,8 @@ runs:
         ACTION_REPOSITORY: ${{ inputs.github-tools-repository }}
         ACTION_REF: ${{ inputs.github-tools-ref }}
       run: |
-          echo "ACTION_REPOSITORY: $ACTION_REPOSITORY"
-          echo "ACTION_REF: $ACTION_REF"
+        echo "ACTION_REPOSITORY: $ACTION_REPOSITORY"
+        echo "ACTION_REF: $ACTION_REF"
       shell: bash
 
     - name: Checkout GitHub tools repository
