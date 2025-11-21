@@ -1,0 +1,37 @@
+name: Add Team Label
+description: "Adds a GitHub team label to a pull request based on the author's entry in the MetaMask topology file."
+
+inputs:
+  team-label-token:
+    description: 'GitHub token with access to read topology.json and add labels to PRs.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Fetch the team label for the PR author from topology.json and expose it as a step output.
+    - name: Get team label
+      id: get-team-label
+      env:
+        GH_TOKEN: ${{ inputs.team-label-token }}
+        USER: ${{ github.event.pull_request.user.login }}
+      shell: bash
+      run: |
+        # Stream topology.json through jq, find the first team where USER appears in members, pm, em, or tl, and emit
+        # its githubLabel.name value.
+        team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/topology.json' | jq -r --arg USER "$USER" '.[] | select(any(.members[]?; . == $USER) or (.pm // empty) == $USER or (.em // empty) == $USER or (.tl // empty) == $USER) | .githubLabel.name' | head -n 1)
+        if [ -z "$team_label" ]; then
+          echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update topology.json at https://github.com/MetaMask/MetaMask-planning/blob/main/topology.json"
+          exit 1
+        fi
+        echo "TEAM_LABEL=$team_label" >> "$GITHUB_OUTPUT"
+
+    # Apply the retrieved label to the pull request using the GitHub CLI.
+    - name: Add team label
+      env:
+        GH_TOKEN: ${{ secrets.TEAM_LABEL_TOKEN }}
+        PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}
+        TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
+      shell: bash
+      run: |
+        gh issue edit "$PULL_REQUEST_URL" --add-label "$TEAM_LABEL"
