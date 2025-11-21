@@ -1,0 +1,158 @@
+name: Create Release Pull Request
+description: 'Creates a release pull request for the specified platform (mobile or extension).'
+
+inputs:
+  checkout-base-branch:
+    required: true
+    description: 'The base branch, tag, or SHA for git operations.'
+  release-pr-base-branch:
+    required: true
+    description: 'The base branch, tag, or SHA for the release pull request.'
+  semver-version:
+    required: true
+    description: 'A semantic version, e.g.: "x.y.z".'
+  mobile-build-version:
+    required: false
+    description: 'The build version for the mobile platform.'
+  previous-version-ref:
+    required: true
+    description: 'Previous release version branch name, tag or commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d). For hotfix releases, pass the literal string "null".'
+  mobile-template-sheet-id:
+    required: false
+    description: 'The Mobile testing sheet template id.'
+    default: '1012668681' # prod sheet template
+  extension-template-sheet-id:
+    required: false
+    description: 'The Extension testing sheet template id.'
+    default: '295804563' # prod sheet template
+  test-only:
+    required: false
+    description: 'If true, the release will be marked as a test release.'
+    default: 'false'
+  release-sheet-google-document-id:
+    required: false
+    description: 'The Google Document ID for the release notes.'
+    default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ' # Prod Release Document
+  platform:
+    required: true
+    description: 'The platform for which the release PR is being created. Must be one of: mobile, extension.'
+  git-user-name:
+    description: 'Git user name for commits. Defaults to metamaskbot.'
+    default: 'metamaskbot'
+  git-user-email:
+    description: 'Git user email for commits. Defaults to metamaskbot@users.noreply.github.com.'
+    default: 'metamaskbot@users.noreply.github.com'
+  github-token:
+    description: 'GitHub token used for authentication.'
+    required: true
+  google-application-creds-base64:
+    description: 'Google application credentials base64 encoded.'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
+    - name: Checkout invoking repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.checkout-base-branch }}
+        token: ${{ inputs.github-token }}
+
+    # Step 2: Checkout github-tools repository
+    - name: Checkout github-tools repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: github-tools
+
+    # Step 3: Setup environment
+    - name: Checkout and setup environment
+      uses: MetaMask/action-checkout-and-setup@v2
+      with:
+        is-high-risk-environment: true
+
+    # Step 4: Print Input Values
+    - name: Print Input Values
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        CHECKOUT_BASE_BRANCH: ${{ inputs.checkout-base-branch }}
+        RELEASE_PR_BASE_BRANCH: ${{ inputs.release-pr-base-branch }}
+        SEMVER_VERSION: ${{ inputs.semver-version }}
+        PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        TEST_ONLY: ${{ inputs.test-only }}
+        MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
+        MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
+        EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
+        RELEASE_SHEET_GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      shell: bash
+      run: |
+        echo "Input Values:"
+        echo "-------------"
+        echo "Platform: $PLATFORM"
+        echo "Checkout Base Branch: $CHECKOUT_BASE_BRANCH"
+        echo "Release PR Base Branch: $RELEASE_PR_BASE_BRANCH"
+        echo "Semver Version: $SEMVER_VERSION"
+        echo "Previous Version Reference: $PREVIOUS_VERSION_REF"
+        echo "Test Only Mode: $TEST_ONLY"
+        if [[ "$PLATFORM" == "mobile" ]]; then
+          echo "Mobile Build Version: $MOBILE_BUILD_VERSION"
+        fi
+        echo "Mobile Template Sheet ID: $MOBILE_TEMPLATE_SHEET_ID"
+        echo "Extension Template Sheet ID: $EXTENSION_TEMPLATE_SHEET_ID"
+        echo "Release Sheet Google Document ID: $RELEASE_SHEET_GOOGLE_DOCUMENT_ID"
+        echo "Git User Name: $GIT_USER_NAME"
+        echo "Git User Email: $GIT_USER_EMAIL"
+        echo "-------------"
+
+    # Step 5: Create Release PR
+    - name: Create Release PR
+      id: create-release-pr
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        BASE_BRANCH: ${{ inputs.release-pr-base-branch }}
+        GITHUB_REPOSITORY_URL: '${{ github.server_url }}/${{ github.repository }}'
+        TEST_ONLY: ${{ inputs.test-only }}
+        GOOGLE_DOCUMENT_ID: ${{ inputs.release-sheet-google-document-id }}
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ inputs.google-application-creds-base64 }}
+        NEW_VERSION: ${{ inputs.semver-version }}
+        MOBILE_TEMPLATE_SHEET_ID: ${{ inputs.mobile-template-sheet-id }}
+        EXTENSION_TEMPLATE_SHEET_ID: ${{ inputs.extension-template-sheet-id }}
+        PLATFORM: ${{ inputs.platform }}
+        PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        SEMVER_VERSION: ${{ inputs.semver-version }}
+        MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      working-directory: ${{ github.workspace }}
+      run: |
+        # Execute the script from github-tools
+        ./github-tools/.github/scripts/create-platform-release-pr.sh \
+          "$PLATFORM" \
+          "$PREVIOUS_VERSION_REF" \
+          "$SEMVER_VERSION" \
+          "$MOBILE_BUILD_VERSION" \
+          "$GIT_USER_NAME" \
+          "$GIT_USER_EMAIL"
+
+    # Step 6: Upload commits.csv as artifact (if generated)
+    - name: Upload commits.csv artifact
+      if: ${{ hashFiles('commits.csv') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: commits-csv
+        path: commits.csv
+        if-no-files-found: error

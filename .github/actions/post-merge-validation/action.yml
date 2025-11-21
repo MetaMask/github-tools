@@ -1,0 +1,71 @@
+name: Post Merge Validation
+description: 'Tracks PRs merged to main and updates a Google Spreadsheet with validation status.'
+
+inputs:
+  repo:
+    description: 'The repo owner/name to process (e.g. MetaMask/metamask-extension)'
+    required: true
+  start-hour-utc:
+    description: 'The hour of the day (UTC) to start processing the PRs merged in main'
+    required: true
+  spreadsheet-id:
+    description: 'Google Spreadsheet ID to update'
+    required: false
+    default: '1tsoodlAlyvEUpkkcNcbZ4PM9HuC9cEM80RZeoVv5OCQ'
+  lookback-days:
+    description: 'Number of days to look back for PRs'
+    required: false
+    default: '1'
+  github-token:
+    description: 'GitHub token with repo access'
+    required: true
+  google-application-creds-base64:
+    description: 'Base64 encoded Google service account credentials'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache-dependency-path: ./github-tools/yarn.lock
+        cache: yarn
+
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+      working-directory: ./github-tools
+
+    - name: Install dependencies
+      working-directory: ./github-tools
+      shell: bash
+      run: yarn --immutable
+
+    - name: Run post-merge-validation script
+      working-directory: ./github-tools
+      env:
+        SHEET_ID: ${{ inputs.spreadsheet-id }}
+        START_HOUR_UTC: ${{ inputs.start-hour-utc }}
+        LOOKBACK_DAYS: ${{ inputs.lookback-days }}
+        REPO: ${{ inputs.repo }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ inputs.google-application-creds-base64 }}
+      shell: bash
+      run: node .github/scripts/post-merge-validation-tracker.mjs
