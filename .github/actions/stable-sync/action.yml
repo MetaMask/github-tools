@@ -13,6 +13,9 @@ inputs:
     required: false
     description: 'The name of the stable branch to sync to (e.g., stable, main)'
     default: 'stable'
+  github-token:
+    description: 'GitHub token used for authentication.'
+    required: true
   github-tools-repository:
     description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
     required: false
@@ -109,7 +112,7 @@ runs:
     - name: Create Pull Request
       if: steps.check-pr.outputs.result != 'true'
       env:
-        GITHUB_TOKEN: ${{ secrets.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         BRANCH_NAME: stable-main-${{ inputs.semver-version }}
         VERSION: ${{ inputs.semver-version }}
       shell: bash
