@@ -1,26 +1,34 @@
 name: Publish Slack Release Testing Status
+description: 'Publish the release testing status to Slack channels based on a Google Document.'
 
-on:
-  workflow_call:
-    inputs:
-      platform: # possible values are [ mobile, extension ]
-        required: true
-        type: string
-      google-document-id:
-        required: true
-        type: string
-      # Controls whether to actually publish to production slack channels, true will publish to prod slack channels
-      test-only:
-        required: false
-        type: string
-        default: 'false'
-    secrets:
-      slack-api-key:
-        required: true
-      github-token:
-        required: true
-      google-application-creds-base64:
-        required: true
+inputs:
+  platform:
+    description: 'The platform for which the release testing status is being published (e.g., mobile, extension).'
+    required: true
+  google-document-id:
+    description: 'The ID of the Google Document containing the release testing status.'
+    required: true
+  test-only:
+    description: 'If set to true, the action will only run in test mode and not publish to production Slack channels.'
+    required: false
+    default: 'false'
+  slack-api-key:
+    description: 'The API key for Slack to post the release testing status.'
+    required: true
+  github-token:
+    description: 'The GitHub token for authentication.'
+    required: true
+  google-application-creds-base64:
+    description: 'Base64 encoded Google application credentials for accessing Google Docs.'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
 
 jobs:
   publish-status:
@@ -29,13 +37,12 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      # Step 2: Checkout github-tools repository
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
         with:
-          repository: MetaMask/github-tools
-          ref: main
-          path: github-tools
+          repository: ${{ inputs.github-tools-repository }}
+          ref: ${{ inputs.github-tools-ref }}
+          path: ./github-tools
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -54,17 +61,16 @@ jobs:
         shell: bash
         working-directory: ./github-tools
 
-      # Step 4: Run Script
       - name: Publish Slack Release Testing Status
         id: publish-slack-release-testing-status
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
-          SLACK_API_KEY: ${{ secrets.slack-api-key }}
+          GITHUB_TOKEN: ${{ inputs.github-token }}
+          SLACK_API_KEY: ${{ inputs.slack-api-key }}
           GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
-          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.google-application-creds-base64 }}
-          TEST_ONLY: ${{inputs.test-only}}
-          PLATFORM: ${{inputs.platform}}
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ inputs.google-application-creds-base64 }}
+          TEST_ONLY: ${{ inputs.test-only }}
+          PLATFORM: ${{ inputs.platform }}
         working-directory: ./github-tools
         run: |
           yarn run slack:release-testing
