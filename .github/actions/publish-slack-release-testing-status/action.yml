@@ -30,47 +30,43 @@ inputs:
     required: false
     default: ${{ github.action_ref }}
 
-jobs:
-  publish-status:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout GitHub tools repository
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ inputs.github-tools-repository }}
-          ref: ${{ inputs.github-tools-ref }}
-          path: ./github-tools
+runs:
+  using: composite
+  steps:
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ./github-tools/.nvmrc
-          cache-dependency-path: ./github-tools/yarn.lock
-          cache: yarn
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache-dependency-path: ./github-tools/yarn.lock
+        cache: yarn
 
-      - name: Enable Corepack
-        run: corepack enable
-        shell: bash
-        working-directory: ./github-tools
+    - name: Enable Corepack
+      run: corepack enable
+      shell: bash
+      working-directory: ./github-tools
 
-      - name: Install dependencies
-        run: yarn --immutable
-        shell: bash
-        working-directory: ./github-tools
+    - name: Install dependencies
+      run: yarn --immutable
+      shell: bash
+      working-directory: ./github-tools
 
-      - name: Publish Slack Release Testing Status
-        id: publish-slack-release-testing-status
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ inputs.github-token }}
-          SLACK_API_KEY: ${{ inputs.slack-api-key }}
-          GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
-          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ inputs.google-application-creds-base64 }}
-          TEST_ONLY: ${{ inputs.test-only }}
-          PLATFORM: ${{ inputs.platform }}
-        working-directory: ./github-tools
-        run: |
-          yarn run slack:release-testing
+    - name: Publish Slack Release Testing Status
+      id: publish-slack-release-testing-status
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SLACK_API_KEY: ${{ inputs.slack-api-key }}
+        GOOG_DOCUMENT_ID: ${{ inputs.google-document-id }}
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ inputs.google-application-creds-base64 }}
+        TEST_ONLY: ${{ inputs.test-only }}
+        PLATFORM: ${{ inputs.platform }}
+      working-directory: ./github-tools
+      run: |
+        yarn run slack:release-testing
