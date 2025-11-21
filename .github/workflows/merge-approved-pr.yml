@@ -40,7 +40,7 @@ jobs:
         run: |
           # Define the required branch pattern
           REQUIRED_BASE="main"
-          REQUIRED_HEAD="stable_test"
+          REQUIRED_HEAD="stable"
           
           # Get actual values from the previous step
           ACTUAL_BASE="${{ steps.get-pr.outputs.base }}"
