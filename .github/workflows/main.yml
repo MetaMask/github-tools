@@ -32,6 +32,7 @@ jobs:
       - lint-workflows
       - build-lint-test
       - test-checkout-and-setup
+      - test-add-team-label
     outputs:
       PASSED: ${{ steps.set-output.outputs.PASSED }}
     steps:
