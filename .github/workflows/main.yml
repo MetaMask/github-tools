@@ -22,7 +22,6 @@ jobs:
   test-add-team-label:
     name: Test add-team-label
     uses: ./.github/workflows/test-add-team-label.yml
-    if: ${{ github.event_name == 'pull_request' }}
     secrets:
       TEAM_LABEL_TOKEN: ${{ secrets.TEAM_LABEL_TOKEN }}
 
