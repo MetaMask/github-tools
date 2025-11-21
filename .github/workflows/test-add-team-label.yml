@@ -1,0 +1,20 @@
+name: Test "Add Team Label" Action
+
+on:
+  workflow_call:
+    secrets:
+      TEAM_LABEL_TOKEN:
+        required: true
+
+jobs:
+  add-team-label:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Test
+        uses: ./.github/actions/add-team-label
+        with:
+          team-label-token: ${{ secrets.TEAM_LABEL_TOKEN }}
