@@ -1,0 +1,24 @@
+name: Test "Get Release Timelines" Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+        description: The version of the release
+
+jobs:
+  test-get-release-timelines:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Add team label
+        uses: ./.github/actions/get-release-timelines
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          runway-app-id: ${{ secrets.RUNWAY_APP_ID }}
+          runway-api-key: ${{ secrets.RUNWAY_API_KEY }}
+          version: ${{ github.event.inputs.version }}
