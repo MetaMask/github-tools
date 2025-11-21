@@ -29,7 +29,7 @@ runs:
   steps:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
     - name: Checkout invoking repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         ref: ${{ inputs.release-branch }}
@@ -37,7 +37,7 @@ runs:
 
     # Step 2: Checkout github-tools repository
     - name: Checkout github-tools repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: MetaMask/github-tools
         ref: ${{ inputs.github-tools-version }}

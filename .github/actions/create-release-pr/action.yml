@@ -62,7 +62,7 @@ runs:
   steps:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
     - name: Checkout invoking repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         ref: ${{ inputs.checkout-base-branch }}
@@ -70,7 +70,7 @@ runs:
 
     # Step 2: Checkout github-tools repository
     - name: Checkout github-tools repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: ${{ inputs.github-tools-repository }}
         ref: ${{ inputs.github-tools-ref }}

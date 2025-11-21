@@ -43,7 +43,7 @@ runs:
 
     # Checkout repository only if not already checked out
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       if: ${{ hashFiles('.git') == '' }}
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
@@ -63,7 +63,7 @@ runs:
         key: node-modules-${{ github.sha }}
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       id: setup-node
       with:
         node-version-file: .nvmrc
