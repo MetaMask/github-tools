@@ -20,148 +20,17 @@ on:
         type: string
         description: 'The name of the stable branch to sync to (e.g., stable, main)'
         default: 'stable'
-      github-tools-version:
-        required: false
-        type: string
-        description: 'The version of github-tools to use. Defaults to main.'
-        default: 'main'
-  workflow_call:
-    inputs:
-      semver-version:
-        required: true
-        type: string
-        description: 'The semantic version to use for the sync (e.g., x.x.x)'
-      repo-type:
-        required: false
-        type: string
-        description: 'Type of repository (mobile or extension)'
-        default: 'mobile'
-      stable-branch-name:
-        required: false
-        type: string
-        description: 'The name of the stable branch to sync to (e.g., stable, main)'
-        default: 'stable'
-      github-tools-version:
-        required: false
-        type: string
-        description: 'The version of github-tools to use. Defaults to main.'
-        default: ${{ github.action_ref }}
-    secrets:
-      github-token:
-        description: 'GitHub token for creating pull requests'
-        required: true
 
 jobs:
   stable-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Stable sync
+        uses: ./.github/actions/stable-sync
         with:
-          fetch-depth: 0
-
-      - name: Checkout github-tools repository
-        uses: actions/checkout@v4
-        with:
-          repository: MetaMask/github-tools
-          ref: ${{ inputs.github-tools-version }}
-          path: github-tools
-
-      - name: Setup Node.js Mobile
-        if: ${{ inputs.repo-type == 'mobile' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Setup Node.js Extension
-        if: ${{ inputs.repo-type == 'extension' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.15'
-
-      - name: Prepare Yarn
-        if: ${{ inputs.repo-type == 'extension' }}
-        run: corepack prepare yarn@4.5.1 --activate
-
-      - name: Prepare Yarn - Enable corepack
-        if: ${{ inputs.repo-type == 'extension' }}
-        run: corepack enable
-
-      - name: Check if PR exists
-        id: check-pr
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: prs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: `${context.repo.owner}:stable-main-${process.env.SEMVER_VERSION}`,
-              base: 'main'
-            });
-            return prs.length > 0;
-        env:
-          SEMVER_VERSION: ${{ inputs.semver-version }}
-
-      - name: Set Git user and email
-        run: |
-          git config --global user.name "metamaskbot"
-          git config --global user.email "metamaskbot@users.noreply.github.com"
-
-      - name: Run stable sync
-        id: run-stable-sync
-        # if: steps.check-pr.outputs.result != 'true'
-        env:
-          CREATE_BRANCH: 'false' # let the script handle the branch creation
-          REPO: ${{ inputs.repo-type }} # Default to 'mobile' if not specified
-          BASE_BRANCH: ${{ inputs.stable-branch-name }}
-          SEMVER_VERSION: ${{ inputs.semver-version }}
-        run: |
-          # Ensure github-tools is in .gitignore to prevent it from being committed
-          if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
-            echo "github-tools/" >> .gitignore
-            echo "Added github-tools/ to .gitignore"
-          fi
-
-          # Execute the script from github-tools
-          node ./github-tools/.github/scripts/stable-sync.js "stable-main-$SEMVER_VERSION"
-          BRANCH_NAME="stable-main-$SEMVER_VERSION"
-          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-            echo "Branch $BRANCH_NAME exists remotely, force pushing to overwrite"
-            git push origin "$BRANCH_NAME" --force
-          else
-            echo "Branch $BRANCH_NAME doesn't exist remotely, pushing with --set-upstream"
-            git push --set-upstream origin "$BRANCH_NAME"
-          fi
-
-      - name: Create Pull Request
-        if: steps.check-pr.outputs.result != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
-          BRANCH_NAME: stable-main-${{ inputs.semver-version }}
-          VERSION: ${{ inputs.semver-version }}
-        run: |
-          # Create PR using GitHub CLI
-          gh pr create \
-            --title "release: sync stable to main for version $VERSION" \
-            --body "This PR syncs the stable branch to main for version $VERSION.
-
-          *Synchronization Process:*
-
-          - Fetches the latest changes from the remote repository
-          - Resets the branch to match the stable branch
-          - Attempts to merge changes from main into the branch
-          - Handles merge conflicts if they occur
-
-          *File Preservation:*
-
-          Preserves specific files from the stable branch:
-            - CHANGELOG.md
-            - bitrise.yml
-            - android/app/build.gradle
-            - ios/MetaMask.xcodeproj/project.pbxproj
-            - package.json
-
-            Indicates the next version candidate of main to $VERSION" \
-            --base main \
-            --head "$BRANCH_NAME"
-            #--label "sync" \
-            #--label "stable"
+          semver-version: ${{ github.event.inputs.semver-version }}
+          repo-type: ${{ github.event.inputs.repo-type }}
+          stable-branch-name: ${{ github.event.inputs.stable-branch-name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
