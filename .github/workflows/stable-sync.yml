@@ -33,3 +33,4 @@ jobs:
           semver-version: ${{ github.event.inputs.semver-version }}
           repo-type: ${{ github.event.inputs.repo-type }}
           stable-branch-name: ${{ github.event.inputs.stable-branch-name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
