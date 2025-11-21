@@ -2,6 +2,9 @@ name: Test "Add Team Label" Action
 
 on:
   workflow_call:
+    secrets:
+      TEAM_LABEL_TOKEN:
+        required: true
 
 jobs:
   add-team-label:
