@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "description": "Tools for interacting with the GitHub API to do metrics gathering",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/github-tools.git"
+  },
   "scripts": {
     "changelog:check": "ts-node src/changelog-check.ts",
     "count-references-to-contributor-docs": "ts-node --swc src/scripts/count-references-to-contributor-docs/cli.ts",
@@ -10,6 +14,7 @@
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
     "lint": "yarn lint:tsc && yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check",
     "lint:constraints": "yarn constraints",
+    "lint:changelog": "auto-changelog validate --prettier",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
