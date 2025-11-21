@@ -1,0 +1,74 @@
+name: Remove RCA-needed Label
+description: 'Removes the RCA-needed label from issues listed in a Google Sheet.'
+
+inputs:
+  dry-run:
+    description: 'Run in dry-run mode (no changes made)'
+    required: false
+    default: 'false'
+  spreadsheet-id:
+    description: 'Google Spreadsheet ID (must be provided by consuming repository)'
+    required: true
+  sheet-name:
+    description: 'Sheet tab name (uses default if not provided)'
+    required: false
+    default: 'Form Responses 1'
+  github-token:
+    description: 'Github token with issues write permissions'
+    required: true
+  google-application-creds-base64:
+    description: 'Base64 encoded Google application service account credentials'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout consuming repository
+      uses: actions/checkout@v5
+      with:
+        token: ${{ inputs.github-token }}
+
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+
+    - name: Run RCA Google Sheets check
+      shell: bash
+      run: |
+        # Move to github-tools directory where our script lives
+        cd github-tools/.github/scripts
+
+        # Create a simple package.json for npm to work with
+        echo '{}' > package.json
+
+        # Install exact versions of required packages locally
+        npm install --no-save --no-package-lock \
+          @actions/core@1.10.1 \
+          @actions/github@6.0.0 \
+          googleapis@144.0.0 \
+          tsx@4.7.1
+
+        # Run the script with tsx
+        npx tsx remove-rca-needed-label-sheets.ts
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GOOGLE_SHEETS_CREDENTIALS: ${{ inputs.google-application-creds-base64 }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        SPREADSHEET_ID: ${{ inputs.spreadsheet-id }}
+        SHEET_NAME: ${{ inputs.sheet-name }}
