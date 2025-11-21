@@ -29,7 +29,7 @@ runs:
     # Apply the retrieved label to the pull request using the GitHub CLI.
     - name: Add team label
       env:
-        GH_TOKEN: ${{ secrets.TEAM_LABEL_TOKEN }}
+        GH_TOKEN: ${{ inputs.team-label-token }}
         PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}
         TEAM_LABEL: ${{ steps.get-team-label.outputs.TEAM_LABEL }}
       shell: bash
