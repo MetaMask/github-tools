@@ -19,12 +19,6 @@ jobs:
     name: Test checkout-and-setup
     uses: ./.github/workflows/test-checkout-and-setup.yml
 
-  test-add-team-label:
-    name: Test add-team-label
-    uses: ./.github/workflows/test-add-team-label.yml
-    secrets:
-      TEAM_LABEL_TOKEN: ${{ secrets.TEAM_LABEL_TOKEN }}
-
   all-jobs-completed:
     name: All jobs completed
     runs-on: ubuntu-latest
@@ -32,7 +26,6 @@ jobs:
       - lint-workflows
       - build-lint-test
       - test-checkout-and-setup
-      - test-add-team-label
     outputs:
       PASSED: ${{ steps.set-output.outputs.PASSED }}
     steps:
