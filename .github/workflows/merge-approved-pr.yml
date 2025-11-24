@@ -29,7 +29,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: ${{ inputs.pr-number }}
             });
-            
+
             // Output the base and head branch names for subsequent steps
             core.setOutput('base', pr.base.ref);
             core.setOutput('head', pr.head.ref);
@@ -41,11 +41,11 @@ jobs:
           # Define the required branch pattern
           REQUIRED_BASE="main"
           REQUIRED_HEAD="stable"
-          
+
           # Get actual values from the previous step
           ACTUAL_BASE="${{ steps.get-pr.outputs.base }}"
           ACTUAL_HEAD="${{ steps.get-pr.outputs.head }}"
-          
+
           # Compare actual branches against requirements
           if [[ "$ACTUAL_BASE" != "$REQUIRED_BASE" ]] || [[ "$ACTUAL_HEAD" != "$REQUIRED_HEAD" ]]; then
             echo "Skipping: PR must be from '$REQUIRED_HEAD' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
@@ -69,7 +69,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: ${{ inputs.pr-number }}
             });
-            
+
             // Check if there is at least one review with the state 'APPROVED'
             const approved = reviews.some(review => review.state === 'APPROVED');
             if (!approved) {
