@@ -49,10 +49,10 @@ jobs:
           # Compare actual branches against requirements
           if [[ "$ACTUAL_BASE" != "$REQUIRED_BASE" ]] || [[ "$ACTUAL_HEAD" != "$REQUIRED_HEAD" ]]; then
             echo "Skipping: PR must be from '$REQUIRED_HEAD' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
-            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "should_skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "Branches match requirements: Source '$ACTUAL_HEAD' -> Target '$ACTUAL_BASE'."
-            echo "should_skip=false" >> $GITHUB_OUTPUT
+            echo "should_skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       # Check if the PR has the required approval status
