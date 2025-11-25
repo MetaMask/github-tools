@@ -75,7 +75,7 @@ jobs:
             let teamMembers = [];
             try {
               const { data: members } = await github.rest.teams.listMembersInOrg({
-                org: 'MetaMask',
+                org: 'consensys-test',
                 team_slug: 'release-team',
                 per_page: 100
               });
