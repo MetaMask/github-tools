@@ -1,0 +1,139 @@
+name: Merge Approved PR
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        required: true
+        type: number
+        description: 'The number of the pull request to process'
+    secrets:
+      github-token:
+        required: true
+        description: 'GitHub token with permissions to merge'
+
+jobs:
+  merge-pr:
+    runs-on: ubuntu-latest
+    steps:
+      # Fetch PR metadata (head and base branches) using the GitHub API
+      - name: Get PR Details
+        id: get-pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.github-token }}
+          script: |
+            // Fetch full details of the pull request associated with the comment
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ inputs.pr-number }}
+            });
+
+            // Output the base and head branch names for subsequent steps
+            core.setOutput('base', pr.base.ref);
+            core.setOutput('head', pr.head.ref);
+
+      # Verify that the PR targets 'main' from 'stable-main-x.y.z'
+      - name: Verify Branch Names
+        id: verify-branches
+        run: |
+          # Define the required branch pattern
+          REQUIRED_BASE="main"
+          # Head branch must match pattern: stable-main-X.Y.Z where X, Y, Z are integers
+          HEAD_PATTERN="^stable-main-[0-9]+\.[0-9]+\.[0-9]+$"
+
+          # Get actual values from the previous step
+          ACTUAL_BASE="${{ steps.get-pr.outputs.base }}"
+          ACTUAL_HEAD="${{ steps.get-pr.outputs.head }}"
+
+          # Compare actual branches against requirements
+          if [[ "$ACTUAL_BASE" != "$REQUIRED_BASE" ]] || ! [[ "$ACTUAL_HEAD" =~ $HEAD_PATTERN ]]; then
+            echo "Skipping: PR must be from 'stable-main-X.Y.Z' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
+            echo "should_skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Branches match requirements: Source '$ACTUAL_HEAD' -> Target '$ACTUAL_BASE'."
+            echo "should_skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Check if the PR has the required approval status
+      - name: Verify Approval
+        id: verify-approval
+        if: steps.verify-branches.outputs.should_skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.github-token }}
+          script: |
+            // Fetch all reviews for the PR
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ inputs.pr-number }}
+            });
+
+            // Fetch members of the release team
+            let teamMembers = [];
+            try {
+              // Note: This requires a token with 'read:org' scope if the team is in an organization.
+              // GITHUB_TOKEN typically does not have this scope. Use a PAT if this fails.
+              const { data: members } = await github.rest.teams.listMembersInOrg({
+                org: context.repo.owner,
+                team_slug: 'release-team',
+                per_page: 100
+              });
+              teamMembers = members.map(m => m.login);
+            } catch (error) {
+              // Fallback: If we can't fetch team members (e.g. due to token permissions),
+              // we can fail or fallback to author_association.
+              // Given the strict requirement for "Release Team", we must fail if we can't verify it.
+              console.log(`Error fetching release-team members for org '${context.repo.owner}': ${error.message}`);
+              console.log('Verify that the token has read:org permissions and the team exists.');
+              core.setFailed(`Failed to fetch release-team members: ${error.message}`);
+              return;
+            }
+
+            // Process reviews to find the latest state for each reviewer
+            const reviewerStates = {};
+            for (const review of reviews) {
+              if (review.state === 'APPROVED' || review.state === 'CHANGES_REQUESTED') {
+                reviewerStates[review.user.login] = review.state;
+              } else if (review.state === 'DISMISSED') {
+                delete reviewerStates[review.user.login];
+              }
+            }
+
+            // Check for approval from a release-team member and no outstanding change requests
+            const states = Object.entries(reviewerStates);
+            const hasTeamApproval = states.some(([user, state]) => state === 'APPROVED' && teamMembers.includes(user));
+            const hasChangesRequested = states.some(([, state]) => state === 'CHANGES_REQUESTED');
+
+            if (!hasTeamApproval) {
+              core.setFailed('Skipping: PR is not approved by a member of the release-team.');
+            } else if (hasChangesRequested) {
+              core.setFailed('Skipping: PR has changes requested.');
+            } else {
+              console.log('PR approval check passed.');
+            }
+
+      # Execute the merge if all checks pass
+      - name: Merge PR
+        if: steps.verify-branches.outputs.should_skip != 'true'
+        uses: actions/github-script@v7
+        env:
+          BASE_REF: ${{ steps.get-pr.outputs.base }}
+          HEAD_REF: ${{ steps.get-pr.outputs.head }}
+        with:
+          github-token: ${{ secrets.github-token }}
+          script: |
+            try {
+              // Perform the merge using the 'merge' method (creates a merge commit, does not squash)
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: ${{ inputs.pr-number }},
+                merge_method: 'merge'
+              });
+              console.log(`PR merged successfully: Source '${process.env.HEAD_REF}' -> Target '${process.env.BASE_REF}'.`);
+            } catch (error) {
+              core.setFailed(`Merge failed: ${error.message}`);
+            }
