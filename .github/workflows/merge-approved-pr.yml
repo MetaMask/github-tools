@@ -59,7 +59,7 @@ jobs:
       # Check if the PR has the required approval status
       - name: Verify Approval
         id: verify-approval
-        if: success() && steps.verify-branches.outputs.should_skip != 'true'
+        if: steps.verify-branches.outputs.should_skip != 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.github-token }}
@@ -74,13 +74,20 @@ jobs:
             // Fetch members of the release team
             let teamMembers = [];
             try {
+              // Note: This requires a token with 'read:org' scope if the team is in an organization.
+              // GITHUB_TOKEN typically does not have this scope. Use a PAT if this fails.
               const { data: members } = await github.rest.teams.listMembersInOrg({
-                org: 'consensys-test',
+                org: context.repo.owner,
                 team_slug: 'release-team',
                 per_page: 100
               });
               teamMembers = members.map(m => m.login);
             } catch (error) {
+              // Fallback: If we can't fetch team members (e.g. due to token permissions),
+              // we can fail or fallback to author_association.
+              // Given the strict requirement for "Release Team", we must fail if we can't verify it.
+              console.log(`Error fetching release-team members for org '${context.repo.owner}': ${error.message}`);
+              console.log('Verify that the token has read:org permissions and the team exists.');
               core.setFailed(`Failed to fetch release-team members: ${error.message}`);
               return;
             }
@@ -110,7 +117,7 @@ jobs:
 
       # Execute the merge if all checks pass
       - name: Merge PR
-        if: success() && steps.verify-branches.outputs.should_skip != 'true'
+        if: steps.verify-branches.outputs.should_skip != 'true'
         uses: actions/github-script@v7
         env:
           BASE_REF: ${{ steps.get-pr.outputs.base }}
