@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/auto-changelog` from `^5.1.0` to `^5.2.0`
+  - Adds deduplication for commits with no PR number in subject (non-"Squash & Merge" commits)
+  - Merge commits are now deduplicated using commit body instead of the generic merge subject
+
 ## [1.0.0]
 
 ### Added
