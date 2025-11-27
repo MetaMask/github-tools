@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+
+- Add merging GitHub action ([#172](https://github.com/MetaMask/github-tools/pull/172))
+
 ### Changed
 
-- Bump `@metamask/auto-changelog` from `^5.1.0` to `^5.2.0`
+- Bump `@metamask/auto-changelog` from `^5.1.0` to `^5.2.0` ([#175](https://github.com/MetaMask/github-tools/pull/175))
   - Adds deduplication for commits with no PR number in subject (non-"Squash & Merge" commits)
   - Merge commits are now deduplicated using commit body instead of the generic merge subject
 
@@ -29,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/github-tools/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MetaMask/github-tools/releases/tag/v1.0.0
