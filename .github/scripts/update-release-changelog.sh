@@ -166,8 +166,25 @@ commit_and_push_changelog() {
     if [[ "${previous_version_ref,,}" == "null" ]]; then
         commit_msg="${commit_msg} (hotfix - no test plan)"
     fi
-    if ! git commit -am "${commit_msg}"; then
+    
+    local changes_committed=false
+    if git commit -am "${commit_msg}"; then
+        changes_committed=true
+    else
         echo "No changes detected; skipping commit."
+    fi
+
+    # Check if there are any differences between the changelog branch and release branch
+    if ! ${changes_committed}; then
+        echo "Checking for differences between ${changelog_branch} and ${release_branch}.."
+        if ! git diff --quiet "origin/${release_branch}" "HEAD"; then
+            echo "Differences found between branches; proceeding with PR creation."
+        else
+            echo "No differences between ${changelog_branch} and ${release_branch}."
+            echo "Branches are already in sync; skipping PR creation."
+            echo "Changelog workflow completed successfully (no updates needed)."
+            return 0
+        fi
     fi
 
     local pr_body="This PR updates the change log for ${version}."
