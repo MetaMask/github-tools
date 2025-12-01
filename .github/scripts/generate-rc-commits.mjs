@@ -14,7 +14,7 @@ if (!githubToken) {
 // Initialize Octokit with your GitHub token
 const octokit = new Octokit({ auth: githubToken });
 
-// https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json lookup from here
+// https://github.com/MetaMask/MetaMask-planning/blob/main/topology.json lookup from here
 async function getTeam(repository, prNumber) {
   try {
     const { data: prData } = await octokit.pulls.get({
@@ -26,7 +26,7 @@ async function getTeam(repository, prNumber) {
     const author = prData.user.login; // PR author's GitHub username
 
     const teamsJsonUrl =
-      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
+      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/topology.json';
     const githubToken = process.env.GITHUB_TOKEN;
 
     const response = await axios.get(teamsJsonUrl, {
@@ -36,7 +36,7 @@ async function getTeam(repository, prNumber) {
     // Check if the response is successful and contains data
     if (response.status !== 200 || !response.data) {
       console.error(
-        `Invalid response when fetching teams.json: ${response.status}`,
+        `Invalid response when fetching topology.json: ${response.status}`,
       );
       return ['Unknown'];
     }
