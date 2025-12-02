@@ -345,9 +345,13 @@ create_changelog_pr() {
     # Use helper function for branch checkout/creation
     checkout_or_create_branch "${changelog_branch_name}"
 
-    # Generate Changelog and Test Plan
-    echo "Generating changelog for ${platform}.."
-    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+    # Generate Changelog (skip in test mode to avoid PR lookup errors in fork/test repos)
+    if [ "$TEST_ONLY" == "true" ]; then
+        echo "Skipping auto-changelog generation in test mode (PR lookups would fail in fork/test repos)"
+    else
+        echo "Generating changelog for ${platform}.."
+        yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${new_version}" --autoCategorize --useChangelogEntry --useShortPrLink
+    fi
 
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
@@ -547,12 +551,8 @@ main() {
     # Step 1: Create release branch and PR
     create_release_pr "$PLATFORM" "$NEW_VERSION" "$NEW_VERSION_NUMBER" "$release_branch_name" "$changelog_branch_name"
 
-    # Step 2: Create changelog PR (skip in test mode)
-    if [ "$TEST_ONLY" == "true" ]; then
-        echo "Skipping changelog generation in test mode"
-    else
-        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
-    fi
+    # Step 2: Create changelog PR (in test mode, skips auto-changelog but still generates commits.csv)
+    create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
 
     # Step 3: Create version bump PR for main branch (skip for hotfix releases)
     if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
@@ -568,19 +568,15 @@ main() {
     echo "========================================="
     echo "Created PRs:"
     echo "1. Release PR: release: ${NEW_VERSION}"
-    if [ "$TEST_ONLY" != "true" ]; then
-        echo "2. Changelog PR: release: ${changelog_branch_name}"
-        if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
-            echo "(Hotfix) Skipped version bump PR"
-        else
-            echo "3. Version bump PR: Bump main version to ${next_version}"
-        fi
+    if [ "$TEST_ONLY" == "true" ]; then
+        echo "2. Changelog PR: release: ${changelog_branch_name} (test mode - auto-changelog skipped, commits.csv generated)"
     else
-        if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
-            echo "(Hotfix) Skipped version bump PR (test mode - changelog skipped)"
-        else
-            echo "2. Version bump PR: Bump main version to ${next_version} (test mode - changelog skipped)"
-        fi
+        echo "2. Changelog PR: release: ${changelog_branch_name}"
+    fi
+    if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
+        echo "(Hotfix) Skipped version bump PR"
+    else
+        echo "3. Version bump PR: Bump main version to ${next_version}"
     fi
     echo "========================================="
 }
