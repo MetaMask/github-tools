@@ -7,6 +7,14 @@ on:
         required: true
         type: number
         description: 'The number of the pull request to process'
+      required-base-branch:
+        required: true
+        type: string
+        description: 'The required base branch name (e.g., main)'
+      head-branch-pattern:
+        required: true
+        type: string
+        description: 'Regex pattern for the required head branch (e.g., ^stable-main-[0-9]+\.[0-9]+\.[0-9]+$)'
     secrets:
       github-token:
         required: true
@@ -16,6 +24,19 @@ jobs:
   merge-pr:
     runs-on: ubuntu-latest
     steps:
+      # Validate required inputs
+      - name: Validate Inputs
+        run: |
+          if [[ -z "${{ inputs.required-base-branch }}" ]]; then
+            echo "::error::Missing required input: 'required-base-branch' must be provided."
+            exit 1
+          fi
+          if [[ -z "${{ inputs.head-branch-pattern }}" ]]; then
+            echo "::error::Missing required input: 'head-branch-pattern' must be provided."
+            exit 1
+          fi
+          echo "Inputs validated: required-base-branch='${{ inputs.required-base-branch }}', head-branch-pattern='${{ inputs.head-branch-pattern }}'"
+
       # Fetch PR metadata (head and base branches) using the GitHub API
       - name: Get PR Details
         id: get-pr
@@ -34,14 +55,13 @@ jobs:
             core.setOutput('base', pr.base.ref);
             core.setOutput('head', pr.head.ref);
 
-      # Verify that the PR targets 'main' from 'stable-main-x.y.z'
+      # Verify that the PR targets the required base branch from the required head pattern
       - name: Verify Branch Names
         id: verify-branches
         run: |
-          # Define the required branch pattern
-          REQUIRED_BASE="main"
-          # Head branch must match pattern: stable-main-X.Y.Z where X, Y, Z are integers
-          HEAD_PATTERN="^stable-main-[0-9]+\.[0-9]+\.[0-9]+$"
+          # Get required branch patterns from inputs
+          REQUIRED_BASE="${{ inputs.required-base-branch }}"
+          HEAD_PATTERN="${{ inputs.head-branch-pattern }}"
 
           # Get actual values from the previous step
           ACTUAL_BASE="${{ steps.get-pr.outputs.base }}"
@@ -49,7 +69,7 @@ jobs:
 
           # Compare actual branches against requirements
           if [[ "$ACTUAL_BASE" != "$REQUIRED_BASE" ]] || ! [[ "$ACTUAL_HEAD" =~ $HEAD_PATTERN ]]; then
-            echo "Skipping: PR must be from 'stable-main-X.Y.Z' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
+            echo "Skipping: PR must be from '$HEAD_PATTERN' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
             echo "should_skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "Branches match requirements: Source '$ACTUAL_HEAD' -> Target '$ACTUAL_BASE'."
