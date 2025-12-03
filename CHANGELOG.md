@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2]
+
+### Added
+
+  - INFRA-3000: Ability to merge Version Bump PRs with comment by @XxdpavelxX in https://github.com/MetaMask/github-tools/pull/179
+
+### Changed  
+
+  - INFRA-3180: Update team json file for commits.csv during create release pr by @XxdpavelxX in https://github.com/MetaMask/github-tools/pull/180
+
+
 ## [1.1.0]
 
 ### Added
