@@ -208,7 +208,7 @@ echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
     yarn auto-changelog update --rc \
         --repo "${GITHUB_REPOSITORY_URL}" \
-        --currentVersion "${new_version}" \
+        --currentVersion "${VERSION}" \
         --autoCategorize \
         --useChangelogEntry \
         --useShortPrLink \
@@ -216,7 +216,7 @@ if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
 else
     yarn auto-changelog update --rc \
         --repo "${GITHUB_REPOSITORY_URL}" \
-        --currentVersion "${new_version}" \
+        --currentVersion "${VERSION}" \
         --autoCategorize \
         --useChangelogEntry \
         --useShortPrLink
