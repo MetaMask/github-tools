@@ -56,6 +56,10 @@ inputs:
     description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
     required: false
     default: ${{ github.action_ref }}
+  require-pr-numbers:
+    description: 'When true, only include commits with PR numbers in changelog (filters out direct commits). Defaults to false.'
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -137,6 +141,7 @@ runs:
         MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        REQUIRE_PR_NUMBERS: ${{ inputs.require-pr-numbers }}
       working-directory: ${{ github.workspace }}
       run: |
         # Execute the script from github-tools
@@ -146,7 +151,8 @@ runs:
           "$SEMVER_VERSION" \
           "$MOBILE_BUILD_VERSION" \
           "$GIT_USER_NAME" \
-          "$GIT_USER_EMAIL"
+          "$GIT_USER_EMAIL" \
+          "$REQUIRE_PR_NUMBERS"
 
     # Step 6: Upload commits.csv as artifact (if generated)
     - name: Upload commits.csv artifact

@@ -23,6 +23,10 @@ inputs:
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+  require-pr-numbers:
+    required: false
+    default: 'false'
+    description: 'When true, only include commits with PR numbers in changelog (filters out direct commits).'
 
 runs:
   using: composite
@@ -60,6 +64,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        REQUIRE_PR_NUMBERS: ${{ inputs.require-pr-numbers }}
       run: |
         set -euo pipefail
 
@@ -70,4 +75,5 @@ runs:
           "$RELEASE_BRANCH" \
           "$PLATFORM" \
           "$REPOSITORY_URL" \
-          "$PREVIOUS_VERSION_REF"
+          "$PREVIOUS_VERSION_REF" \
+          "$REQUIRE_PR_NUMBERS"

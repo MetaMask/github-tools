@@ -12,6 +12,8 @@
 # Optional arguments:
 #   4. previous_version_ref - Previous version reference (branch/tag/SHA). Defaults to literal "null"
 #                             so that commits.csv generation is skipped, matching hotfix behaviour.
+#   5. require_pr_numbers   - When "true", only include commits with PR numbers (filters out direct commits).
+#                             Defaults to "false". Only applicable to extension platform.
 #
 # Environment (optional):
 #   GITHUB_TOKEN         - Token for GitHub CLI operations (falls back to gh auth config)
@@ -25,6 +27,7 @@ RELEASE_BRANCH="${1:?release branch is required}"
 PLATFORM="${2:-extension}"
 REPOSITORY_URL="${3:?repository url is required}"
 PREVIOUS_VERSION_REF="${4:-null}"
+REQUIRE_PR_NUMBERS="${5:-false}"
 
 AUTHOR_NAME="${GIT_AUTHOR_NAME:-metamaskbot}"
 AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-metamaskbot@users.noreply.github.com}"
@@ -59,6 +62,16 @@ checkout_or_create_branch() {
             git checkout "${branch_name}"
         else
             git checkout "${branch_name}"
+        fi
+        # Merge the base branch to include any new commits from the release branch
+        if [[ -n "${base_branch}" ]]; then
+            echo "Merging ${base_branch} into ${branch_name} to include new commits..."
+            git fetch origin "${base_branch}"
+            git merge "origin/${base_branch}" --no-edit || {
+                echo "Merge conflict detected, aborting merge and resetting to release branch"
+                git merge --abort
+                git reset --hard "origin/${base_branch}"
+            }
         fi
     else
         echo "Creating new branch ${branch_name}"
@@ -200,8 +213,17 @@ CHANGELOG_BRANCH=$(determine_changelog_branch "${VERSION}")
 checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
+
+# Build the auto-changelog command based on platform and options
 if [[ "${PLATFORM}" == "extension" ]]; then
-    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize --useChangelogEntry --useShortPrLink
+    CHANGELOG_CMD="yarn auto-changelog update --rc --repo \"${GITHUB_REPOSITORY_URL}\" --currentVersion \"${VERSION}\" --autoCategorize --useChangelogEntry --useShortPrLink"
+
+    # Add --requirePrNumbers flag if enabled
+    if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
+        CHANGELOG_CMD="${CHANGELOG_CMD} --requirePrNumbers"
+    fi
+
+    eval "${CHANGELOG_CMD}"
 else
     npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize
 fi
