@@ -38,7 +38,7 @@ async function getTeam(repository, prNumber) {
       console.error(
         `Invalid response when fetching topology.json: ${response.status}`,
       );
-      return ['Unknown'];
+      return undefined;
     }
 
     const topologyJson = response.data;
@@ -55,15 +55,15 @@ async function getTeam(repository, prNumber) {
       }
     }
 
-    // Return 'Unknown' if author not found in any team
-    return 'Unknown';
+    // Return undefined if author not found in any team
+    return undefined;
 
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
       error.message || error,
     );
-    return 'Unknown';
+    return undefined;
   }
 }
 
@@ -122,7 +122,7 @@ async function filterCommitsByTeam(platform, refA, refB) {
         const prLink = prMatch
           ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}`
           : '';
-        const team = await getTeam(repository, prMatch);
+        const team = await getTeam(repository, prMatch) || 'none';
 
         // Initialize the team's commits array if it doesn't exist
         if (!commitsByTeam[team]) {
