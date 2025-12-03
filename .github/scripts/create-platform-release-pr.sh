@@ -8,7 +8,7 @@
 # 3. A version bump PR for the main branch
 #
 # Usage:
-#   create-platform-release-pr.sh <platform> <previous_version_ref> <new_version> [new_version_number] [git_user_name] [git_user_email] [require_pr_numbers]
+#   create-platform-release-pr.sh <platform> <previous_version_ref> <new_version> [new_version_number] [git_user_name] [git_user_email]
 #
 # Parameters:
 #   platform                - 'mobile' or 'extension'
@@ -17,7 +17,6 @@
 #   new_version_number      - Build version for mobile platform (optional, required for mobile)
 #   git_user_name           - Git user name for commits (optional, defaults to 'metamaskbot')
 #   git_user_email          - Git user email for commits (optional, defaults to 'metamaskbot@users.noreply.github.com')
-#   require_pr_numbers      - When 'true', only include commits with PR numbers in changelog (optional, defaults to 'false')
 
 set -e
 set -u
@@ -33,7 +32,6 @@ NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
-REQUIRE_PR_NUMBERS="${7:-false}"
 
 # Log assigned variables for debugging (after defaults and trimming)
 echo "Assigned variables:"
@@ -43,7 +41,6 @@ echo "NEW_VERSION: $NEW_VERSION"
 echo "NEW_VERSION_NUMBER: $NEW_VERSION_NUMBER"
 echo "GIT_USER_NAME: $GIT_USER_NAME"
 echo "GIT_USER_EMAIL: $GIT_USER_EMAIL"
-echo "REQUIRE_PR_NUMBERS: $REQUIRE_PR_NUMBERS"
 
 # Validate required parameters (allow empty PREVIOUS_VERSION_REF for hotfixes)
 if [[ -z $PLATFORM ]]; then
@@ -350,22 +347,13 @@ create_changelog_pr() {
 
     # Generate Changelog and Test Plan
     echo "Generating changelog for ${platform}.."
-    if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
-        yarn auto-changelog update --rc \
-            --repo "${GITHUB_REPOSITORY_URL}" \
-            --currentVersion "${new_version}" \
-            --autoCategorize \
-            --useChangelogEntry \
-            --useShortPrLink \
-            --requirePrNumbers
-    else
-        yarn auto-changelog update --rc \
-            --repo "${GITHUB_REPOSITORY_URL}" \
-            --currentVersion "${new_version}" \
-            --autoCategorize \
-            --useChangelogEntry \
-            --useShortPrLink
-    fi
+    yarn auto-changelog update --rc \
+        --repo "${GITHUB_REPOSITORY_URL}" \
+        --currentVersion "${new_version}" \
+        --autoCategorize \
+        --useChangelogEntry \
+        --useShortPrLink \
+        --requirePrNumbers
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.

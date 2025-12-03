@@ -12,8 +12,6 @@
 # Optional arguments:
 #   4. previous_version_ref - Previous version reference (branch/tag/SHA). Defaults to literal "null"
 #                             so that commits.csv generation is skipped, matching hotfix behaviour.
-#   5. require_pr_numbers   - When "true", only include commits with PR numbers (filters out direct commits).
-#                             Defaults to "false".
 #
 # Environment (optional):
 #   GITHUB_TOKEN         - Token for GitHub CLI operations (falls back to gh auth config)
@@ -27,7 +25,6 @@ RELEASE_BRANCH="${1:?release branch is required}"
 PLATFORM="${2:-extension}"
 REPOSITORY_URL="${3:?repository url is required}"
 PREVIOUS_VERSION_REF="${4:-null}"
-REQUIRE_PR_NUMBERS="${5:-false}"
 
 AUTHOR_NAME="${GIT_AUTHOR_NAME:-metamaskbot}"
 AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-metamaskbot@users.noreply.github.com}"
@@ -204,25 +201,14 @@ checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 
-# Build the auto-changelog command based on platform and options
-if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
-    yarn auto-changelog update --rc \
-        --repo "${GITHUB_REPOSITORY_URL}" \
-        --currentVersion "${VERSION}" \
-        --autoCategorize \
-        --useChangelogEntry \
-        --useShortPrLink \
-        --requirePrNumbers
-else
-    yarn auto-changelog update --rc \
-        --repo "${GITHUB_REPOSITORY_URL}" \
-        --currentVersion "${VERSION}" \
-        --autoCategorize \
-        --useChangelogEntry \
-        --useShortPrLink
-fi
+yarn auto-changelog update --rc \
+    --repo "${GITHUB_REPOSITORY_URL}" \
+    --currentVersion "${VERSION}" \
+    --autoCategorize \
+    --useChangelogEntry \
+    --useShortPrLink \
+    --requirePrNumbers
 
 # commits.csv generation removed (no longer required)
 
 commit_and_push_changelog "${VERSION}" "${PREVIOUS_VERSION_REF}" "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
-
