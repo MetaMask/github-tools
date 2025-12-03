@@ -200,13 +200,15 @@ CHANGELOG_BRANCH=$(determine_changelog_branch "${VERSION}")
 checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
-if [[ "${PLATFORM}" == "extension" ]]; then
-    yarn auto-changelog update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize --useChangelogEntry --useShortPrLink
-else
-    npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize
-fi
+
+yarn auto-changelog update --rc \
+    --repo "${GITHUB_REPOSITORY_URL}" \
+    --currentVersion "${VERSION}" \
+    --autoCategorize \
+    --useChangelogEntry \
+    --useShortPrLink \
+    --requirePrNumbers
 
 # commits.csv generation removed (no longer required)
 
 commit_and_push_changelog "${VERSION}" "${PREVIOUS_VERSION_REF}" "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
-
