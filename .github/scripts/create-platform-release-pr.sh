@@ -351,15 +351,32 @@ create_changelog_pr() {
     # Generate Changelog and Test Plan
     echo "Generating changelog for ${platform}.."
 
-    # Build the auto-changelog command based on platform and options
-    CHANGELOG_CMD="yarn auto-changelog update --rc --repo \"${GITHUB_REPOSITORY_URL}\" --currentVersion \"${new_version}\" --autoCategorize --useChangelogEntry --useShortPrLink"
-
-    # Add --requirePrNumbers flag if enabled
-    if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
-        CHANGELOG_CMD="${CHANGELOG_CMD} --requirePrNumbers"
+    # Platform-specific logic: extension uses yarn auto-changelog (project dependency),
+    # mobile uses npx with pinned version
+    if [[ "${platform}" == "extension" ]]; then
+        if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
+            yarn auto-changelog update --rc \
+                --repo "${GITHUB_REPOSITORY_URL}" \
+                --currentVersion "${new_version}" \
+                --autoCategorize \
+                --useChangelogEntry \
+                --useShortPrLink \
+                --requirePrNumbers
+        else
+            yarn auto-changelog update --rc \
+                --repo "${GITHUB_REPOSITORY_URL}" \
+                --currentVersion "${new_version}" \
+                --autoCategorize \
+                --useChangelogEntry \
+                --useShortPrLink
+        fi
+    else
+        # Mobile platform: use npx with pinned version, --requirePrNumbers not applicable
+        npx @metamask/auto-changelog@4.1.0 update --rc \
+            --repo "${GITHUB_REPOSITORY_URL}" \
+            --currentVersion "${new_version}" \
+            --autoCategorize
     fi
-
-    eval "${CHANGELOG_CMD}"
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
