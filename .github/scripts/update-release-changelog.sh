@@ -13,7 +13,7 @@
 #   4. previous_version_ref - Previous version reference (branch/tag/SHA). Defaults to literal "null"
 #                             so that commits.csv generation is skipped, matching hotfix behaviour.
 #   5. require_pr_numbers   - When "true", only include commits with PR numbers (filters out direct commits).
-#                             Defaults to "false". Only applicable to extension platform; ignored for mobile.
+#                             Defaults to "false".
 #
 # Environment (optional):
 #   GITHUB_TOKEN         - Token for GitHub CLI operations (falls back to gh auth config)
