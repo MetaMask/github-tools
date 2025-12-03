@@ -63,22 +63,6 @@ checkout_or_create_branch() {
         else
             git checkout "${branch_name}"
         fi
-        # Merge the base branch to include any new commits from the release branch.
-        # This merge logic is intentionally different from checkout_or_create_branch()
-        # in create-platform-release-pr.sh which creates fresh branches.
-        # This script runs on every push to the release branch, so the changelog branch
-        # may already exist with older content. We merge to sync file changes.
-        if [[ -n "${base_branch}" ]]; then
-            echo "Merging ${base_branch} into ${branch_name} to include new commits..."
-            git fetch origin "${base_branch}"
-            git merge "origin/${base_branch}" --no-edit || {
-                echo "Merge conflict detected during merge of ${base_branch} into ${branch_name}."
-                echo "Aborting merge and resetting to pre-merge state to preserve existing changelog content."
-                git merge --abort
-                git reset --hard HEAD
-                echo "Continuing with existing changelog branch state. auto-changelog will regenerate content."
-            }
-        fi
     else
         echo "Creating new branch ${branch_name}"
         if [[ -n "${base_branch}" ]]; then
@@ -221,25 +205,21 @@ checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 
 # Build the auto-changelog command based on platform and options
-if [[ "${PLATFORM}" == "extension" ]]; then
-    if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
-        yarn auto-changelog update --rc \
-            --repo "${GITHUB_REPOSITORY_URL}" \
-            --currentVersion "${VERSION}" \
-            --autoCategorize \
-            --useChangelogEntry \
-            --useShortPrLink \
-            --requirePrNumbers
-    else
-        yarn auto-changelog update --rc \
-            --repo "${GITHUB_REPOSITORY_URL}" \
-            --currentVersion "${VERSION}" \
-            --autoCategorize \
-            --useChangelogEntry \
-            --useShortPrLink
-    fi
+if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
+    yarn auto-changelog update --rc \
+        --repo "${GITHUB_REPOSITORY_URL}" \
+        --currentVersion "${new_version}" \
+        --autoCategorize \
+        --useChangelogEntry \
+        --useShortPrLink \
+        --requirePrNumbers
 else
-    npx @metamask/auto-changelog@4.1.0 update --rc --repo "${GITHUB_REPOSITORY_URL}" --currentVersion "${VERSION}" --autoCategorize
+    yarn auto-changelog update --rc \
+        --repo "${GITHUB_REPOSITORY_URL}" \
+        --currentVersion "${new_version}" \
+        --autoCategorize \
+        --useChangelogEntry \
+        --useShortPrLink
 fi
 
 # commits.csv generation removed (no longer required)

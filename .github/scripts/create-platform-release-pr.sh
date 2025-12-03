@@ -350,32 +350,21 @@ create_changelog_pr() {
 
     # Generate Changelog and Test Plan
     echo "Generating changelog for ${platform}.."
-
-    # Platform-specific logic: extension uses yarn auto-changelog (project dependency),
-    # mobile uses npx with pinned version
-    if [[ "${platform}" == "extension" ]]; then
-        if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
-            yarn auto-changelog update --rc \
-                --repo "${GITHUB_REPOSITORY_URL}" \
-                --currentVersion "${new_version}" \
-                --autoCategorize \
-                --useChangelogEntry \
-                --useShortPrLink \
-                --requirePrNumbers
-        else
-            yarn auto-changelog update --rc \
-                --repo "${GITHUB_REPOSITORY_URL}" \
-                --currentVersion "${new_version}" \
-                --autoCategorize \
-                --useChangelogEntry \
-                --useShortPrLink
-        fi
-    else
-        # Mobile platform: use npx with pinned version, --requirePrNumbers not applicable
-        npx @metamask/auto-changelog@4.1.0 update --rc \
+    if [[ "${REQUIRE_PR_NUMBERS}" == "true" ]]; then
+        yarn auto-changelog update --rc \
             --repo "${GITHUB_REPOSITORY_URL}" \
             --currentVersion "${new_version}" \
-            --autoCategorize
+            --autoCategorize \
+            --useChangelogEntry \
+            --useShortPrLink \
+            --requirePrNumbers
+    else
+        yarn auto-changelog update --rc \
+            --repo "${GITHUB_REPOSITORY_URL}" \
+            --currentVersion "${new_version}" \
+            --autoCategorize \
+            --useChangelogEntry \
+            --useShortPrLink
     fi
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
