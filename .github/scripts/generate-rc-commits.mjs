@@ -14,7 +14,7 @@ if (!githubToken) {
 // Initialize Octokit with your GitHub token
 const octokit = new Octokit({ auth: githubToken });
 
-// https://github.com/MetaMask/MetaMask-planning/blob/main/teams.json lookup from here
+// https://github.com/MetaMask/MetaMask-planning/blob/main/topology.json lookup from here
 async function getTeam(repository, prNumber) {
   try {
     const { data: prData } = await octokit.pulls.get({
@@ -25,36 +25,45 @@ async function getTeam(repository, prNumber) {
 
     const author = prData.user.login; // PR author's GitHub username
 
-    const teamsJsonUrl =
-      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/teams.json';
+    const topologyJsonUrl =
+      'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/topology.json';
     const githubToken = process.env.GITHUB_TOKEN;
 
-    const response = await axios.get(teamsJsonUrl, {
+    const response = await axios.get(topologyJsonUrl, {
       headers: { Authorization: `token ${githubToken}` },
     });
 
     // Check if the response is successful and contains data
     if (response.status !== 200 || !response.data) {
       console.error(
-        `Invalid response when fetching teams.json: ${response.status}`,
+        `Invalid response when fetching topology.json: ${response.status}`,
       );
-      return ['Unknown'];
+      return undefined;
     }
 
-    const teamsJson = response.data;
+    const topologyJson = response.data;
 
-    // Step 3: Match the PR author's username to a team
-    const team = teamsJson[author];
+    // Search through teams to find the author in members, pm, em, or tl
+    for (const [teamKey, teamData] of Object.entries(topologyJson)) {
+      // Check if author is in members array
+      if (teamData.members && teamData.members.includes(author)) {
+        return teamKey;
+      }
+      // Check if author is pm, em, or tl
+      if (teamData.pm === author || teamData.em === author || teamData.tl === author) {
+        return teamKey;
+      }
+    }
 
-    // Step 4: Return the team name or 'Unknown' if not found
-    return team || 'Unknown';
+    // Return undefined if author not found in any team
+    return undefined;
 
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
       error.message || error,
     );
-    return 'Unknown';
+    return undefined;
   }
 }
 
@@ -113,7 +122,7 @@ async function filterCommitsByTeam(platform, refA, refB) {
         const prLink = prMatch
           ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}`
           : '';
-        const team = await getTeam(repository, prMatch);
+        const team = await getTeam(repository, prMatch) || 'none';
 
         // Initialize the team's commits array if it doesn't exist
         if (!commitsByTeam[team]) {
