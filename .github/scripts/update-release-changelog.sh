@@ -64,16 +64,19 @@ checkout_or_create_branch() {
             git checkout "${branch_name}"
         fi
         # Merge the base branch to include any new commits from the release branch.
-        # This merge logic is intentionally different from heckout_or_create_branch()
-        # This script runs on every push to the release branch, so the changelog branch may already exist with older content.
-        # We need to merge the latest release branch commits to ensure auto-changelog sees all new commits.
+        # This merge logic is intentionally different from checkout_or_create_branch()
+        # in create-platform-release-pr.sh which creates fresh branches.
+        # This script runs on every push to the release branch, so the changelog branch
+        # may already exist with older content. We merge to sync file changes.
         if [[ -n "${base_branch}" ]]; then
             echo "Merging ${base_branch} into ${branch_name} to include new commits..."
             git fetch origin "${base_branch}"
             git merge "origin/${base_branch}" --no-edit || {
-                echo "Merge conflict detected, aborting merge and resetting to release branch"
+                echo "Merge conflict detected during merge of ${base_branch} into ${branch_name}."
+                echo "Aborting merge and resetting to pre-merge state to preserve existing changelog content."
                 git merge --abort
-                git reset --hard "origin/${base_branch}"
+                git reset --hard HEAD
+                echo "Continuing with existing changelog branch state. auto-changelog will regenerate content."
             }
         fi
     else
