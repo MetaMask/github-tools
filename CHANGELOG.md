@@ -11,12 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-  - Adds ability to merge Version Bump PRs with PR comment ([#179](https://github.com/MetaMask/github-tools/pull/179))
+- Adds ability to merge Version Bump PRs with PR comment ([#179](https://github.com/MetaMask/github-tools/pull/179))
 
-### Changed  
+### Changed
 
-  - Update to use topology.json instead of old teams.json for commits.csv during create release pr ([#180](https://github.com/MetaMask/github-tools/pull/180))
-
+- Update to use topology.json instead of old teams.json for commits.csv during create release pr ([#180](https://github.com/MetaMask/github-tools/pull/180))
 
 ## [1.1.0]
 
@@ -46,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/MetaMask/github-tools/compare/v1.1.0...v1.1.2
 [1.1.0]: https://github.com/MetaMask/github-tools/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MetaMask/github-tools/releases/tag/v1.0.0
