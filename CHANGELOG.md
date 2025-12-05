@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.3]
 
-### Uncategorized
+### Fixed
 
-- Fix: Prevent changelog PR creation when branches are in sync ([#177](https://github.com/MetaMask/github-tools/pull/177))
+- Prevent changelog PR creation when branches are in sync ([#177](https://github.com/MetaMask/github-tools/pull/177))
 
 ## [1.1.2]
 
