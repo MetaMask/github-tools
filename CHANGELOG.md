@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4]
+
+### Fixed
+
+- Checkout GitHub tools using ref instead of main branch in `flaky-test-report` and `update-release-changelog` actions ([#184](https://github.com/MetaMask/github-tools/pull/184))
+
 ## [1.1.3]
 
 ### Fixed
@@ -51,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/MetaMask/github-tools/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/MetaMask/github-tools/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/MetaMask/github-tools/compare/v1.1.0...v1.1.2
 [1.1.0]: https://github.com/MetaMask/github-tools/compare/v1.0.0...v1.1.0
