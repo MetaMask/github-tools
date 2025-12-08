@@ -14,15 +14,24 @@ inputs:
   slack-webhook-flaky-tests:
     description: 'Slack webhook URL for flaky test reports'
     required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
 
 runs:
   using: composite
   steps:
-    - name: Checkout github-tools repository
+    - name: Checkout GitHub tools repository
       uses: actions/checkout@v6
       with:
-        repository: MetaMask/github-tools
-        path: github-tools
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
 
     - name: Set up Node.js
       uses: actions/setup-node@v6
