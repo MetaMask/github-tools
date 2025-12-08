@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.4]
 
-### Uncategorized
+### Fixed
 
-- fix: Checkout GitHub tools using ref instead of main branch in two more actions ([#184](https://github.com/MetaMask/github-tools/pull/184))
+- Checkout GitHub tools using ref instead of main branch in `flaky-test-report` and `update-release-changelog` actions ([#184](https://github.com/MetaMask/github-tools/pull/184))
 
 ## [1.1.3]
 
