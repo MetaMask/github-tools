@@ -33,7 +33,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: metamask/github-tools
-          ref: INFRA-3187-AutomateMergingReleaseBranches
           path: ./github-tools
 
       - name: Set Git user and email

@@ -77,10 +77,7 @@ merge_with_favor_destination() {
   # If merge still fails (shouldn't happen with -X ours, but just in case)
   echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
 
-  # Add all files and resolve conflicts by keeping destination version
-  git_exec add .
-
-  # For any remaining conflicts, checkout our version
+  # First, resolve any unmerged (conflicted) files by keeping our version
   local conflict_files
   local conflict_count=0
   conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
@@ -95,6 +92,12 @@ merge_with_favor_destination() {
     done <<< "$conflict_files"
     echo "✅ Resolved ${conflict_count} conflict(s) by keeping destination branch version"
   fi
+
+  # Now add any remaining files (non-conflicted changes)
+  git_exec add .
+
+  # Reset .gitignore to avoid committing workflow-specific changes (github-tools/ entry)
+  git checkout HEAD -- .gitignore 2>/dev/null || true
 
   # Complete the merge
   local status
