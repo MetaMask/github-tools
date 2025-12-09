@@ -75,6 +75,12 @@ merge_with_favor_destination() {
   fi
 
   # If merge still fails (shouldn't happen with -X ours, but just in case)
+  # First verify we're actually in a merge state (MERGE_HEAD exists)
+  if [[ ! -f .git/MERGE_HEAD ]]; then
+    echo "❌ Merge failed unexpectedly (no merge state). Aborting."
+    exit 1
+  fi
+
   echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
 
   # First, resolve any unmerged (conflicted) files by keeping our version

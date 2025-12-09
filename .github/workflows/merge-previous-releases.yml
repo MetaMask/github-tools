@@ -28,6 +28,7 @@ jobs:
         with:
           ref: ${{ inputs.new-release-branch }}
           fetch-depth: 0
+          token: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
 
       - name: Checkout GitHub tools repository
         uses: actions/checkout@v5
