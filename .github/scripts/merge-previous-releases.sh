@@ -70,27 +70,30 @@ merge_with_favor_destination() {
 
   # Try to merge with "ours" strategy for conflicts (favors current branch (new release))
   if git_exec merge "origin/${source_branch}" -X ours --no-edit -m "Merge ${source_branch} into ${dest_branch}"; then
-    echo "Successfully merged ${source_branch} into ${dest_branch}"
+    echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
     return 0  # Return 0 to indicate merged
   fi
 
   # If merge still fails (shouldn't happen with -X ours, but just in case)
-  echo "Merge had conflicts, resolving by favoring destination branch (new release)..."
+  echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
 
   # Add all files and resolve conflicts by keeping destination version
   git_exec add .
 
   # For any remaining conflicts, checkout our version
   local conflict_files
+  local conflict_count=0
   conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
   if [[ -n "$conflict_files" ]]; then
     while IFS= read -r file; do
       if [[ -n "$file" ]]; then
-        echo "Resolving conflict in ${file} by keeping destination version"
+        echo "  - Conflict in: ${file} → keeping destination version"
         git_exec checkout --ours "$file"
         git_exec add "$file"
+        ((conflict_count++)) || true
       fi
     done <<< "$conflict_files"
+    echo "✅ Resolved ${conflict_count} conflict(s) by keeping destination branch version"
   fi
 
   # Complete the merge
@@ -103,7 +106,7 @@ merge_with_favor_destination() {
     fi
   fi
 
-  echo "Successfully merged ${source_branch} into ${dest_branch}"
+  echo "✅ Successfully merged ${source_branch} into ${dest_branch} (${conflict_count} conflict(s) resolved)"
   return 0  # Return 0 to indicate merged
 }
 
