@@ -44,12 +44,4 @@ jobs:
         env:
           NEW_RELEASE_BRANCH: ${{ inputs.new-release-branch }}
           GITHUB_TOKEN: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
-        run: |
-          # Ensure github-tools is in .gitignore to prevent it from being committed
-          if ! grep -q "^github-tools/" .gitignore 2>/dev/null; then
-            echo "github-tools/" >> .gitignore
-            echo "Added github-tools/ to .gitignore"
-          fi
-
-          # Execute the script
-          bash ./github-tools/.github/scripts/merge-previous-releases.sh
+        run: bash ./github-tools/.github/scripts/merge-previous-releases.sh
