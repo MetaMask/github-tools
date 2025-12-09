@@ -195,9 +195,9 @@ main() {
 
   for older_branch in "${older_branches[@]}"; do
     if merge_with_favor_destination "$older_branch" "$NEW_RELEASE_BRANCH"; then
-      ((merged_count++))
+      ((merged_count++)) || true
     else
-      ((skipped_count++))
+      ((skipped_count++)) || true
     fi
   done
 
