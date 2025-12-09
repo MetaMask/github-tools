@@ -93,17 +93,17 @@ merge_with_favor_destination() {
     echo "✅ Resolved ${conflict_count} conflict(s) by keeping destination branch version"
   fi
 
-  # Now add any remaining files (non-conflicted changes)
-  git_exec add .
+  # Now add any remaining files (non-conflicted changes), excluding github-tools directory
+  git_exec add -- . ':!github-tools'
 
-  # Reset .gitignore to avoid committing workflow-specific changes (github-tools/ entry)
-  git checkout HEAD -- .gitignore 2>/dev/null || true
+  # Unstage .gitignore to avoid committing workflow-specific changes (github-tools/ entry)
+  # Using reset instead of checkout because .gitignore may not exist in HEAD
+  git reset HEAD -- .gitignore 2>/dev/null || true
 
-  # Complete the merge
-  local status
-  status=$(git status --porcelain)
-  if [[ -n "$status" ]]; then
-    if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify; then
+  # Complete the merge - always commit when in merge state, even if no content changes
+  # Check if we're in a merge state (MERGE_HEAD exists)
+  if [[ -f .git/MERGE_HEAD ]]; then
+    if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify --allow-empty; then
       echo "Failed to commit merge of ${source_branch}"
       exit 1
     fi
