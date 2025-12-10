@@ -1,0 +1,42 @@
+name: Merge Previous Releases
+description: 'An action to merge previous release branches into a newly created release branch.'
+
+inputs:
+  new-release-branch:
+    required: true
+    description: 'The newly created release branch (e.g., release/2.1.2)'
+  github-token:
+    description: 'GitHub token used for authentication.'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repository, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Set Git user and email
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Run merge previous releases script
+      env:
+        NEW_RELEASE_BRANCH: ${{ inputs.new-release-branch }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      shell: bash
+      run: bash ./github-tools/.github/scripts/merge-previous-releases.sh
+

@@ -30,19 +30,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
 
-      - name: Checkout GitHub tools repository
-        uses: actions/checkout@v5
+      - name: Merge previous releases
+        uses: metamask/github-tools/.github/actions/merge-previous-releases@INFRA-3187-AutomateMergingReleaseBranches
         with:
-          repository: metamask/github-tools
-          path: ./github-tools
-
-      - name: Set Git user and email
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Run merge previous releases script
-        env:
-          NEW_RELEASE_BRANCH: ${{ inputs.new-release-branch }}
-          GITHUB_TOKEN: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
-        run: bash ./github-tools/.github/scripts/merge-previous-releases.sh
+          new-release-branch: ${{ inputs.new-release-branch }}
+          github-token: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
