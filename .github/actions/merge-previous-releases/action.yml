@@ -20,6 +20,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ inputs.new-release-branch }}
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+
     - name: Checkout GitHub tools repository
       uses: actions/checkout@v6
       with:
