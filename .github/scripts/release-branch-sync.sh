@@ -3,13 +3,16 @@
 # Release Branch Sync Script
 # =============================================================================
 # Purpose: After a release branch is merged into stable, create PRs to sync
-#          stable into all other open release branches.
+#          stable into all active release branches.
 #
 # Flow:
-#   1. Find all open release branches (release/X.Y.Z)
+#   1. Find release branches with active release PRs (open/draft PRs titled "release: X.Y.Z")
 #   2. For each one, create a branch from stable (stable-sync-release-X.Y.Z)
 #   3. Create a PR from that branch into the release branch
 #   4. Conflicts are left for manual resolution by developers
+#
+# Note: Only release branches with an active release PR are synced. This ensures
+#       we don't create unnecessary sync PRs for abandoned or completed releases.
 #
 # Environment variables:
 #   MERGED_RELEASE_BRANCH - The release branch that was just merged (e.g., release/7.35.0)
@@ -98,6 +101,50 @@ stable_has_new_commits() {
   [[ "$ahead_count" -gt 0 ]]
 }
 
+# Find release branches that have active release PRs (open or draft)
+# Active release PRs have titles matching "release: X.Y.Z" pattern
+# Returns: newline-separated list of release branch names (e.g., release/7.36.0)
+get_active_release_branches() {
+  local branches=""
+  
+  # Query open and draft PRs with title starting with "release:" (case-insensitive)
+  # The jq filter extracts version from PR titles like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
+  local pr_data
+  pr_data=$(gh pr list \
+    --state open \
+    --json title,isDraft \
+    --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+"; "i")) | .title' \
+    2>/dev/null || echo "")
+  
+  if [[ -z "$pr_data" ]]; then
+    echo ""
+    return
+  fi
+  
+  # Extract version numbers from PR titles and convert to branch names
+  while IFS= read -r title; do
+    if [[ -n "$title" ]]; then
+      # Extract version (X.Y.Z) from title like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
+      local version
+      version=$(echo "$title" | sed -E 's/^[Rr]elease:\s*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+      if [[ -n "$version" ]]; then
+        local branch="release/${version}"
+        # Only add if not already in list
+        if [[ ! "$branches" =~ $branch ]]; then
+          if [[ -n "$branches" ]]; then
+            branches="${branches}"$'\n'"${branch}"
+          else
+            branches="$branch"
+          fi
+        fi
+      fi
+    fi
+  done <<< "$pr_data"
+  
+  # Sort by version
+  echo "$branches" | sort -t'/' -k2 -V
+}
+
 # Create a sync PR for a release branch
 create_sync_pr() {
   local release_branch=$1
@@ -149,6 +196,12 @@ process_release_branch() {
   # Skip branches older than the merged release
   if is_version_older "$release_version" "$merged_version"; then
     log_info "Skipping ${release_branch} (older than merged release ${MERGED_RELEASE_BRANCH})"
+    return 2
+  fi
+  
+  # Verify the branch exists on the remote
+  if ! git ls-remote --heads origin "$release_branch" | grep -q "$release_branch"; then
+    log_warning "Skipping ${release_branch} (branch does not exist on remote)"
     return 2
   fi
   
@@ -236,17 +289,17 @@ main() {
   log_info "Fetching all branches..."
   git fetch --all --prune
   
-  # Find all release branches
-  log_info "Finding open release branches..."
+  # Find release branches with active release PRs
+  log_info "Finding release branches with active release PRs (open/draft PRs titled 'release: X.Y.Z')..."
   local release_branches
-  release_branches=$(git branch -r --list 'origin/release/*' | sed 's|origin/||' | tr -d ' ' | sort -t'/' -k2 -V)
+  release_branches=$(get_active_release_branches)
   
   if [[ -z "$release_branches" ]]; then
-    log_warning "No release branches found"
+    log_warning "No active release branches found (no open/draft PRs with 'release: X.Y.Z' title)"
     exit 0
   fi
   
-  log_info "Found release branches:"
+  log_info "Found active release branches:"
   echo "$release_branches" | while read -r branch; do
     echo "  - $branch"
   done
