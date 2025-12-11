@@ -1,0 +1,53 @@
+name: Release Branch Sync
+description: 'Syncs the stable branch into all open release branches after a release is merged.'
+
+inputs:
+  merged-release-branch:
+    required: true
+    description: 'The release branch that was just merged into stable (e.g., release/7.35.0)'
+  repo-type:
+    required: false
+    description: 'Type of repository (mobile or extension)'
+    default: 'mobile'
+  github-token:
+    description: 'GitHub token used for authentication and PR creation.'
+    required: true
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The ref of the GitHub tools repository to use.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Set Git user and email
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Run release branch sync script
+      env:
+        MERGED_RELEASE_BRANCH: ${{ inputs.merged-release-branch }}
+        REPO_TYPE: ${{ inputs.repo-type }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      shell: bash
+      run: bash ./github-tools/.github/scripts/release-branch-sync.sh
+
