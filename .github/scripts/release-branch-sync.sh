@@ -61,7 +61,10 @@ pr_exists() {
   local sync_branch=$2
   
   local existing_pr
-  existing_pr=$(gh pr list --base "$release_branch" --head "$sync_branch" --state open --json number --jq 'length')
+  # Use fallback to "0" if gh command fails (network/auth issues)
+  # This is safe because gh pr create will also fail if there's a real issue,
+  # and GitHub rejects duplicate PRs anyway
+  existing_pr=$(gh pr list --base "$release_branch" --head "$sync_branch" --state open --json number --jq 'length' 2>/dev/null || echo "0")
   
   [[ "$existing_pr" -gt 0 ]]
 }
@@ -207,6 +210,12 @@ main() {
   # Validate environment
   if [[ -z "$MERGED_RELEASE_BRANCH" ]]; then
     log_error "MERGED_RELEASE_BRANCH environment variable is required"
+    exit 1
+  fi
+  
+  # Validate branch format (defense in depth - workflow also validates this)
+  if ! is_valid_release_branch "$MERGED_RELEASE_BRANCH"; then
+    log_error "MERGED_RELEASE_BRANCH '${MERGED_RELEASE_BRANCH}' does not match release/X.Y.Z format"
     exit 1
   fi
   
