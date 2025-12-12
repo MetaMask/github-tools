@@ -124,13 +124,16 @@ get_active_release_branches() {
   # Extract version numbers from PR titles and convert to branch names
   while IFS= read -r title; do
     if [[ -n "$title" ]]; then
-      # Extract version (X.Y.Z) from title like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
+      # Extract version (X.Y.Z) from title - jq already validated the format,
+      # so we just need to extract the first semantic version pattern.
+      # Using grep -oE is case-agnostic and simpler than matching "release:" variations.
       local version
-      version=$(echo "$title" | sed -E 's/^[Rr]elease:\s*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+      version=$(echo "$title" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
       if [[ -n "$version" ]]; then
         local branch="release/${version}"
-        # Only add if not already in list
-        if [[ ! "$branches" =~ $branch ]]; then
+        # Only add if not already in list (use grep -Fx for exact string matching,
+        # avoiding regex issues with '.' in version numbers like 7.3.0)
+        if [[ -z "$branches" ]] || ! echo "$branches" | grep -Fxq "$branch"; then
           if [[ -n "$branches" ]]; then
             branches="${branches}"$'\n'"${branch}"
           else
