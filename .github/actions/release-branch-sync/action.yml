@@ -5,10 +5,6 @@ inputs:
   merged-release-branch:
     required: true
     description: 'The release branch that was just merged into stable (e.g., release/7.35.0)'
-  repo-type:
-    required: false
-    description: 'Type of repository (mobile or extension)'
-    default: 'mobile'
   github-token:
     description: 'GitHub token used for authentication and PR creation.'
     required: true
@@ -46,7 +42,6 @@ runs:
     - name: Run release branch sync script
       env:
         MERGED_RELEASE_BRANCH: ${{ inputs.merged-release-branch }}
-        REPO_TYPE: ${{ inputs.repo-type }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
       shell: bash
       run: bash ./github-tools/.github/scripts/release-branch-sync.sh

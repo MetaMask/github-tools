@@ -16,7 +16,6 @@
 #
 # Environment variables:
 #   MERGED_RELEASE_BRANCH - The release branch that was just merged (e.g., release/7.35.0)
-#   REPO_TYPE             - Repository type: 'mobile' or 'extension'
 #   GITHUB_TOKEN          - GitHub token for authentication and PR creation
 # =============================================================================
 
@@ -281,7 +280,6 @@ main() {
   fi
   
   log_info "Merged release branch: ${MERGED_RELEASE_BRANCH}"
-  log_info "Repository type: ${REPO_TYPE:-not set}"
   
   # Get version of the merged release
   local merged_version
