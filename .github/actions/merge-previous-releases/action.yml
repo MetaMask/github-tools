@@ -46,4 +46,3 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       shell: bash
       run: bash ./github-tools/.github/scripts/merge-previous-releases.sh
-
