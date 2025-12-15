@@ -83,7 +83,13 @@ merge_with_favor_destination() {
 
   echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
 
-  # First, resolve any unmerged (conflicted) files by keeping our version
+  # Resolve any unmerged (conflicted) files by keeping destination version.
+  #
+  # Git merge terminology in this context:
+  #   - "ours"   = destination branch (new release, e.g., release/2.1.2) - the branch we're ON
+  #   - "theirs" = source branch (older release, e.g., release/2.1.1) - the branch being merged IN
+  #
+  # We favor "ours" (destination) because the new release branch should take precedence.
   local conflict_files
   local conflict_count=0
   conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
@@ -91,8 +97,22 @@ merge_with_favor_destination() {
     while IFS= read -r file; do
       if [[ -n "$file" ]]; then
         echo "  - Conflict in: ${file} → keeping destination version"
-        git_exec checkout --ours "$file"
-        git_exec add "$file"
+        # Try to checkout destination version ("ours")
+        # If checkout fails, the file was deleted in destination - keep that deletion
+        if git checkout --ours "$file" 2>/dev/null; then
+          git add "$file"
+        else
+          # Modify/delete conflict scenario:
+          #   - Destination branch (new release) ALREADY deleted this file intentionally
+          #   - Source branch (older release) modified this file
+          #   - Git doesn't know which action to keep
+          #
+          # We use "git rm" to confirm the deletion should stand (destination wins).
+          # This does NOT delete a file that exists - it tells Git "keep the file deleted".
+          # The --force flag is required because the file is in a conflicted/unmerged state.
+          echo "    (file was deleted in destination, keeping deletion)"
+          git rm --force "$file" 2>/dev/null || true
+        fi
         ((conflict_count++)) || true
       fi
     done <<< "$conflict_files"
