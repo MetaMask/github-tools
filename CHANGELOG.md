@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0]
 
-### Uncategorized
+### Added
 
-- feat: Add action which determines if the merge queue can be safely skipped ([#191](https://github.com/MetaMask/github-tools/pull/191))
-- chore(lint): Fix lint error on `main` ([#192](https://github.com/MetaMask/github-tools/pull/192))
+- Add action which determines if the merge queue can be safely skipped ([#191](https://github.com/MetaMask/github-tools/pull/191))
 
 ## [1.2.0]
 
