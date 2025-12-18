@@ -31,7 +31,7 @@ inputs:
 
 outputs:
   up-to-date:
-    value: ${{ steps.up-to-date.outputs.up-to-date }}
+    value: ${{ steps.up-to-date.outputs.up-to-date || 'false' }}
     description: Whether the pull request is up-to-date with the base branch
       and is first in the merge queue, allowing it to skip the merge queue.
 
@@ -102,10 +102,3 @@ runs:
         else
           echo "up-to-date=false" >> "$GITHUB_OUTPUT"
         fi
-
-    - name: Output `false` on failure
-      if: steps.pr-details.outcome == 'failure' || steps.up-to-date.outcome == 'failure'
-      shell: bash
-      # If any previous step failed for any reason, instead of failing the
-      # entire action, we catch the failure here and set the output to false.
-      run: echo "up-to-date=false" >> "$GITHUB_OUTPUT"
