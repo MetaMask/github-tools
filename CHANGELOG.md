@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0]
+
+### Uncategorized
+
+- feat: Add action which determines if the merge queue can be safely skipped ([#191](https://github.com/MetaMask/github-tools/pull/191))
+- chore(lint): Fix lint error on `main` ([#192](https://github.com/MetaMask/github-tools/pull/192))
+
 ## [1.2.0]
 
 ### Added
@@ -64,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/MetaMask/github-tools/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MetaMask/github-tools/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/MetaMask/github-tools/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/MetaMask/github-tools/compare/v1.1.2...v1.1.3
