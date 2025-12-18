@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-  - Created workflow **release-branch-sync** to sync release, stable branches in ([#189](https://github.com/MetaMask/github-tools/pull/189))
-  - Create workflow **merge-previous-releases** to automate Merging old release branches into new release branches workflow in ([#186](https://github.com/MetaMask/github-tools/pull/186))
+- Created workflow **release-branch-sync** to sync release, stable branches in ([#189](https://github.com/MetaMask/github-tools/pull/189))
+- Create workflow **merge-previous-releases** to automate Merging old release branches into new release branches workflow in ([#186](https://github.com/MetaMask/github-tools/pull/186))
 
 ## [1.1.4]
 
