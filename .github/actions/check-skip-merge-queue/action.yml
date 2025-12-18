@@ -44,6 +44,7 @@ runs:
         fetch-depth: 0
 
     - name: Get pull request details
+      continue-on-error: true
       id: pr-details
       uses: actions/github-script@v8
       env:
@@ -87,6 +88,7 @@ runs:
           core.setOutput('merge-queue-position', position);
 
     - name: Check if pull request is up-to-date with base branch
+      continue-on-error: true
       id: up-to-date
       shell: bash
       env:
@@ -100,3 +102,10 @@ runs:
         else
           echo "up-to-date=false" >> "$GITHUB_OUTPUT"
         fi
+
+    - name: Output `false` on failure
+      if: steps.pr-details.outcome == 'failure' || steps.up-to-date.outcome == 'failure'
+      shell: bash
+      # If any previous step failed for any reason, instead of failing the
+      # entire action, we catch the failure here and set the output to false.
+      run: echo "up-to-date=false" >> "$GITHUB_OUTPUT"
