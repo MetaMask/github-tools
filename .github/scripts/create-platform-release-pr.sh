@@ -310,7 +310,8 @@ create_changelog_pr() {
         "${release_branch_name}" \
         "${platform}" \
         "${GITHUB_REPOSITORY_URL}" \
-        "${previous_version_ref}"
+        "${previous_version_ref}" \
+        "${changelog_branch_name}"
 
     echo "Changelog PR Ready"
 }
