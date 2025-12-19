@@ -22,6 +22,11 @@ set -e
 set -u
 set -o pipefail
 
+# Sourcing helper functions
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck source=.github/scripts/utils.sh
+source "${SCRIPT_DIR}/utils.sh"
+
 # Input assignments (quoted args prevent shifting). Use defaults only for optional args.
 PLATFORM="${1}"
 PREVIOUS_VERSION_REF="${2:-}"
@@ -126,101 +131,6 @@ get_version_bump_branch_name() {
 
 # Main workflow functions
 # -----------------------
-
-# Helper function to check if branch exists and checkout/create it
-checkout_or_create_branch() {
-    local branch_name="$1"
-    local base_branch="${2:-}" # Optional base branch for new branches
-
-    echo "Checking for existing branch ${branch_name}"
-
-    if git show-ref --verify --quiet "refs/heads/${branch_name}" || git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-        echo "Branch ${branch_name} already exists, checking it out"
-        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-            git fetch origin "${branch_name}"
-            git checkout "${branch_name}"
-        else
-            git checkout "${branch_name}"
-        fi
-    else
-        echo "Creating new branch ${branch_name}"
-        if [[ -n "$base_branch" ]]; then
-            git checkout "$base_branch"
-            git pull origin "$base_branch"
-        fi
-        git checkout -b "${branch_name}"
-    fi
-
-    echo "Branch ${branch_name} ready"
-}
-
-# Helper function to push branch with error handling
-push_branch_with_handling() {
-    local branch_name="$1"
-
-    echo "Pushing changes to the remote.."
-    if ! git push --set-upstream origin "${branch_name}"; then
-        echo "No changes to push to ${branch_name}"
-        # Check if branch exists remotely
-        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-            echo "Branch ${branch_name} already exists remotely"
-        else
-            echo "Error: Failed to push and branch doesn't exist remotely"
-            exit 1
-        fi
-    fi
-}
-
-# Helper function to create PR if it doesn't exist
-create_pr_if_not_exists() {
-    local branch_name="$1"
-    local title="$2"
-    local body="$3"
-    local base_branch="${4:-main}"
-    local labels="${5:-}"
-    local search_method="${6:-head}" # "head" or "search"
-
-    echo "Creating PR for ${branch_name}.."
-
-    # Check if PR already exists using different methods
-    local pr_exists=false
-    if [[ "$search_method" == "search" ]]; then
-        if gh pr list --search "head:${branch_name}" --json number --jq 'length' | grep -q "1"; then
-            pr_exists=true
-        fi
-    else
-        if gh pr list --head "${branch_name}" --json number --jq 'length' | grep -q "1"; then
-            pr_exists=true
-        fi
-    fi
-
-    if $pr_exists; then
-        echo "PR for branch ${branch_name} already exists"
-    else
-        # Build command array with conditional label inclusion
-        local gh_cmd=(gh pr create --draft --title "${title}" --body "${body}" --base "${base_branch}" --head "${branch_name}")
-
-        # Add labels only if provided (GitHub CLI doesn't accept empty label values)
-        if [[ -n "${labels:-}" ]]; then
-            gh_cmd+=(--label "${labels}")
-        fi
-
-        # Execute the command
-        # echo "Executing: ${gh_cmd[@]}"
-        "${gh_cmd[@]}"
-        echo "PR Created: ${title}"
-    fi
-}
-
-# Configure git for automation
-configure_git() {
-    echo "Configuring git.."
-    git config user.name "${GIT_USER_NAME}"
-    git config user.email "${GIT_USER_EMAIL}"
-
-    echo "Fetching from remote..."
-    git fetch
-}
 
 # Create release branch, update versions, and create PR
 create_release_pr() {
@@ -342,19 +252,6 @@ create_changelog_pr() {
     local release_branch_name="$4"
     local changelog_branch_name="$5"
 
-    # Use helper function for branch checkout/creation
-    checkout_or_create_branch "${changelog_branch_name}"
-
-    # Generate Changelog and Test Plan
-    echo "Generating changelog for ${platform}.."
-    yarn auto-changelog update --rc \
-        --repo "${GITHUB_REPOSITORY_URL}" \
-        --currentVersion "${new_version}" \
-        --autoCategorize \
-        --useChangelogEntry \
-        --useShortPrLink \
-        --requirePrNumbers
-
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
     # - When we create a new hotfix release, there are no commits included in the release by default (they will be cherry-picked one by one). So we don't have previous version reference, which is why the value is set to 'null'.
@@ -399,33 +296,20 @@ create_changelog_pr() {
       cd ../
     fi
 
-    # Skipping Google Sheets update since there is no need for it anymore
-    # TODO: Remove this once the current post-main validation approach is stable
-    # if [[ "${TEST_ONLY:-false}" == 'false' ]]; then
-    #   echo "Updating release sheet.."
-    #   # Create a new Release Sheet Page for the new version with our commits.csv content
-    #   yarn run update-release-sheet "${platform}" "${new_version}" "${GOOGLE_DOCUMENT_ID}" "./commits.csv" "${PROJECT_GIT_DIR}" "${MOBILE_TEMPLATE_SHEET_ID}" "${EXTENSION_TEMPLATE_SHEET_ID}"
-    # fi
-    # Note: Only change directories when we actually entered ./github-tools/
+    # Delegate changelog update and PR creation to the shared update-release-changelog.sh script
+    echo "Updating changelog and creating PR.."
+    
+    # Export git identity for the shared script
+    export GIT_AUTHOR_NAME="${GIT_USER_NAME}"
+    export GIT_AUTHOR_EMAIL="${GIT_USER_EMAIL}"
 
-    # Commit and Push Changelog Changes (exclude commits.csv)
-    echo "Adding and committing changes.."
-    local commit_msg="update changelog for ${new_version}"
-    if [[ "${previous_version_ref,,}" == "null" ]]; then
-      commit_msg="${commit_msg} (hotfix - no test plan)"
-    fi
-    if ! (git commit -am "${commit_msg}"); then
-      echo "No changes detected; skipping commit."
-    fi
-
-    local pr_body="This PR updates the change log for ${new_version}."
-    if [[ "${previous_version_ref,,}" == "null" ]]; then
-      pr_body="${pr_body} (Hotfix - no test plan generated.)"
-    fi
-
-    # Use helper functions for push and PR creation
-    push_branch_with_handling "${changelog_branch_name}"
-    create_pr_if_not_exists "${changelog_branch_name}" "release: ${changelog_branch_name}" "${pr_body}" "${release_branch_name}" "" "search"
+    # Call the shared script
+    # The script is located in the same directory as this one
+    "${SCRIPT_DIR}/update-release-changelog.sh" \
+        "${release_branch_name}" \
+        "${platform}" \
+        "${GITHUB_REPOSITORY_URL}" \
+        "${previous_version_ref}"
 
     echo "Changelog PR Ready"
 }
@@ -547,7 +431,7 @@ main() {
     release_branch_name=$(get_release_branch_name "$NEW_VERSION")
     changelog_branch_name="release/${NEW_VERSION}-Changelog"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
-    configure_git
+    configure_git "${GIT_USER_NAME}" "${GIT_USER_EMAIL}"
 
     # Step 1: Create release branch and PR
     create_release_pr "$PLATFORM" "$NEW_VERSION" "$NEW_VERSION_NUMBER" "$release_branch_name" "$changelog_branch_name"

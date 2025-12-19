@@ -21,6 +21,11 @@
 
 set -euo pipefail
 
+# Sourcing helper functions
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck source=.github/scripts/utils.sh
+source "${SCRIPT_DIR}/utils.sh"
+
 RELEASE_BRANCH="${1:?release branch is required}"
 PLATFORM="${2:-extension}"
 REPOSITORY_URL="${3:?repository url is required}"
@@ -29,100 +34,6 @@ PREVIOUS_VERSION_REF="${4:-null}"
 AUTHOR_NAME="${GIT_AUTHOR_NAME:-metamaskbot}"
 AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-metamaskbot@users.noreply.github.com}"
 TEST_ONLY="${TEST_ONLY:-false}"
-
-# --- Helper functions copied or adapted from create-platform-release-pr.sh ---
-
-configure_git() {
-    # Configure git identity and fetch remote refs so subsequent operations run
-    # with the same context as create-platform-release-pr.sh.
-    echo "Configuring git.."
-    git config user.name "${AUTHOR_NAME}"
-    git config user.email "${AUTHOR_EMAIL}"
-
-    echo "Fetching from remote..."
-    git fetch
-}
-
-checkout_or_create_branch() {
-    # Ensure a branch exists locally for the changelog workflow. If it already
-    # exists locally or remotely, check it out; otherwise create it (optionally
-    # from a provided base branch) so changelog updates have the proper base.
-    local branch_name="$1"
-    local base_branch="${2:-}"
-
-    echo "Checking for existing branch ${branch_name}"
-
-    if git show-ref --verify --quiet "refs/heads/${branch_name}" || git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-        echo "Branch ${branch_name} already exists, checking it out"
-        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-            git fetch origin "${branch_name}"
-            git checkout "${branch_name}"
-        else
-            git checkout "${branch_name}"
-        fi
-    else
-        echo "Creating new branch ${branch_name}"
-        if [[ -n "${base_branch}" ]]; then
-            git checkout "${base_branch}"
-            git pull origin "${base_branch}"
-        fi
-        git checkout -b "${branch_name}"
-    fi
-
-    echo "Branch ${branch_name} ready"
-}
-
-push_branch_with_handling() {
-    # Push changelog updates upstream, tolerating no-op pushes while still
-    # surfacing failures when the remote branch is missing.
-    local branch_name="$1"
-
-    echo "Pushing changes to the remote.."
-    if ! git push --set-upstream origin "${branch_name}"; then
-        echo "No changes to push to ${branch_name}"
-        if git ls-remote --heads origin "${branch_name}" | grep -q "${branch_name}"; then
-            echo "Branch ${branch_name} already exists remotely"
-        else
-            echo "Error: Failed to push and branch doesn't exist remotely"
-            exit 1
-        fi
-    fi
-}
-
-create_pr_if_not_exists() {
-    # Guard against duplicate changelog PRs by checking existing PRs before
-    # opening a draft that targets the release branch.
-    local branch_name="$1"
-    local title="$2"
-    local body="$3"
-    local base_branch="${4:-main}"
-    local labels="${5:-}"
-    local search_method="${6:-head}"
-
-    echo "Creating PR for ${branch_name}.."
-
-    local pr_exists=false
-    if [[ "${search_method}" == "search" ]]; then
-        if gh pr list --search "head:${branch_name}" --json number --jq 'length' | grep -q "1"; then
-            pr_exists=true
-        fi
-    else
-        if gh pr list --head "${branch_name}" --json number --jq 'length' | grep -q "1"; then
-            pr_exists=true
-        fi
-    fi
-
-    if ${pr_exists}; then
-        echo "PR for branch ${branch_name} already exists"
-    else
-        local gh_cmd=(gh pr create --draft --title "${title}" --body "${body}" --base "${base_branch}" --head "${branch_name}")
-        if [[ -n "${labels}" ]]; then
-            gh_cmd+=(--label "${labels}")
-        fi
-        "${gh_cmd[@]}"
-        echo "PR Created: ${title}"
-    fi
-}
 
 # -----------------------------------------------------------------
 # -----------------------------------------------------------------
@@ -209,7 +120,7 @@ fi
 
 GITHUB_REPOSITORY_URL="${REPOSITORY_URL}"
 
-configure_git
+configure_git "${AUTHOR_NAME}" "${AUTHOR_EMAIL}"
 
 ensure_release_branch "${RELEASE_BRANCH}"
 
