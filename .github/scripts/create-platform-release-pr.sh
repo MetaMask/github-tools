@@ -37,6 +37,7 @@ NEW_VERSION="${NEW_VERSION//[[:space:]]/}"
 NEW_VERSION_NUMBER="${4:-}"
 GIT_USER_NAME="${5:-metamaskbot}"
 GIT_USER_EMAIL="${6:-metamaskbot@users.noreply.github.com}"
+BASE_BRANCH="${BASE_BRANCH:-main}"
 
 # Log assigned variables for debugging (after defaults and trimming)
 echo "Assigned variables:"
