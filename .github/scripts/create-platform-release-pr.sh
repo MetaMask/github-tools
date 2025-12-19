@@ -141,7 +141,7 @@ create_release_pr() {
     local changelog_branch_name="$5"
 
     echo "Checking out the release branch: ${release_branch_name}"
-    git checkout "${release_branch_name}"
+    checkout_or_create_branch "${release_branch_name}" "${BASE_BRANCH}"
 
     echo "Release Branch Checked Out"
     echo "version : ${new_version}"
