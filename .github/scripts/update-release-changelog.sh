@@ -14,6 +14,8 @@
 #                             so that commits.csv generation is skipped, matching hotfix behaviour.
 #   5. changelog_branch     - Specific name for the changelog branch. If not provided, it will be
 #                             determined automatically (checking for existing release/ or chore/ branches).
+#   6. version              - The semantic version (e.g., 6.20.0). If not provided, it will be
+#                             derived from the release_branch name.
 #
 # Environment (optional):
 #   GITHUB_TOKEN         - Token for GitHub CLI operations (falls back to gh auth config)
@@ -33,6 +35,7 @@ PLATFORM="${2:-extension}"
 REPOSITORY_URL="${3:?repository url is required}"
 PREVIOUS_VERSION_REF="${4:-null}"
 CHANGELOG_BRANCH_INPUT="${5:-}"
+VERSION_INPUT="${6:-}"
 
 AUTHOR_NAME="${GIT_AUTHOR_NAME:-metamaskbot}"
 AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-metamaskbot@users.noreply.github.com}"
@@ -114,11 +117,15 @@ commit_and_push_changelog() {
 # -----------------------------------------------------------------
 
 # Derive the semantic version from the branch naming convention (release/x.y.z only).
-if [[ "${RELEASE_BRANCH}" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  VERSION="${BASH_REMATCH[1]}"
+if [[ -n "${VERSION_INPUT}" ]]; then
+  VERSION="${VERSION_INPUT}"
 else
-  echo "Release branch '${RELEASE_BRANCH}' does not match known patterns." >&2
-  exit 1
+  if [[ "${RELEASE_BRANCH}" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+    VERSION="${BASH_REMATCH[1]}"
+  else
+    echo "Release branch '${RELEASE_BRANCH}' does not match known patterns and no version was provided." >&2
+    exit 1
+  fi
 fi
 
 GITHUB_REPOSITORY_URL="${REPOSITORY_URL}"
