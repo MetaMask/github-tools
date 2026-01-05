@@ -67,11 +67,11 @@ create_pr_if_not_exists() {
 
     local pr_exists=false
     if [[ "${search_method}" == "search" ]]; then
-        if [[ $(gh pr list --search "head:${branch_name}" --json number --jq 'length') -eq 1 ]]; then
+        if [[ $(gh pr list --search "head:${branch_name}" --json number --jq 'length') -gt 0 ]]; then
             pr_exists=true
         fi
     else
-        if [[ $(gh pr list --head "${branch_name}" --json number --jq 'length') -eq 1 ]]; then
+        if [[ $(gh pr list --head "${branch_name}" --json number --jq 'length') -gt 0 ]]; then
             pr_exists=true
         fi
     fi
