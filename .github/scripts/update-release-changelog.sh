@@ -10,8 +10,9 @@
 #   3. repository_url      - Full HTTPS URL for the invoking repository.
 #
 # Optional arguments:
-#   4. previous_version_ref - Previous version reference (branch/tag/SHA).
-#                             If set to "null", it indicates a hotfix (no test plan).
+#   4. previous_version_ref - Previous version reference (branch/tag/SHA). Defaults to "null"
+#                             (Hotfix mode) if omitted. If provided as an empty string,
+#                             it indicates a regular release.
 #   5. changelog_branch     - Specific name for the changelog branch. If not provided, it will be
 #                             determined automatically (checking for existing release/ or chore/ branches).
 #   6. version              - The semantic version (e.g., 6.20.0). If not provided, it will be
@@ -33,7 +34,7 @@ source "${SCRIPT_DIR}/utils.sh"
 RELEASE_BRANCH="${1:?release branch is required}"
 PLATFORM="${2:-extension}"
 REPOSITORY_URL="${3:?repository url is required}"
-PREVIOUS_VERSION_REF="${4:-}"
+PREVIOUS_VERSION_REF="${4-null}"
 CHANGELOG_BRANCH_INPUT="${5:-}"
 VERSION_INPUT="${6:-}"
 
