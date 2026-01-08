@@ -15,6 +15,11 @@ on:
         required: true
         type: string
         description: 'Regex pattern for the required head branch (e.g., ^stable-main-[0-9]+\.[0-9]+\.[0-9]+$)'
+      merge-method:
+        required: false
+        type: string
+        default: 'merge'
+        description: "Merge method: 'merge' (merge commit) or 'squash' (squash merge)"
     secrets:
       github-token:
         required: true
@@ -35,7 +40,12 @@ jobs:
             echo "::error::Missing required input: 'head-branch-pattern' must be provided."
             exit 1
           fi
-          echo "Inputs validated: required-base-branch='${{ inputs.required-base-branch }}', head-branch-pattern='${{ inputs.head-branch-pattern }}'"
+          MERGE_METHOD="${{ inputs.merge-method }}"
+          if [[ "$MERGE_METHOD" != "merge" && "$MERGE_METHOD" != "squash" ]]; then
+            echo "::error::Invalid input: 'merge-method' must be either 'merge' or 'squash'. Got '$MERGE_METHOD'."
+            exit 1
+          fi
+          echo "Inputs validated: required-base-branch='${{ inputs.required-base-branch }}', head-branch-pattern='${{ inputs.head-branch-pattern }}', merge-method='$MERGE_METHOD'"
 
       # Fetch PR metadata (head and base branches) using the GitHub API
       - name: Get PR Details
@@ -146,12 +156,12 @@ jobs:
           github-token: ${{ secrets.github-token }}
           script: |
             try {
-              // Perform the merge using the 'merge' method (creates a merge commit, does not squash)
+              // Perform the merge using the requested method ('merge' or 'squash')
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: ${{ inputs.pr-number }},
-                merge_method: 'merge'
+                merge_method: '${{ inputs.merge-method }}'
               });
               console.log(`PR merged successfully: Source '${process.env.HEAD_REF}' -> Target '${process.env.BASE_REF}'.`);
             } catch (error) {
