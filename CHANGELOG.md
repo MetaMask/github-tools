@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0]
 
-### Uncategorized
+### Changed
 
-- ci: improve setup -e2e-env for iOS ([#197](https://github.com/MetaMask/github-tools/pull/197))
-- Simplify fallback value on error in skip merge queue action ([#194](https://github.com/MetaMask/github-tools/pull/194))
+- Updated setup-e2e-env action for iOS builds by adding CocoaPods specs caching and enabling Yarn global cache ([#197](https://github.com/MetaMask/github-tools/pull/197))
 
 ## [1.3.0]
 
