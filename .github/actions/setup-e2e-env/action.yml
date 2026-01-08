@@ -230,6 +230,7 @@ runs:
         command: yarn install --immutable
       env:
         NODE_OPTIONS: --max-old-space-size=4096 # Increase memory limit for Node.js due to large dependencies
+        YARN_ENABLE_GLOBAL_CACHE: 'true' # Enable Yarn's global cache for faster installs
 
     - name: Install Foundry
       shell: bash
@@ -328,12 +329,26 @@ runs:
       run: sudo xcode-select -s "/Applications/Xcode_$XCODE_VERSION.app"
       shell: bash
 
+    - name: Restore CocoaPods specs cache
+      if: ${{ inputs.platform == 'ios' }}
+      id: cocoapods-specs-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cocoapods/repos
+        key: ${{ runner.os }}-cocoapods-specs-${{ hashFiles('ios/Podfile.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cocoapods-specs-
+      continue-on-error: true # Don't fail if cache restoration has issues
+
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios'}}
-      run: bundle exec pod install --repo-update
-      working-directory: ios
-      shell: bash
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 #v3.0.2
+      with:
+        timeout_minutes: 15
+        max_attempts: 2
+        retry_wait_seconds: 30
+        command: cd ios && bundle exec pod install --repo-update
 
     - name: Install applesimutils
       if: ${{ inputs.platform == 'ios' }}
