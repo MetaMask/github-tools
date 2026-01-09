@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1]
+
+### Uncategorized
+
+- fix(setup-e2e-env): Replace CocoaPods specs cache with Pods cache to prevent stale trunk errors ([#202](https://github.com/MetaMask/github-tools/pull/202))
+
 ## [1.4.0]
 
 ### Changed
@@ -76,7 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/MetaMask/github-tools/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/MetaMask/github-tools/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/MetaMask/github-tools/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MetaMask/github-tools/compare/v1.1.4...v1.2.0
