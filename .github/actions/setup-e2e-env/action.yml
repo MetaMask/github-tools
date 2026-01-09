@@ -340,6 +340,11 @@ runs:
           ${{ runner.os }}-cocoapods-specs-
       continue-on-error: true # Don't fail if cache restoration has issues
 
+    - name: Clear CocoaPods trunk to prevent stale specs
+      if: ${{ inputs.platform == 'ios' }}
+      run: pod repo remove trunk || true
+      shell: bash
+
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
       if: ${{ inputs.platform == 'ios'}}
