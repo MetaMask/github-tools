@@ -329,13 +329,21 @@ runs:
       run: sudo xcode-select -s "/Applications/Xcode_$XCODE_VERSION.app"
       shell: bash
 
-    - name: Restore CocoaPods Pods cache
+    - name: Restore CocoaPods specs cache
       if: ${{ inputs.platform == 'ios' }}
+      id: cocoapods-specs-cache
       uses: actions/cache@v4
       with:
-        path: ios/Pods
-        key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+        path: ~/.cocoapods/repos
+        key: ${{ runner.os }}-cocoapods-specs-${{ hashFiles('ios/Podfile.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cocoapods-specs-
       continue-on-error: true # Don't fail if cache restoration has issues
+
+    - name: Clear CocoaPods trunk to prevent stale specs
+      if: ${{ inputs.platform == 'ios' }}
+      run: pod repo remove trunk || true
+      shell: bash
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
