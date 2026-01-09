@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.1]
 
-### Uncategorized
+### Fixed
 
-- fix(setup-e2e-env): Replace CocoaPods specs cache with Pods cache to prevent stale trunk errors ([#202](https://github.com/MetaMask/github-tools/pull/202))
+- Replace CocoaPods specs cache with Pods cache to prevent stale trunk errors in `setup-e2e-env` action ([#202](https://github.com/MetaMask/github-tools/pull/202))
 
 ## [1.4.0]
 
