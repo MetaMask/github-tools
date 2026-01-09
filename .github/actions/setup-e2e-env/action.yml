@@ -335,7 +335,7 @@ runs:
       with:
         path: ios/Pods
         key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
-      continue-on-error: true  # Don't fail if cache restoration has issues
+      continue-on-error: true # Don't fail if cache restoration has issues
 
     # Install CocoaPods w/ cached bundler environment
     - name: Install CocoaPods via bundler
