@@ -38,11 +38,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
     - name: Get pull request details
       continue-on-error: true
       id: pr-details
@@ -90,15 +85,32 @@ runs:
     - name: Check if pull request is up-to-date with base branch
       continue-on-error: true
       id: up-to-date
-      shell: bash
+      uses: actions/github-script@v8
       env:
         BASE_REF: ${{ inputs.base-ref }}
         PR_BRANCH: ${{ steps.pr-details.outputs.pr-branch }}
         MERGE_QUEUE_POSITION: ${{ steps.pr-details.outputs.merge-queue-position }}
-      run: |
-        set -euo pipefail
-        if git merge-base --is-ancestor "origin/${BASE_REF}" "origin/${PR_BRANCH}" && [ "${MERGE_QUEUE_POSITION}" -eq 1 ]; then
-          echo "up-to-date=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "up-to-date=false" >> "$GITHUB_OUTPUT"
-        fi
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { BASE_REF, PR_BRANCH, MERGE_QUEUE_POSITION } = process.env;
+
+          if (parseInt(MERGE_QUEUE_POSITION, 10) !== 1) {
+            core.info(`Pull request is not first in the merge queue (position: ${MERGE_QUEUE_POSITION}).`);
+            core.setOutput('up-to-date', 'false');
+            return;
+          }
+
+          const comparison = await github.repos.compareCommitsWithBasehead({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            basehead: `${BASE_REF}...${PR_BRANCH}`,
+          });
+
+          if (comparison.status === 'identical' || comparison.status === 'ahead') {
+            core.info(`Pull request branch "${PR_BRANCH}" is up-to-date with base branch "${BASE_REF}".`);
+            core.setOutput('up-to-date', 'true');
+          } else {
+            core.info(`Pull request branch "${PR_BRANCH}" is not up-to-date with base branch "${BASE_REF}".`);
+            core.setOutput('up-to-date', 'false');
+          }
