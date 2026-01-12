@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2]
+
+### Uncategorized
+
+- perf: Remove need for fetching repository by using GitHub API in skip merge queue check ([#204](https://github.com/MetaMask/github-tools/pull/204))
+
 ## [1.4.1]
 
 ### Fixed
@@ -82,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/MetaMask/github-tools/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/MetaMask/github-tools/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/MetaMask/github-tools/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/MetaMask/github-tools/compare/v1.2.0...v1.3.0

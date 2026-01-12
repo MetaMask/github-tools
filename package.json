@@ -1,6 +1,6 @@
 {
   "name": "@metamask/github-tools",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "Tools for interacting with the GitHub API to do metrics gathering",
   "repository": {
