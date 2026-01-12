@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.2]
 
-### Uncategorized
+### Fixed
 
-- perf: Remove need for fetching repository by using GitHub API in skip merge queue check ([#204](https://github.com/MetaMask/github-tools/pull/204))
+- Remove need for fetching repository by using GitHub API in skip merge queue check ([#204](https://github.com/MetaMask/github-tools/pull/204))
 
 ## [1.4.1]
 
