@@ -101,13 +101,13 @@ runs:
             return;
           }
 
-          const comparison = await github.repos.compareCommitsWithBasehead({
+          const comparison = await github.rest.repos.compareCommitsWithBasehead({
             owner: context.repo.owner,
             repo: context.repo.repo,
             basehead: `${BASE_REF}...${PR_BRANCH}`,
           });
 
-          if (comparison.status === 'identical' || comparison.status === 'ahead') {
+          if (comparison.data.status === 'identical' || comparison.data.status === 'ahead') {
             core.info(`Pull request branch "${PR_BRANCH}" is up-to-date with base branch "${BASE_REF}".`);
             core.setOutput('up-to-date', 'true');
           } else {
