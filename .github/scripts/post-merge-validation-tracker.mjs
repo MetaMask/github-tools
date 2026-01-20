@@ -11,7 +11,7 @@ const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
 const START_MINUTE_UTC = 0;
-const RELEVANT_TITLE_REGEX = /^(feat|perf|fix)\s*(\(|:|!|\/)|\bbump\b/i;
+const RELEVANT_TITLE_REGEX = /^(feat|perf|fix|chore)\s*(\(|:|!|\/)|\bbump\b/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
 const AUTOMATED_TEST_PATTERNS = [
