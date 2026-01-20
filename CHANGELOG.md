@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.3]
 
-### Uncategorized
+### Changed
 
 - add chore items to release tracker ([#206](https://github.com/MetaMask/github-tools/pull/206))
+
+### Fixed
+
 - fix: consolidate release scripts and shared git utilities ([#195](https://github.com/MetaMask/github-tools/pull/195))
 
 ## [1.4.2]
