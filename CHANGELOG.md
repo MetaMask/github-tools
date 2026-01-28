@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4]
+
+### Uncategorized
+
+- add refactor items to release tracker ([#209](https://github.com/MetaMask/github-tools/pull/209))
+
 ## [1.4.3]
 
 ### Changed
@@ -98,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.4.4...HEAD
+[1.4.4]: https://github.com/MetaMask/github-tools/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/MetaMask/github-tools/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/MetaMask/github-tools/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/MetaMask/github-tools/compare/v1.4.0...v1.4.1
