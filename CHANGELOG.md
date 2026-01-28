@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.4]
 
-### Uncategorized
+### Changed
 
 - add refactor items to release tracker ([#209](https://github.com/MetaMask/github-tools/pull/209))
 
