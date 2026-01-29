@@ -1,0 +1,43 @@
+name: Relay Balances Slack Report
+
+on:
+  schedule:
+    # Every 12 hours (00:00 and 12:00 UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay-balances-slack-report:
+    name: Relay balances by chainId
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Generate Slack payload
+        id: payload
+        env:
+          RELAY_ALERT_USD_THRESHOLD: '${{ vars.RELAY_ALERT_USD_THRESHOLD }}'
+          RELAY_APP_FEES_ADDRESS: '${{ vars.RELAY_APP_FEES_ADDRESS }}'
+        run: |
+          PAYLOAD="$(node .github/scripts/post-relay-subsidy-balance.mjs)"
+          {
+            echo "payload<<EOF"
+            echo "$PAYLOAD"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        with:
+          webhook: '${{ secrets.SLACK_RELAY_SUBSIDY_BALANCE_TRACKER_WEBHOOK_URL }}'
+          webhook-type: incoming-webhook
+          payload: ${{ steps.payload.outputs.payload }}
