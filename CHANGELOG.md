@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add workflow **post-relay-subsidy-balance** to post Relay subsidy balance reports to Slack ([#211](https://github.com/MetaMask/github-tools/pull/211))
+
 ## [1.4.4]
 
 ### Changed
