@@ -2,8 +2,8 @@ name: Relay Balances Slack Report
 
 on:
   schedule:
-    # Every 12 hours (00:00 and 12:00 UTC)
-    - cron: '0 */12 * * *'
+    # Every day at 11:53 and 23:53 UTC
+    - cron: '53 11,23 * * *'
   workflow_dispatch:
 
 permissions:
