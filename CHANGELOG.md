@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.5]
 
-### Canged
+### Changed
 
 - chore: removes restore-keys from yarn install to prevent cache pollution ([#213](https://github.com/MetaMask/github-tools/pull/213))
 - feat: updated replay balance tracker workflow to run at 11:53 and 23:53 ([#212](https://github.com/MetaMask/github-tools/pull/212))
