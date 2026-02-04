@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.5]
 
+### Added
+
+- Add workflow **post-relay-subsidy-balance** to post Relay subsidy balance reports to Slack ([#211](https://github.com/MetaMask/github-tools/pull/211))
+
 ### Changed
 
 - chore: removes restore-keys from yarn install to prevent cache pollution ([#213](https://github.com/MetaMask/github-tools/pull/213))
@@ -17,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - fix: create_pr_if_not_exists check for closed/merged branches too ([#208](https://github.com/MetaMask/github-tools/pull/208))
-
-### Added
-
-- Add workflow **post-relay-subsidy-balance** to post Relay subsidy balance reports to Slack ([#211](https://github.com/MetaMask/github-tools/pull/211))
 
 ## [1.4.4]
 
