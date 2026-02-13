@@ -57,14 +57,14 @@ ensure_release_branch() {
 }
 
 determine_changelog_branch() {
-    # Prefer an existing remote changelog branch (release/<version>-Changelog),
-    # falling back to the chore/ naming or the preferred default if none exist.
+    # Prefer an existing remote changelog branch (release-changelog/<version>),
+    # falling back to the -fallback naming or the preferred default if none exist.
     local version="$1"
-    local preferred="release/${version}-Changelog"
+    local preferred="release-changelog/${version}"
     if git ls-remote --exit-code origin "${preferred}" > /dev/null 2>&1; then
         echo "${preferred}"
-    elif git ls-remote --exit-code origin "chore/${version}-Changelog" > /dev/null 2>&1; then
-        echo "chore/${version}-Changelog"
+    elif git ls-remote --exit-code origin "release-changelog/${version}-fallback" > /dev/null 2>&1; then
+        echo "release-changelog/${version}-fallback"
     else
         echo "${preferred}"
     fi
@@ -84,7 +84,7 @@ commit_and_push_changelog() {
     if [[ "${previous_version_ref,,}" == "null" ]]; then
         commit_msg="${commit_msg} (hotfix - no test plan)"
     fi
-    
+
     local changes_committed=false
     if git commit -am "${commit_msg}"; then
         changes_committed=true

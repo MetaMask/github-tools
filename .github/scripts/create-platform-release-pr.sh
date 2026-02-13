@@ -190,7 +190,7 @@ create_release_pr() {
     # Prepare release PR body with team sign-off checklist
     local release_body="# 🚀 v${new_version} Testing & Release Quality Process
 
-Hi Team,  
+Hi Team,
 As part of our new **MetaMask Release Quality Process**, here’s a quick overview of the key processes, testing strategies, and milestones to ensure a smooth and high-quality deployment.
 
 ---
@@ -198,34 +198,34 @@ As part of our new **MetaMask Release Quality Process**, here’s a quick overvi
 ## 📋 Key Processes
 
 ### Testing Strategy
-- **Developer Teams:**  
-  Conduct regression and exploratory testing for your functional areas, including automated and manual tests for critical workflows.  
-- **QA Team:**  
-  Focus on exploratory testing across the wallet, prioritize high-impact areas, and triage any Sentry errors found during testing.  
-- **Customer Success Team:**  
+- **Developer Teams:**
+  Conduct regression and exploratory testing for your functional areas, including automated and manual tests for critical workflows.
+- **QA Team:**
+  Focus on exploratory testing across the wallet, prioritize high-impact areas, and triage any Sentry errors found during testing.
+- **Customer Success Team:**
   Validate new functionalities and provide feedback to support release monitoring.
 
 ### GitHub Signoff
-- Each team must **sign off on the Release Candidate (RC)** via GitHub by the end of the validation timeline (**Tuesday EOD PT**).  
+- Each team must **sign off on the Release Candidate (RC)** via GitHub by the end of the validation timeline (**Tuesday EOD PT**).
 - Ensure all tests outlined in the Testing Plan are executed, and any identified issues are addressed.
 
 ### Issue Resolution
-- **Resolve all Release Blockers** (Sev0 and Sev1) by **Tuesday EOD PT**.  
+- **Resolve all Release Blockers** (Sev0 and Sev1) by **Tuesday EOD PT**.
 - For unresolved blockers, PRs may be reverted, or feature flags disabled to maintain release quality and timelines.
 
 ### Cherry-Picking Criteria
-- Only **critical fixes** meeting outlined criteria will be cherry-picked.  
+- Only **critical fixes** meeting outlined criteria will be cherry-picked.
 - Developers must ensure these fixes are thoroughly reviewed, tested, and merged by **Tuesday EOD PT**.
 
 ---
 
 ## 🗓️ Timeline and Milestones
 
-1. **Today (Friday):** Begin Release Candidate validation.  
-2. **Tuesday EOD PT:** Finalize RC with all fixes and cherry-picks.  
-3. **Wednesday:** Buffer day for final checks.  
-4. **Thursday:** Submit release to app stores and begin rollout to 1% of users.  
-5. **Monday:** Scale deployment to 10%.  
+1. **Today (Friday):** Begin Release Candidate validation.
+2. **Tuesday EOD PT:** Finalize RC with all fixes and cherry-picks.
+3. **Wednesday:** Buffer day for final checks.
+4. **Thursday:** Submit release to app stores and begin rollout to 1% of users.
+5. **Monday:** Scale deployment to 10%.
 6. **Tuesday:** Full rollout to 100%.
 
 ---
@@ -237,9 +237,9 @@ Each team is responsible for signing off via GitHub. Use the checkbox below to t
 # Team sign-off checklist
 - [ ] ${platform_team_name}
 
-This process is a major step forward in ensuring release stability and quality. Let’s stay aligned and make this release a success! 🚀  
+This process is a major step forward in ensuring release stability and quality. Let’s stay aligned and make this release a success! 🚀
 
-Feel free to reach out if you have questions or need clarification. 
+Feel free to reach out if you have questions or need clarification.
 
 Many thanks in advance
 
@@ -305,7 +305,7 @@ create_changelog_pr() {
 
     # Delegate changelog update and PR creation to the shared update-release-changelog.sh script
     echo "Updating changelog and creating PR.."
-    
+
     # Export git identity for the shared script
     export GIT_AUTHOR_NAME="${GIT_USER_NAME}"
     export GIT_AUTHOR_EMAIL="${GIT_USER_EMAIL}"
@@ -438,7 +438,7 @@ main() {
     # Initialize branch names
     local release_branch_name changelog_branch_name version_bump_branch_name
     release_branch_name=$(get_release_branch_name "$NEW_VERSION")
-    changelog_branch_name="release/${NEW_VERSION}-Changelog"
+    changelog_branch_name="release-changelog/${NEW_VERSION}"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
     configure_git "${GIT_USER_NAME}" "${GIT_USER_EMAIL}"
 
