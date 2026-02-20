@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- chore: get latest ruby versions ([#220](https://github.com/MetaMask/github-tools/pull/220))
+- chore: get latest ruby versions and sets the default ruby version to 3.2.9 ([#220](https://github.com/MetaMask/github-tools/pull/220))
 
 ## [1.6.0]
 
