@@ -15,10 +15,26 @@ on:
         required: true
         type: string
         description: 'Regex pattern for the required head branch (e.g., ^stable-main-[0-9]+\.[0-9]+\.[0-9]+$)'
+      merge-method:
+        required: false
+        type: string
+        default: 'merge'
+        description: "Merge method: 'merge' (merge commit) or 'squash' (squash merge)"
+      verify-version-bump:
+        required: false
+        type: boolean
+        default: false
+        description: 'Whether to verify that this PR is purely a version bump'
     secrets:
       github-token:
         required: true
         description: 'GitHub token with permissions to merge'
+
+env:
+  PR_NUMBER: ${{ inputs.pr-number }}
+  REQUIRED_BASE_BRANCH: ${{ inputs.required-base-branch }}
+  HEAD_BRANCH_PATTERN: ${{ inputs.head-branch-pattern }}
+  MERGE_METHOD: ${{ inputs.merge-method }}
 
 jobs:
   merge-pr:
@@ -27,15 +43,19 @@ jobs:
       # Validate required inputs
       - name: Validate Inputs
         run: |
-          if [[ -z "${{ inputs.required-base-branch }}" ]]; then
+          if [[ -z "$REQUIRED_BASE_BRANCH" ]]; then
             echo "::error::Missing required input: 'required-base-branch' must be provided."
             exit 1
           fi
-          if [[ -z "${{ inputs.head-branch-pattern }}" ]]; then
+          if [[ -z "$HEAD_BRANCH_PATTERN" ]]; then
             echo "::error::Missing required input: 'head-branch-pattern' must be provided."
             exit 1
           fi
-          echo "Inputs validated: required-base-branch='${{ inputs.required-base-branch }}', head-branch-pattern='${{ inputs.head-branch-pattern }}'"
+          if [[ "$MERGE_METHOD" != "merge" && "$MERGE_METHOD" != "squash" ]]; then
+            echo "::error::Invalid input: 'merge-method' must be either 'merge' or 'squash'. Got '$MERGE_METHOD'."
+            exit 1
+          fi
+          echo "Inputs validated: required-base-branch='$REQUIRED_BASE_BRANCH', head-branch-pattern='$HEAD_BRANCH_PATTERN', merge-method='$MERGE_METHOD'"
 
       # Fetch PR metadata (head and base branches) using the GitHub API
       - name: Get PR Details
@@ -48,31 +68,23 @@ jobs:
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: ${{ inputs.pr-number }}
+              pull_number: Number(process.env.PR_NUMBER)
             });
 
-            // Output the base and head branch names for subsequent steps
-            core.setOutput('base', pr.base.ref);
-            core.setOutput('head', pr.head.ref);
+            // Export base/head refs for subsequent steps
+            core.exportVariable('PR_BASE_REF', pr.base.ref);
+            core.exportVariable('PR_HEAD_REF', pr.head.ref);
 
       # Verify that the PR targets the required base branch from the required head pattern
       - name: Verify Branch Names
         id: verify-branches
         run: |
-          # Get required branch patterns from inputs
-          REQUIRED_BASE="${{ inputs.required-base-branch }}"
-          HEAD_PATTERN="${{ inputs.head-branch-pattern }}"
-
-          # Get actual values from the previous step
-          ACTUAL_BASE="${{ steps.get-pr.outputs.base }}"
-          ACTUAL_HEAD="${{ steps.get-pr.outputs.head }}"
-
           # Compare actual branches against requirements
-          if [[ "$ACTUAL_BASE" != "$REQUIRED_BASE" ]] || ! [[ "$ACTUAL_HEAD" =~ $HEAD_PATTERN ]]; then
-            echo "Skipping: PR must be from '$HEAD_PATTERN' to '$REQUIRED_BASE'. Found $ACTUAL_HEAD -> $ACTUAL_BASE"
+          if [[ "$PR_BASE_REF" != "$REQUIRED_BASE_BRANCH" ]] || ! [[ "$PR_HEAD_REF" =~ $HEAD_BRANCH_PATTERN ]]; then
+            echo "Skipping: PR must be from '$HEAD_BRANCH_PATTERN' to '$REQUIRED_BASE_BRANCH'. Found $PR_HEAD_REF -> $PR_BASE_REF"
             echo "should_skip=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Branches match requirements: Source '$ACTUAL_HEAD' -> Target '$ACTUAL_BASE'."
+            echo "Branches match requirements: Source '$PR_HEAD_REF' -> Target '$PR_BASE_REF'."
             echo "should_skip=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -88,7 +100,7 @@ jobs:
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: ${{ inputs.pr-number }}
+              pull_number: Number(process.env.PR_NUMBER)
             });
 
             // Fetch members of the release team
@@ -135,25 +147,93 @@ jobs:
               console.log('PR approval check passed.');
             }
 
+      # If verify-version-bump is true, then verify that
+      # - the only change is in package.json
+      # - the only line changed is "version"
+      # - the version change is a valid semver bump
+      - name: Verify a version bump
+        if: ${{ steps.verify-branches.outputs.should_skip != 'true' && inputs.verify-version-bump }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.github-token }}
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: Number(process.env.PR_NUMBER),
+              per_page: 100,
+            });
+
+            // We expect exactly one changed file: package.json
+            if (files.length !== 1 || files[0].filename !== 'package.json') {
+              core.setFailed('Validation failed: PR must only change package.json when verify-version-bump is enabled.');
+              return;
+            }
+
+            const patch = files[0].patch;
+            if (!patch) {
+              // If GitHub omitted the patch (e.g., too large), don't emit the flag.
+              core.setFailed('Validation failed: Unable to retrieve the package.json patch to verify the version bump.');
+              return;
+            }
+
+            const changedLines = patch
+              .split('\n')
+              .filter((line) => (line.startsWith('+') || line.startsWith('-')))
+              .filter((line) => !line.startsWith('+++') && !line.startsWith('---'));
+
+            if (changedLines.length !== 2) {
+              core.setFailed('Validation failed: package.json must change only the version line (one removal, one addition).');
+              return;
+            }
+
+            const oldLine = changedLines.find((line) => line.startsWith('-') && /"version"\s*:/.test(line));
+            const newLine = changedLines.find((line) => line.startsWith('+') && /"version"\s*:/.test(line));
+            if (!oldLine || !newLine) {
+              core.setFailed('Validation failed: package.json must change only the version field.');
+              return;
+            }
+
+            const semverRe = /"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"/;
+            const oldMatch = oldLine.match(semverRe);
+            const newMatch = newLine.match(semverRe);
+            if (!oldMatch || !newMatch) {
+              core.setFailed('Validation failed: version must be in MAJOR.MINOR.PATCH numeric form.');
+              return;
+            }
+
+            const [oldMajor, oldMinor, oldPatch] = oldMatch.slice(1).map((n) => Number(n));
+            const [newMajor, newMinor, newPatch] = newMatch.slice(1).map((n) => Number(n));
+
+            const isMajorBump = newMajor === oldMajor + 1 && newMinor === 0 && newPatch === 0;
+            const isMinorBump = newMajor === oldMajor && newMinor === oldMinor + 1 && newPatch === 0;
+            const isPatchBump = newMajor === oldMajor && newMinor === oldMinor && newPatch === oldPatch + 1;
+
+            if (isMajorBump || isMinorBump || isPatchBump) {
+              console.log(
+                `The only change is in package.json, and the only line changed is 'version' with a valid semver bump (${oldMatch[1]}.${oldMatch[2]}.${oldMatch[3]} -> ${newMatch[1]}.${newMatch[2]}.${newMatch[3]}).`,
+              );
+            }
+            else {
+              core.setFailed('Validation failed: version must bump by exactly +1 major (reset to .0.0), +1 minor (reset patch to .0), or +1 patch.');
+            }
+
       # Execute the merge if all checks pass
       - name: Merge PR
         if: steps.verify-branches.outputs.should_skip != 'true'
         uses: actions/github-script@v7
-        env:
-          BASE_REF: ${{ steps.get-pr.outputs.base }}
-          HEAD_REF: ${{ steps.get-pr.outputs.head }}
         with:
           github-token: ${{ secrets.github-token }}
           script: |
             try {
-              // Perform the merge using the 'merge' method (creates a merge commit, does not squash)
+              // Perform the merge using the requested method ('merge' or 'squash')
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: ${{ inputs.pr-number }},
-                merge_method: 'merge'
+                pull_number: Number(process.env.PR_NUMBER),
+                merge_method: process.env.MERGE_METHOD
               });
-              console.log(`PR merged successfully: Source '${process.env.HEAD_REF}' -> Target '${process.env.BASE_REF}'.`);
+              console.log(`PR merged successfully: Source '${process.env.PR_HEAD_REF}' -> Target '${process.env.PR_BASE_REF}'.`);
             } catch (error) {
               core.setFailed(`Merge failed: ${error.message}`);
             }
