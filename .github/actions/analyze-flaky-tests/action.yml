@@ -1,0 +1,79 @@
+name: Analyze Flaky Tests with AI
+description: 'Analyzes flaky test failures using Claude AI and posts findings as Slack thread replies.'
+
+inputs:
+  github-token:
+    description: 'GitHub token with repo and actions:read access'
+    required: true
+  claude-api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  slack-bot-token:
+    description: 'Slack Bot Token with chat:write scope'
+    required: true
+  slack-channel-id:
+    description: 'Slack channel ID to post findings to'
+    required: true
+  slack-thread-ts:
+    description: 'Slack thread timestamp to reply to (from the flaky test report)'
+    required: true
+  failures-json:
+    description: 'JSON array of test failures to analyze (from the flaky test report)'
+    required: true
+  target-owner:
+    description: 'Owner of the repository containing the tests'
+    required: false
+    default: 'MetaMask'
+  target-repo:
+    description: 'Repository containing the tests'
+    required: false
+    default: 'metamask-extension'
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache-dependency-path: ./github-tools/yarn.lock
+        cache: yarn
+
+    - name: Enable Corepack
+      working-directory: ./github-tools
+      shell: bash
+      run: corepack enable
+
+    - name: Install dependencies
+      working-directory: ./github-tools
+      shell: bash
+      run: yarn --immutable
+
+    - name: Run AI analysis
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        E2E_CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        SLACK_CHANNEL_ID: ${{ inputs.slack-channel-id }}
+        SLACK_THREAD_TS: ${{ inputs.slack-thread-ts }}
+        TARGET_OWNER: ${{ inputs.target-owner }}
+        TARGET_REPO: ${{ inputs.target-repo }}
+        FAILURES_JSON: ${{ inputs.failures-json }}
+      working-directory: ./github-tools
+      shell: bash
+      run: yarn ts-node --swc .github/scripts/analyze-flaky-tests/index.ts
