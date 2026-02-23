@@ -202,6 +202,13 @@ jobs:
               return;
             }
 
+            const oldVersion = `${oldMatch[1]}.${oldMatch[2]}.${oldMatch[3]}`;
+            const newVersion = `${newMatch[1]}.${newMatch[2]}.${newMatch[3]}`;
+            if (oldVersion === newVersion) {
+              core.setFailed('Validation failed: package.json version must change (format-only edits are not allowed).');
+              return;
+            }
+
             const [oldMajor, oldMinor, oldPatch] = oldMatch.slice(1).map((n) => Number(n));
             const [newMajor, newMinor, newPatch] = newMatch.slice(1).map((n) => Number(n));
 
@@ -211,10 +218,9 @@ jobs:
 
             if (isMajorBump || isMinorBump || isPatchBump) {
               console.log(
-                `The only change is in package.json, and the only line changed is 'version' with a valid semver bump (${oldMatch[1]}.${oldMatch[2]}.${oldMatch[3]} -> ${newMatch[1]}.${newMatch[2]}.${newMatch[3]}).`,
+                `The only change is in package.json, and the only line changed is 'version' with a valid semver bump (${oldVersion} -> ${newVersion}).`,
               );
-            }
-            else {
+            } else {
               core.setFailed('Validation failed: version must bump by exactly +1 major (reset to .0.0), +1 minor (reset patch to .0), or +1 patch.');
             }
 
