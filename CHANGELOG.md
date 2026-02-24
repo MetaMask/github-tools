@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.7.0]
-
-### Changed
-
-- chore: get latest ruby versions and sets the default ruby version to 3.2.9 ([#220](https://github.com/MetaMask/github-tools/pull/220))
-- Improve `merge-approved-pr` action with `merge-method` and `verify-version-bump` inputs, and harden bash inputs as env vars ([#201](https://github.com/MetaMask/github-tools/pull/201))
-
 ## [1.6.0]
 
 ### Changed
@@ -132,8 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.7.0...HEAD
-[1.7.0]: https://github.com/MetaMask/github-tools/compare/v1.6.0...v1.7.0
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.6.0...HEAD
 [1.6.0]: https://github.com/MetaMask/github-tools/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/MetaMask/github-tools/compare/v1.4.4...v1.5.0
 [1.4.4]: https://github.com/MetaMask/github-tools/compare/v1.4.3...v1.4.4
