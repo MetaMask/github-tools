@@ -64,7 +64,7 @@ runs:
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
-        github-token: ${{ inputs.github-token }}
+        github-token: ${{ github.token }}
         script: |
           // Fetch full details of the pull request associated with the comment
           const { data: pr } = await github.rest.pulls.get({
@@ -101,7 +101,7 @@ runs:
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
-        github-token: ${{ inputs.github-token }}
+        github-token: ${{ github.token }}
         script: |
           // Fetch all reviews for the PR
           const { data: reviews } = await github.rest.pulls.listReviews({
@@ -166,7 +166,7 @@ runs:
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
-        github-token: ${{ inputs.github-token }}
+        github-token: ${{ github.token }}
         script: |
           const files = await github.paginate(github.rest.pulls.listFiles, {
             owner: context.repo.owner,
