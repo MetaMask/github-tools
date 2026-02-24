@@ -70,7 +70,7 @@ runs:
           const { data: pr } = await github.rest.pulls.get({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            pull_number: Number(process.env.PR_NUMBER),
+            pull_number: parseInt(process.env.PR_NUMBER, 10),
           });
 
           // Export base/head refs for subsequent steps
@@ -107,7 +107,7 @@ runs:
           const { data: reviews } = await github.rest.pulls.listReviews({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            pull_number: Number(process.env.PR_NUMBER),
+            pull_number: parseInt(process.env.PR_NUMBER, 10),
           });
 
           // Fetch members of the release team
@@ -173,7 +173,7 @@ runs:
           const files = await github.paginate(github.rest.pulls.listFiles, {
             owner: context.repo.owner,
             repo: context.repo.repo,
-            pull_number: Number(process.env.PR_NUMBER),
+            pull_number: parseInt(process.env.PR_NUMBER, 10),
             per_page: 100,
           });
 
@@ -230,8 +230,8 @@ runs:
             return;
           }
 
-          const [oldMajor, oldMinor, oldPatch] = oldMatch.slice(1).map((n) => Number(n));
-          const [newMajor, newMinor, newPatch] = newMatch.slice(1).map((n) => Number(n));
+          const [oldMajor, oldMinor, oldPatch] = oldMatch.slice(1).map((n) => parseInt(n, 10));
+          const [newMajor, newMinor, newPatch] = newMatch.slice(1).map((n) => parseInt(n, 10));
 
           const isMajorBump = newMajor === oldMajor + 1 && newMinor === 0 && newPatch === 0;
           const isMinorBump = newMajor === oldMajor && newMinor === oldMinor + 1 && newPatch === 0;
@@ -262,7 +262,7 @@ runs:
             await github.rest.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: Number(process.env.PR_NUMBER),
+              pull_number: parseInt(process.env.PR_NUMBER, 10),
               merge_method: process.env.MERGE_METHOD,
             });
             console.log(
