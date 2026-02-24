@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - chore: get latest ruby versions and sets the default ruby version to 3.2.9 ([#220](https://github.com/MetaMask/github-tools/pull/220))
+- Improve `merge-approved-pr` action with `merge-method` and `verify-version-bump` inputs, and harden bash inputs as env vars ([#201](https://github.com/MetaMask/github-tools/pull/201))
 
 ## [1.6.0]
 
