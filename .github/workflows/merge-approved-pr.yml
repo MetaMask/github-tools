@@ -1,3 +1,6 @@
+# DEPRECATED: use .github/actions/merge-approved-pr instead
+# Can be removed when we move to github-tools v2
+
 name: Merge Approved PR
 
 on:
