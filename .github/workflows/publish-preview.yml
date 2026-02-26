@@ -97,7 +97,7 @@ jobs:
 
       - name: Prepare preview builds (monorepo)
         if: ${{ inputs.is-monorepo }}
-        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@v1
+        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@prepare-preview-builds-action
         with:
           npm-scope: ${{ inputs.npm-scope }}
           commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
