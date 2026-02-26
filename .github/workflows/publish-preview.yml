@@ -166,11 +166,20 @@ jobs:
         with:
           name: preview-build-artifacts
 
+      - name: Resolve GitHub tools ref
+        id: github-tools-ref
+        run: |
+          # github.workflow_ref contains e.g. "Owner/repo/.github/workflows/file.yml@refs/heads/branch"
+          ref="${WORKFLOW_REF##*@}"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+
       - name: Checkout GitHub tools repository
         uses: actions/checkout@v5
         with:
           repository: MetaMask/github-tools
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ steps.github-tools-ref.outputs.ref }}
           path: ./.github-tools
 
       # The artifact package.json files come from the PR branch.
