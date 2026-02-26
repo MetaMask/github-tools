@@ -1,0 +1,56 @@
+name: Prepare Preview Builds
+
+description: >
+  Renames workspace packages to a preview NPM scope and adds a prerelease
+  version tag so they can be published as preview builds.
+
+inputs:
+  npm-scope:
+    description: 'Target NPM scope for preview packages (e.g., @metamask-previews)'
+    required: true
+  commit-hash:
+    description: 'Short commit hash used as the prerelease version tag'
+    required: true
+  source-scope:
+    description: 'Source NPM scope to replace (e.g., @metamask/)'
+    required: false
+    default: '@metamask/'
+  working-directory:
+    description: 'Path to the monorepo root'
+    required: false
+    default: '.'
+  github-tools-repository:
+    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repository, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ -z "${{ inputs.npm-scope }}" ]]; then
+          echo "::error::npm-scope input is required"
+          exit 1
+        fi
+        if [[ -z "${{ inputs.commit-hash }}" ]]; then
+          echo "::error::commit-hash input is required"
+          exit 1
+        fi
+
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./.github-tools
+
+    - name: Prepare preview builds
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bash ./.github-tools/.github/scripts/prepare-preview-builds.sh "${{ inputs.npm-scope }}" "${{ inputs.commit-hash }}" "${{ inputs.source-scope }}"
