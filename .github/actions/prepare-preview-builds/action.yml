@@ -53,4 +53,4 @@ runs:
     - name: Prepare preview builds
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: bash ./.github-tools/.github/scripts/prepare-preview-builds.sh "${{ inputs.npm-scope }}" "${{ inputs.commit-hash }}" "${{ inputs.source-scope }}"
+      run: bash "$GITHUB_WORKSPACE/.github-tools/.github/scripts/prepare-preview-builds.sh" "${{ inputs.npm-scope }}" "${{ inputs.commit-hash }}" "${{ inputs.source-scope }}"
