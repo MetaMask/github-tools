@@ -1,0 +1,233 @@
+name: Publish Preview Builds
+
+on:
+  workflow_call:
+    inputs:
+      npm-scope:
+        description: 'Target NPM scope for preview packages'
+        type: string
+        required: false
+        default: '@metamask-previews'
+      source-scope:
+        description: 'Source NPM scope to replace'
+        type: string
+        required: false
+        default: '@metamask/'
+      build-command:
+        description: 'Command to build the project'
+        type: string
+        required: false
+        default: 'yarn build'
+      is-monorepo:
+        description: 'Whether the consumer is a monorepo (workspace-aware prepare/publish/message)'
+        type: boolean
+        required: false
+        default: true
+      environment:
+        description: 'GitHub environment for the publish job (e.g., default-branch). Empty = no gate.'
+        type: string
+        required: false
+        default: ''
+      artifact-retention-days:
+        description: 'Days to retain build artifacts'
+        type: number
+        required: false
+        default: 4
+      docs-url:
+        description: 'URL to preview builds documentation (included in PR comment)'
+        type: string
+        required: false
+        default: ''
+    secrets:
+      PUBLISH_PREVIEW_NPM_TOKEN:
+        required: true
+
+jobs:
+  is-fork-pull-request:
+    name: Determine whether this PR is from a fork
+    runs-on: ubuntu-latest
+    outputs:
+      IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Determine whether this PR is from a fork
+        id: is-fork
+        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+
+  react-to-comment:
+    name: React to comment
+    needs: is-fork-pull-request
+    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add reaction to trigger comment
+        run: |
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}/reactions" \
+            -f content='+1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+
+  build-preview:
+    name: Build preview
+    needs: react-to-comment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check out pull request
+        run: gh pr checkout "${PR_NUMBER}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: true
+
+      - name: Get commit SHA
+        id: commit-sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare preview builds (monorepo)
+        if: ${{ inputs.is-monorepo }}
+        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@v1
+        with:
+          npm-scope: ${{ inputs.npm-scope }}
+          commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
+          source-scope: ${{ inputs.source-scope }}
+
+      - name: Prepare preview builds (polyrepo)
+        if: ${{ !inputs.is-monorepo }}
+        run: |
+          jq \
+            --arg npm_scope "${{ inputs.npm-scope }}" \
+            --arg hash "${{ steps.commit-sha.outputs.COMMIT_SHA }}" \
+            --arg source_scope "${{ inputs.source-scope }}" \
+            '
+              .name |= sub($source_scope; "\($npm_scope)/") |
+              .version |= (split("-")[0] + "-preview-\($hash)")
+            ' \
+            package.json > temp.json
+          mv temp.json package.json
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Upload build artifacts (monorepo)
+        if: ${{ inputs.is-monorepo }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: preview-build-artifacts
+          include-hidden-files: true
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: |
+            ./yarn.lock
+            ./package.json
+            ./packages/*/
+            !./packages/*/node_modules/
+            !./packages/*/src/
+            !./packages/*/tests/
+            !./packages/**/*.test.*
+
+      - name: Upload build artifacts (polyrepo)
+        if: ${{ !inputs.is-monorepo }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: preview-build-artifacts
+          include-hidden-files: true
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: |
+            .
+            !./node_modules/
+            !./.git/
+
+  publish-preview:
+    name: Publish preview
+    needs: build-preview
+    permissions:
+      pull-requests: write
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: true
+
+      - name: Restore build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-build-artifacts
+
+      - name: Checkout GitHub tools repository
+        uses: actions/checkout@v5
+        with:
+          repository: MetaMask/github-tools
+          ref: ${{ github.workflow_sha }}
+          path: ./.github-tools
+
+      # The artifact package.json files come from the PR branch.
+      # A malicious PR could inject lifecycle scripts (prepack/postpack) that
+      # execute during `yarn npm publish` with the NPM token in the environment
+      # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
+      # It could also override publishConfig.registry to exfiltrate the token.
+      - name: Validate artifact manifests
+        run: |
+          bad=0
+          if [[ "${{ inputs.is-monorepo }}" == "true" ]]; then
+            mapfile -t manifests < <(find packages -name package.json -not -path '*/node_modules/*')
+          else
+            manifests=(package.json)
+          fi
+          if [[ ${#manifests[@]} -eq 0 ]]; then
+            echo "::error::No package.json files found to validate"
+            exit 1
+          fi
+          for f in "${manifests[@]}"; do
+            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
+              echo "::error::Forbidden lifecycle script in $f"
+              bad=1
+            fi
+            reg=$(jq -r '.publishConfig.registry // ""' "$f")
+            if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
+              echo "::error::Unexpected registry in $f: $reg"
+              bad=1
+            fi
+          done
+          exit "$bad"
+
+      - name: Reconcile workspace state
+        run: yarn install --no-immutable
+
+      - name: Publish preview builds (monorepo)
+        if: ${{ inputs.is-monorepo }}
+        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        env:
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
+
+      - name: Publish preview builds (polyrepo)
+        if: ${{ !inputs.is-monorepo }}
+        run: yarn npm publish --tag preview
+        env:
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
+
+      - name: Generate preview build message
+        run: |
+          docs_args=()
+          if [[ -n "${{ inputs.docs-url }}" ]]; then
+            docs_args=(--docs-url "${{ inputs.docs-url }}")
+          fi
+          bash ./.github-tools/.github/scripts/generate-preview-build-message.sh "${docs_args[@]}"
+
+      - name: Post build preview in comment
+        run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
