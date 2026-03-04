@@ -188,7 +188,9 @@ jobs:
       # execute during `yarn npm publish` with the NPM token in the environment
       # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
       # It could also override publishConfig.registry to exfiltrate the token.
-      - name: Validate artifact manifests
+      # We strip dangerous lifecycle scripts (they already ran during build)
+      # and block unexpected registries outright.
+      - name: Sanitize and validate artifact manifests
         run: |
           bad=0
           if [[ "${{ inputs.is-monorepo }}" == "true" ]]; then
@@ -201,10 +203,13 @@ jobs:
             exit 1
           fi
           for f in "${manifests[@]}"; do
+            # Strip lifecycle scripts that run during pack/publish
             if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
-              echo "::error::Forbidden lifecycle script in $f"
-              bad=1
+              echo "Stripping pack/publish lifecycle scripts from $f"
+              jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)(pack|publish)") | not)) else . end' "$f" > "${f}.tmp"
+              mv "${f}.tmp" "$f"
             fi
+            # Block unexpected registries
             reg=$(jq -r '.publishConfig.registry // ""' "$f")
             if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
               echo "::error::Unexpected registry in $f: $reg"
