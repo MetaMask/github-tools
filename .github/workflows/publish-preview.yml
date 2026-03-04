@@ -116,6 +116,7 @@ jobs:
             ' \
             package.json > temp.json
           mv temp.json package.json
+          yarn install --no-immutable
 
       - name: Build
         run: ${{ inputs.build-command }}
