@@ -204,9 +204,9 @@ jobs:
           fi
           for f in "${manifests[@]}"; do
             # Strip lifecycle scripts that run during pack/publish
-            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
-              echo "Stripping pack/publish lifecycle scripts from $f"
-              jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)(pack|publish)") | not)) else . end' "$f" > "${f}.tmp"
+            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)?(pack|publish|prepare)$"))' "$f" > /dev/null 2>&1; then
+              echo "Stripping lifecycle scripts from $f"
+              jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)?(pack|publish|prepare)$") | not)) else . end' "$f" > "${f}.tmp"
               mv "${f}.tmp" "$f"
             fi
             # Block unexpected registries
