@@ -3,16 +3,23 @@
 set -euo pipefail
 
 # Generates a preview build PR comment message.
-#
-# Auto-detects monorepo vs polyrepo by checking for workspaces.
 # Writes the message to preview-build-message.txt in the current directory.
 #
-# Usage: generate-preview-build-message.sh [--docs-url <url>]
+# Usage: generate-preview-build-message.sh --monorepo|--polyrepo [--docs-url <url>]
 
 docs_url=""
+is_monorepo=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --monorepo)
+      is_monorepo=true
+      shift
+      ;;
+    --polyrepo)
+      is_monorepo=false
+      shift
+      ;;
     --docs-url)
       docs_url="$2"
       shift 2
@@ -24,13 +31,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Detect monorepo by checking if yarn workspaces list returns any non-root packages.
-is_monorepo=false
-if workspace_json="$(yarn workspaces list --no-private --json 2>/dev/null)"; then
-  non_root_count="$(echo "$workspace_json" | jq --slurp '[.[] | select(.location != ".")] | length')"
-  if [[ "$non_root_count" -gt 0 ]]; then
-    is_monorepo=true
-  fi
+if [[ -z "$is_monorepo" ]]; then
+  echo "::error::Must specify --monorepo or --polyrepo"
+  exit 1
 fi
 
 docs_link=""
@@ -41,7 +44,7 @@ fi
 if [[ "$is_monorepo" == "true" ]]; then
   # Build a JSON object of { name: version } for all non-root workspace packages.
   package_json="$(
-    echo "$workspace_json" \
+    yarn workspaces list --no-private --json \
       | jq --slurp '[.[] | select(.location != ".")] | .[].location' --raw-output \
       | while read -r location; do
           jq '{ (.name): .version }' "$location/package.json"

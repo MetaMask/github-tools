@@ -235,11 +235,16 @@ jobs:
 
       - name: Generate preview build message
         run: |
-          docs_args=()
-          if [[ -n "${{ inputs.docs-url }}" ]]; then
-            docs_args=(--docs-url "${{ inputs.docs-url }}")
+          args=()
+          if [[ "${{ inputs.is-monorepo }}" == "true" ]]; then
+            args+=(--monorepo)
+          else
+            args+=(--polyrepo)
           fi
-          bash ./.github-tools/.github/scripts/generate-preview-build-message.sh "${docs_args[@]}"
+          if [[ -n "${{ inputs.docs-url }}" ]]; then
+            args+=(--docs-url "${{ inputs.docs-url }}")
+          fi
+          bash ./.github-tools/.github/scripts/generate-preview-build-message.sh "${args[@]}"
 
       - name: Post build preview in comment
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
