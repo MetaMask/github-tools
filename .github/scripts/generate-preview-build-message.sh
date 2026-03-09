@@ -50,9 +50,7 @@ if [[ "$is_monorepo" == "true" ]]; then
       | jq --raw-output '"\(.name)@\(.version)"'
   )"
 
-  cat <<-MSGEOF > preview-build-message.txt
-Preview builds have been published.
-MSGEOF
+  echo -n "Preview builds have been published." > preview-build-message.txt
   if [[ -n "$docs_link" ]]; then
     echo -n " ${docs_link}" >> preview-build-message.txt
   fi
