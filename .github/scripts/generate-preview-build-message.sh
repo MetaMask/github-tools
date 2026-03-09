@@ -38,29 +38,31 @@ fi
 
 docs_link=""
 if [[ -n "$docs_url" ]]; then
-  docs_link=" [See these instructions](${docs_url}) for more information about preview builds."
+  docs_link="[See these instructions](${docs_url}) for more information about preview builds."
 fi
 
 if [[ "$is_monorepo" == "true" ]]; then
-  # Build a JSON object of { name: version } for all non-root workspace packages.
-  package_json="$(
+  # Build a list of "name@version" for all workspace packages.
+  packages="$(
     yarn workspaces list --no-private --json \
-      | jq --slurp '[.[] | select(.location != ".")] | .[].location' --raw-output \
-      | while read -r location; do
-          jq '{ (.name): .version }' "$location/package.json"
-        done \
-      | jq --slurp 'add'
+      | jq --raw-output '.location' \
+      | xargs -I{} cat '{}/package.json' \
+      | jq --raw-output '"\(.name)@\(.version)"'
   )"
 
-  cat > preview-build-message.txt <<MSGEOF
-Preview builds have been published.${docs_link}
+  cat <<-MSGEOF > preview-build-message.txt
+Preview builds have been published.
+MSGEOF
+  if [[ -n "$docs_link" ]]; then
+    echo -n " ${docs_link}" >> preview-build-message.txt
+  fi
+  cat <<-MSGEOF >> preview-build-message.txt
 
 <details>
-
 <summary>Expand for full list of packages and versions.</summary>
 
 \`\`\`
-${package_json}
+${packages}
 \`\`\`
 
 </details>
@@ -70,13 +72,19 @@ else
   name="$(jq -r '.name' package.json)"
   version="$(jq -r '.version' package.json)"
 
-  cat > preview-build-message.txt <<MSGEOF
-Preview builds have been published.${docs_link}
+  cat <<-MSGEOF > preview-build-message.txt
+The following preview build has been published:
 
 \`\`\`
-yarn add ${name}@${version}
+${name}@${version}
 \`\`\`
 MSGEOF
+  if [[ -n "$docs_link" ]]; then
+    cat <<-MSGEOF >> preview-build-message.txt
+
+${docs_link}
+MSGEOF
+  fi
 fi
 
 echo "Preview build message written to preview-build-message.txt"

@@ -107,9 +107,9 @@ jobs:
         if: ${{ !inputs.is-monorepo }}
         run: |
           jq \
-            --arg npm_scope "${{ inputs.npm-scope }}" \
-            --arg hash "${{ steps.commit-sha.outputs.COMMIT_SHA }}" \
-            --arg source_scope "${{ inputs.source-scope }}" \
+            --arg npm_scope "$NPM_SCOPE" \
+            --arg hash "$COMMIT_SHA" \
+            --arg source_scope "$SOURCE_SCOPE" \
             '
               .name |= sub($source_scope; "\($npm_scope)/") |
               .version |= (split("-")[0] + "-preview-\($hash)")
@@ -117,6 +117,10 @@ jobs:
             package.json > temp.json
           mv temp.json package.json
           yarn install --no-immutable
+        env:
+          NPM_SCOPE: ${{ inputs.npm-scope }}
+          COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
+          SOURCE_SCOPE: ${{ inputs.source-scope }}
 
       - name: Build
         run: ${{ inputs.build-command }}
@@ -191,9 +195,11 @@ jobs:
       # We strip dangerous lifecycle scripts (they already ran during build)
       # and block unexpected registries outright.
       - name: Sanitize and validate artifact manifests
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
         run: |
           bad=0
-          if [[ "${{ inputs.is-monorepo }}" == "true" ]]; then
+          if [[ "$IS_MONOREPO" == "true" ]]; then
             mapfile -t manifests < <(find packages -name package.json -not -path '*/node_modules/*')
           else
             manifests=(package.json)
@@ -234,15 +240,18 @@ jobs:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
 
       - name: Generate preview build message
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+          DOCS_URL: ${{ inputs.docs-url }}
         run: |
           args=()
-          if [[ "${{ inputs.is-monorepo }}" == "true" ]]; then
+          if [[ "$IS_MONOREPO" == "true" ]]; then
             args+=(--monorepo)
           else
             args+=(--polyrepo)
           fi
-          if [[ -n "${{ inputs.docs-url }}" ]]; then
-            args+=(--docs-url "${{ inputs.docs-url }}")
+          if [[ -n "$DOCS_URL" ]]; then
+            args+=(--docs-url "$DOCS_URL")
           fi
           bash ./.github-tools/.github/scripts/generate-preview-build-message.sh "${args[@]}"
 
