@@ -38,6 +38,11 @@ on:
         type: string
         required: false
         default: ''
+      dry-run:
+        description: 'Skip actual NPM publish (for testing)'
+        type: boolean
+        required: false
+        default: false
     secrets:
       PUBLISH_PREVIEW_NPM_TOKEN:
         required: true
@@ -228,16 +233,20 @@ jobs:
         run: yarn install --no-immutable
 
       - name: Publish preview builds (monorepo)
-        if: ${{ inputs.is-monorepo }}
+        if: ${{ inputs.is-monorepo && !inputs.dry-run }}
         run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
 
       - name: Publish preview builds (polyrepo)
-        if: ${{ !inputs.is-monorepo }}
+        if: ${{ !inputs.is-monorepo && !inputs.dry-run }}
         run: yarn npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
+
+      - name: Dry run notice
+        if: ${{ inputs.dry-run }}
+        run: echo "Dry run — skipping publish"
 
       - name: Generate preview build message
         env:
