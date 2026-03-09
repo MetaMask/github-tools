@@ -176,22 +176,6 @@ jobs:
         with:
           name: preview-build-artifacts
 
-      - name: Resolve GitHub tools ref
-        id: github-tools-ref
-        run: |
-          # github.workflow_ref contains e.g. "Owner/repo/.github/workflows/file.yml@refs/heads/branch"
-          ref="${WORKFLOW_REF##*@}"
-          echo "ref=$ref" >> "$GITHUB_OUTPUT"
-        env:
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-
-      - name: Checkout GitHub tools repository
-        uses: actions/checkout@v5
-        with:
-          repository: MetaMask/github-tools
-          ref: ${{ steps.github-tools-ref.outputs.ref }}
-          path: ./.github-tools
-
       # The artifact package.json files come from the PR branch.
       # A malicious PR could inject lifecycle scripts (prepack/postpack) that
       # execute during `yarn npm publish` with the NPM token in the environment
@@ -253,16 +237,47 @@ jobs:
           IS_MONOREPO: ${{ inputs.is-monorepo }}
           DOCS_URL: ${{ inputs.docs-url }}
         run: |
-          args=()
-          if [[ "$IS_MONOREPO" == "true" ]]; then
-            args+=(--monorepo)
-          else
-            args+=(--polyrepo)
-          fi
+          docs_link=""
           if [[ -n "$DOCS_URL" ]]; then
-            args+=(--docs-url "$DOCS_URL")
+            docs_link="[See these instructions](${DOCS_URL}) for more information about preview builds."
           fi
-          bash ./.github-tools/.github/scripts/generate-preview-build-message.sh "${args[@]}"
+
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            packages="$(
+              yarn workspaces list --no-private --json \
+                | jq --raw-output '.location' \
+                | xargs -I{} cat '{}/package.json' \
+                | jq --raw-output '"\(.name)@\(.version)"'
+            )"
+            echo -n "Preview builds have been published." > preview-build-message.txt
+            if [[ -n "$docs_link" ]]; then
+              echo -n " ${docs_link}" >> preview-build-message.txt
+            fi
+            cat <<-MSGEOF >> preview-build-message.txt
+
+          <details>
+          <summary>Expand for full list of packages and versions.</summary>
+
+          \`\`\`
+          ${packages}
+          \`\`\`
+
+          </details>
+          MSGEOF
+          else
+            name="$(jq -r '.name' package.json)"
+            version="$(jq -r '.version' package.json)"
+            cat <<-MSGEOF > preview-build-message.txt
+          The following preview build has been published:
+
+          \`\`\`
+          ${name}@${version}
+          \`\`\`
+          MSGEOF
+            if [[ -n "$docs_link" ]]; then
+              printf '\n%s\n' "$docs_link" >> preview-build-message.txt
+            fi
+          fi
 
       - name: Post build preview in comment
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
