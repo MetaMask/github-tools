@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.7.1]
 
-### Uncategorized
+### Fixed
 
 - fix: resolve merge-approved-pr action path for cross-repo workflow calls ([#224](https://github.com/MetaMask/github-tools/pull/224))
 
