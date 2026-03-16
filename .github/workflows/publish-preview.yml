@@ -100,32 +100,47 @@ jobs:
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare preview builds (monorepo)
-        if: ${{ inputs.is-monorepo }}
-        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@prepare-preview-builds-action
-        with:
-          npm-scope: ${{ inputs.npm-scope }}
-          commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
-          source-scope: ${{ inputs.source-scope }}
-
-      - name: Prepare preview builds (polyrepo)
-        if: ${{ !inputs.is-monorepo }}
-        run: |
-          jq \
-            --arg npm_scope "$NPM_SCOPE" \
-            --arg hash "$COMMIT_SHA" \
-            --arg source_scope "$SOURCE_SCOPE" \
-            '
-              .name |= sub($source_scope; "\($npm_scope)/") |
-              .version |= (split("-")[0] + "-preview-\($hash)")
-            ' \
-            package.json > temp.json
-          mv temp.json package.json
-          yarn install --no-immutable
+      - name: Prepare preview builds
         env:
           NPM_SCOPE: ${{ inputs.npm-scope }}
           COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
           SOURCE_SCOPE: ${{ inputs.source-scope }}
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+        run: |
+          prepare_manifest() {
+            local manifest_file="$1"
+            jq --raw-output \
+              --arg npm_scope "$NPM_SCOPE" \
+              --arg hash "$COMMIT_SHA" \
+              --arg source_scope "$SOURCE_SCOPE" \
+              '
+                .name |= sub($source_scope; "\($npm_scope)/") |
+                .version |= (split("-")[0] + "-preview-\($hash)")
+              ' \
+              "$manifest_file" > temp.json
+            mv temp.json "$manifest_file"
+          }
+
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            # Add resolutions so renamed packages still resolve from local workspace
+            echo "Adding workspace resolutions to root manifest..."
+            resolutions="$(yarn workspaces list --no-private --json \
+              | jq --slurp 'reduce .[] as $pkg ({}; .[$pkg.name] = "portal:./" + $pkg.location)')"
+            jq --argjson resolutions "$resolutions" '.resolutions = ((.resolutions // {}) + $resolutions)' package.json > temp.json
+            mv temp.json package.json
+
+            echo "Preparing manifests..."
+            while IFS=$'\t' read -r location name; do
+              echo "- $name"
+              prepare_manifest "$location/package.json"
+            done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map([.location, .name]) | map(@tsv) | .[]')
+          else
+            echo "Preparing manifest..."
+            prepare_manifest package.json
+          fi
+
+          echo "Installing dependencies..."
+          yarn install --no-immutable
 
       - name: Build
         run: ${{ inputs.build-command }}
