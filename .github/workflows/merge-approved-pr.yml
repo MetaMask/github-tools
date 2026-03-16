@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Merge approved PR
-        uses: ./.github/actions/merge-approved-pr
+        uses: MetaMask/github-tools/.github/actions/merge-approved-pr@v1
         with:
           pr-number: ${{ inputs.pr-number }}
           required-base-branch: ${{ inputs.required-base-branch }}
