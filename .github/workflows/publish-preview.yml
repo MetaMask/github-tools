@@ -213,12 +213,14 @@ jobs:
             echo "::error::No package.json files found to validate"
             exit 1
           fi
-          # Strip registry overrides from .yarnrc.yml to prevent scoped
-          # registry redirects (npmScopes.<scope>.npmRegistryServer) which
-          # take precedence over the YARN_NPM_REGISTRY_SERVER env var.
+          # Strip registry overrides from .yarnrc.yml to prevent registry
+          # redirects that could exfiltrate the NPM token. npmPublishRegistry
+          # takes precedence over npmRegistryServer for yarn npm publish, and
+          # npmScopes can override per-scope. YARN_NPM_REGISTRY_SERVER env var
+          # only overrides npmRegistryServer, not the others.
           if [[ -f .yarnrc.yml ]]; then
             echo "Stripping registry config from .yarnrc.yml"
-            yq -i 'del(.npmRegistryServer) | del(.npmScopes)' .yarnrc.yml
+            yq -i 'del(.npmRegistryServer) | del(.npmPublishRegistry) | del(.npmScopes)' .yarnrc.yml
           fi
           for f in "${manifests[@]}"; do
             # Strip lifecycle scripts that run during pack/publish
