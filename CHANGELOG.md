@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0]
+
+### Added
+
+- Add reusable `publish-preview` workflow for publishing preview builds ([#223](https://github.com/MetaMask/github-tools/pull/223), [#227](https://github.com/MetaMask/github-tools/pull/227))
+
 ## [1.7.1]
 
 ### Fixed
@@ -138,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/MetaMask/github-tools/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/MetaMask/github-tools/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/MetaMask/github-tools/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/MetaMask/github-tools/compare/v1.5.0...v1.6.0
