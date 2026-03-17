@@ -213,6 +213,13 @@ jobs:
             echo "::error::No package.json files found to validate"
             exit 1
           fi
+          # Strip registry overrides from .yarnrc.yml to prevent scoped
+          # registry redirects (npmScopes.<scope>.npmRegistryServer) which
+          # take precedence over the YARN_NPM_REGISTRY_SERVER env var.
+          if [[ -f .yarnrc.yml ]]; then
+            echo "Stripping registry config from .yarnrc.yml"
+            yq -i 'del(.npmRegistryServer) | del(.npmScopes)' .yarnrc.yml
+          fi
           for f in "${manifests[@]}"; do
             # Strip lifecycle scripts that run during pack/publish
             if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)?(pack|publish|prepare)$"))' "$f" > /dev/null 2>&1; then
