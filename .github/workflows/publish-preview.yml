@@ -177,6 +177,7 @@ jobs:
     name: Publish preview
     needs: build-preview
     permissions:
+      contents: read
       pull-requests: write
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
