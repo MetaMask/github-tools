@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.8.0]
 
-### Uncategorized
+### Added
 
-- fix: sanitize .yarnrc.yml in publish-preview to prevent token exfiltration ([#227](https://github.com/MetaMask/github-tools/pull/227))
-- feat: add reusable publish-preview workflow ([#223](https://github.com/MetaMask/github-tools/pull/223))
+- Add reusable `publish-preview` workflow for publishing preview builds ([#223](https://github.com/MetaMask/github-tools/pull/223), [#227](https://github.com/MetaMask/github-tools/pull/227))
 
 ## [1.7.1]
 
