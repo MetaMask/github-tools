@@ -254,7 +254,7 @@ jobs:
         run: |
           docs_link=""
           if [[ -n "$DOCS_URL" ]]; then
-            docs_link="[Learn how to use preview builds in other projects.](${DOCS_URL})."
+            docs_link="[Learn how to use preview builds in other projects](${DOCS_URL})."
           fi
 
           if [[ "$IS_MONOREPO" == "true" ]]; then
