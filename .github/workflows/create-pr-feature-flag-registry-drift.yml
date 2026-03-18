@@ -120,9 +120,11 @@ jobs:
           else
             git commit -m "chore: sync feature flag registry from E2E"
             git push --force origin "$BRANCH"
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-            echo "timestamp=$(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+            {
+              echo "has_changes=true"
+              echo "branch=$BRANCH"
+              echo "timestamp=$(date -u '+%Y-%m-%d %H:%M UTC')"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create Pull Request
