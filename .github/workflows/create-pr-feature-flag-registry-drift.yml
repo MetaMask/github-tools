@@ -1,0 +1,158 @@
+name: Create PR for Feature Flag Registry Drift
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        required: true
+        type: string
+        description: 'The repository name (e.g. metamask-extension)'
+      registry-file-path:
+        required: true
+        type: string
+        description: 'Path in the repo where the registry file lives (e.g. app/scripts/feature-flags/registry.json)'
+      registry-artifact-name:
+        required: true
+        type: string
+        description: 'Name of the artifact containing the updated registry file'
+      report-artifact-name:
+        required: true
+        type: string
+        description: 'Name of the artifact containing report.json'
+      pr-label:
+        required: false
+        type: string
+        default: ''
+        description: 'Label to apply to the created PR (must exist in the target repo)'
+      workflow-run-url:
+        required: false
+        type: string
+        default: ''
+        description: 'URL of the workflow run (for artifact download link in PR body)'
+    secrets:
+      github-token:
+        required: true
+        description: 'Token with contents write and pull-requests write permissions'
+    outputs:
+      pr-url:
+        description: 'URL of the created pull request (empty if no PR was created)'
+        value: ${{ jobs.create-drift-pr.outputs.pr-url }}
+      has-changes:
+        description: 'Whether the registry had drift that needed syncing'
+        value: ${{ jobs.create-drift-pr.outputs.has-changes }}
+
+jobs:
+  create-drift-pr:
+    outputs:
+      pr-url: ${{ steps.create-pr.outputs.pr-url }}
+      has-changes: ${{ steps.commit.outputs.has_changes }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.github-token }}
+
+      - name: Download registry artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.registry-artifact-name }}
+          path: ${{ inputs.registry-artifact-name }}
+
+      - name: Download report artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.report-artifact-name }}
+          path: ${{ inputs.report-artifact-name }}
+
+      - name: Build PR body from report
+        id: pr-body
+        env:
+          REPORT_ARTIFACT: ${{ inputs.report-artifact-name }}
+          WORKFLOW_RUN_URL: ${{ inputs.workflow-run-url }}
+        run: |
+          REPORT_FILE="$REPORT_ARTIFACT/report.json"
+          if [[ ! -f "$REPORT_FILE" ]]; then
+            REPORT_FILE=$(find "$REPORT_ARTIFACT" -name "report.json" -type f | head -1)
+          fi
+          if [[ -z "$REPORT_FILE" || ! -f "$REPORT_FILE" ]]; then
+            echo "::error::report.json not found in artifact $REPORT_ARTIFACT"
+            exit 1
+          fi
+          {
+            echo "## Feature Flag Registry Drift Report"
+            echo ""
+            echo "Feature flag drift was detected between E2E tests and production."
+            echo ""
+            if [[ -n "$WORKFLOW_RUN_URL" ]]; then
+              echo "Download the [\`$REPORT_ARTIFACT\` artifact]($WORKFLOW_RUN_URL) for the full report."
+            else
+              echo "Download the \`$REPORT_ARTIFACT\` artifact from the workflow run for the full report."
+            fi
+          } > pr-body.md
+
+      - name: Create branch and commit registry change
+        id: commit
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          REGISTRY_ARTIFACT: ${{ inputs.registry-artifact-name }}
+          REGISTRY_PATH: ${{ inputs.registry-file-path }}
+        run: |
+          BRANCH="qa/sync-ff-registry-$REPOSITORY-$(date -u +%Y-%m-%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          mkdir -p "$(dirname "$REGISTRY_PATH")"
+          REGISTRY_SRC=$(find "./$REGISTRY_ARTIFACT" -name "$(basename "$REGISTRY_PATH")" -type f | head -1)
+          if [[ -z "$REGISTRY_SRC" ]]; then
+            echo "::error::No registry file found in artifact $REGISTRY_ARTIFACT"
+            exit 1
+          fi
+          cp "$REGISTRY_SRC" "$REGISTRY_PATH"
+          git add "$REGISTRY_PATH"
+          git status
+          if git diff --staged --quiet; then
+            echo "::warning::No changes to registry file. Nothing to commit."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: sync feature flag registry from E2E"
+            git push --force origin "$BRANCH"
+            {
+              echo "has_changes=true"
+              echo "branch=$BRANCH"
+              echo "timestamp=$(date -u '+%Y-%m-%d %H:%M UTC')"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        id: create-pr
+        if: steps.commit.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.github-token }}
+          BRANCH: ${{ steps.commit.outputs.branch }}
+          TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
+          PR_LABEL: ${{ inputs.pr-label }}
+        run: |
+          # Close stale open PRs superseded by this run
+          gh pr list --search "Sync Feature Flag Registry in:title" \
+            --state open --json number --jq '.[].number' 2>/dev/null | \
+          while read -r pr_number; do
+            [[ -z "$pr_number" ]] && continue
+            gh pr close "$pr_number" \
+              --comment "Superseded by a newer sync PR." \
+              --delete-branch 2>/dev/null || true
+          done
+          LABEL_ARGS=()
+          if [[ -n "$PR_LABEL" ]]; then
+            LABEL_ARGS=(--label "$PR_LABEL")
+          fi
+          PR_URL=$(gh pr create \
+            --title "[QA] Sync Feature Flag Registry - $TIMESTAMP" \
+            --body-file pr-body.md \
+            --base main \
+            --head "$BRANCH" \
+            "${LABEL_ARGS[@]}")
+          echo "pr-url=$PR_URL" >> "$GITHUB_OUTPUT"
