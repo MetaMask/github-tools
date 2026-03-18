@@ -1,0 +1,60 @@
+name: Feature Flag Drift Report
+description: 'Sends a Slack notification when feature flag drift is detected in E2E tests vs production.'
+
+inputs:
+  title:
+    description: 'Project identifier shown in the message (e.g. MetaMask Extension, MetaMask Mobile)'
+    required: true
+  slack-webhook:
+    description: 'Slack incoming webhook URL'
+    required: true
+  workflow-run-url:
+    description: 'Full URL to the workflow run'
+    required: true
+  pr-url:
+    description: 'URL of the sync PR (optional; included in message when provided)'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Send Slack notification
+      if: inputs.pr-url == ''
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+      with:
+        webhook: ${{ inputs.slack-webhook }}
+        webhook-type: incoming-webhook
+        payload: |
+          {
+            "text": "*[${{ inputs.title }}] Feature Flags Drift Detected in E2E tests vs Prod* :warning:\n\nCheck the workflow run for details: download the drift report JSON artifact and review the report.\n\nYou can run command `yarn feature-flags:sync:update` locally to update the registry.\n\n<${{ inputs.workflow-run-url }}|View workflow run>",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*[${{ inputs.title }}] Feature Flags Drift Detected in E2E tests vs Prod* :warning:\n\nCheck the workflow run for details: download the drift report JSON artifact and review the report.\n\nYou can run command `yarn feature-flags:sync:update` locally to update the registry.\n\n<${{ inputs.workflow-run-url }}|View workflow run>"
+                }
+              }
+            ]
+          }
+
+    - name: Send Slack notification with PR link
+      if: inputs.pr-url != ''
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+      with:
+        webhook: ${{ inputs.slack-webhook }}
+        webhook-type: incoming-webhook
+        payload: |
+          {
+            "text": "*[${{ inputs.title }}] Feature Flags Drift Detected in E2E tests vs Prod* :warning:\n\nCheck the workflow run for details: download the drift report JSON artifact and review the report.\n\nYou can run command `yarn feature-flags:sync:update` locally to update the registry.\n\nA sync PR has been created: <${{ inputs.pr-url }}|View PR>\n\n<${{ inputs.workflow-run-url }}|View workflow run>",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*[${{ inputs.title }}] Feature Flags Drift Detected in E2E tests vs Prod* :warning:\n\nCheck the workflow run for details: download the drift report JSON artifact and review the report.\n\nYou can run command `yarn feature-flags:sync:update` locally to update the registry.\n\nA sync PR has been created: <${{ inputs.pr-url }}|View PR>\n\n<${{ inputs.workflow-run-url }}|View workflow run>"
+                }
+              }
+            ]
+          }
