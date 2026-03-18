@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `feature-flag-drift-report` action to notify Slack when feature flag drift is detected (supports optional `pr-url` input to include sync PR link)
-- Add `check-feature-flag-registry-drift` reusable workflow to create PRs for feature flag registry updates (outputs `pr-url` for use in Slack notifications)
-
 ## [1.8.0]
 
 ### Added
