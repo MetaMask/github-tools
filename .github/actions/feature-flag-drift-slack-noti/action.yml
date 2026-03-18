@@ -1,0 +1,71 @@
+name: Feature Flag Drift Report
+description: 'Sends a Slack notification when feature flag drift is detected in E2E tests vs production.'
+
+inputs:
+  title:
+    description: 'Project identifier shown in the message (e.g. MetaMask Extension, MetaMask Mobile)'
+    required: true
+  slack-webhook:
+    description: 'Slack incoming webhook URL'
+    required: true
+  workflow-run-url:
+    description: 'Full URL to the workflow run'
+    required: true
+  pr-url:
+    description: 'URL of the sync PR (optional; included in message when provided)'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Build Slack payload
+      id: payload
+      shell: bash
+      env:
+        TITLE: ${{ inputs.title }}
+        WORKFLOW_URL: ${{ inputs.workflow-run-url }}
+        PR_URL: ${{ inputs.pr-url }}
+      run: |
+        # Use multiple blocks instead of newlines - more reliable in Slack
+        if [[ -n "$PR_URL" ]]; then
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg pr_url "$PR_URL" \
+            --arg workflow_url "$WORKFLOW_URL" \
+            '{
+              text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:"),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:") } },
+                { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
+                { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
+                { type: "section", text: { type: "mrkdwn", text: ("A sync PR has been created: <" + $pr_url + "|View PR>") } },
+                { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
+              ]
+            }')
+        else
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg workflow_url "$WORKFLOW_URL" \
+            '{
+              text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:"),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:") } },
+                { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
+                { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
+                { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
+              ]
+            }')
+        fi
+        {
+          echo "payload<<EOF"
+          printf '%s\n' "$PAYLOAD"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Send Slack notification
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+      with:
+        webhook: ${{ inputs.slack-webhook }}
+        webhook-type: incoming-webhook
+        payload: ${{ steps.payload.outputs.payload }}

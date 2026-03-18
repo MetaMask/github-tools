@@ -24,6 +24,11 @@ on:
         type: string
         default: ''
         description: 'Label to apply to the created PR (must exist in the target repo)'
+      workflow-run-url:
+        required: false
+        type: string
+        default: ''
+        description: 'URL of the workflow run (for artifact download link in PR body)'
     secrets:
       github-token:
         required: true
@@ -67,6 +72,7 @@ jobs:
         id: pr-body
         env:
           REPORT_ARTIFACT: ${{ inputs.report-artifact-name }}
+          WORKFLOW_RUN_URL: ${{ inputs.workflow-run-url }}
         run: |
           REPORT_FILE="$REPORT_ARTIFACT/report.json"
           if [[ ! -f "$REPORT_FILE" ]]; then
@@ -79,11 +85,13 @@ jobs:
           {
             echo "## Feature Flag Registry Drift Report"
             echo ""
-            echo "The following drift was detected between E2E tests and production:"
+            echo "Feature flag drift was detected between E2E tests and production."
             echo ""
-            echo '```json'
-            cat "$REPORT_FILE"
-            echo '```'
+            if [[ -n "$WORKFLOW_RUN_URL" ]]; then
+              echo "Download the [\`$REPORT_ARTIFACT\` artifact]($WORKFLOW_RUN_URL) for the full report."
+            else
+              echo "Download the \`$REPORT_ARTIFACT\` artifact from the workflow run for the full report."
+            fi
           } > pr-body.md
 
       - name: Create branch and commit registry change
@@ -93,7 +101,7 @@ jobs:
           REGISTRY_ARTIFACT: ${{ inputs.registry-artifact-name }}
           REGISTRY_PATH: ${{ inputs.registry-file-path }}
         run: |
-          BRANCH="qa/sync-ff-registry-$REPOSITORY"
+          BRANCH="qa/sync-ff-registry-$REPOSITORY-$(date -u +%Y-%m-%d-%H%M)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
@@ -111,9 +119,10 @@ jobs:
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync feature flag registry from E2E"
-            git push --force-with-lease origin "$BRANCH"
+            git push --force origin "$BRANCH"
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+            echo "timestamp=$(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create Pull Request
@@ -121,21 +130,25 @@ jobs:
         if: steps.commit.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.github-token }}
-          REPOSITORY: ${{ inputs.repository }}
           BRANCH: ${{ steps.commit.outputs.branch }}
+          TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
           PR_LABEL: ${{ inputs.pr-label }}
         run: |
-          EXISTING=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url' 2>/dev/null || true)
-          if [[ -n "$EXISTING" ]]; then
-            echo "pr-url=$EXISTING" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # Close stale open PRs superseded by this run
+          gh pr list --search "Sync Feature Flag Registry in:title" \
+            --state open --json number --jq '.[].number' 2>/dev/null | \
+          while read -r pr_number; do
+            [[ -z "$pr_number" ]] && continue
+            gh pr close "$pr_number" \
+              --comment "Superseded by a newer sync PR." \
+              --delete-branch 2>/dev/null || true
+          done
           LABEL_ARGS=()
           if [[ -n "$PR_LABEL" ]]; then
             LABEL_ARGS=(--label "$PR_LABEL")
           fi
           PR_URL=$(gh pr create \
-            --title "[QA] Sync Feature Flag Registry ($REPOSITORY)" \
+            --title "[QA] Sync Feature Flag Registry - $TIMESTAMP" \
             --body-file pr-body.md \
             --base main \
             --head "$BRANCH" \
