@@ -19,6 +19,11 @@ on:
         required: true
         type: string
         description: 'Name of the artifact containing report.json'
+      pr-label:
+        required: false
+        type: string
+        default: ''
+        description: 'Label to apply to the created PR (must exist in the target repo)'
     secrets:
       github-token:
         required: true
@@ -27,11 +32,15 @@ on:
       pr-url:
         description: 'URL of the created pull request (empty if no PR was created)'
         value: ${{ jobs.create-drift-pr.outputs.pr-url }}
+      has-changes:
+        description: 'Whether the registry had drift that needed syncing'
+        value: ${{ jobs.create-drift-pr.outputs.has-changes }}
 
 jobs:
   create-drift-pr:
     outputs:
       pr-url: ${{ steps.create-pr.outputs.pr-url }}
+      has-changes: ${{ steps.commit.outputs.has_changes }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -56,13 +65,15 @@ jobs:
 
       - name: Build PR body from report
         id: pr-body
+        env:
+          REPORT_ARTIFACT: ${{ inputs.report-artifact-name }}
         run: |
-          REPORT_FILE="${{ inputs.report-artifact-name }}/report.json"
+          REPORT_FILE="$REPORT_ARTIFACT/report.json"
           if [[ ! -f "$REPORT_FILE" ]]; then
-            REPORT_FILE=$(find "${{ inputs.report-artifact-name }}" -name "report.json" -type f | head -1)
+            REPORT_FILE=$(find "$REPORT_ARTIFACT" -name "report.json" -type f | head -1)
           fi
           if [[ -z "$REPORT_FILE" || ! -f "$REPORT_FILE" ]]; then
-            echo "::error::report.json not found in artifact ${{ inputs.report-artifact-name }}"
+            echo "::error::report.json not found in artifact $REPORT_ARTIFACT"
             exit 1
           fi
           {
@@ -76,15 +87,18 @@ jobs:
           } > pr-body.md
 
       - name: Create branch and commit registry change
+        id: commit
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          REGISTRY_ARTIFACT: ${{ inputs.registry-artifact-name }}
+          REGISTRY_PATH: ${{ inputs.registry-file-path }}
         run: |
-          BRANCH="qa/sync-ff-flag-${{ inputs.repository }}-${{ github.run_id }}"
-          REGISTRY_ARTIFACT="${{ inputs.registry-artifact-name }}"
-          REGISTRY_PATH="${{ inputs.registry-file-path }}"
+          BRANCH="qa/sync-ff-registry-$REPOSITORY"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           mkdir -p "$(dirname "$REGISTRY_PATH")"
-          REGISTRY_SRC=$(find "./$REGISTRY_ARTIFACT" -type f | head -1)
+          REGISTRY_SRC=$(find "./$REGISTRY_ARTIFACT" -name "$(basename "$REGISTRY_PATH")" -type f | head -1)
           if [[ -z "$REGISTRY_SRC" ]]; then
             echo "::error::No registry file found in artifact $REGISTRY_ARTIFACT"
             exit 1
@@ -97,22 +111,33 @@ jobs:
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync feature flag registry from E2E"
-            git push origin "$BRANCH"
+            git push --force-with-lease origin "$BRANCH"
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           fi
-        id: commit
 
       - name: Create Pull Request
         id: create-pr
         if: steps.commit.outputs.has_changes == 'true'
-        run: |
-          PR_URL=$(gh pr create \
-            --title "[QA] Sync Feature Flag Registry (${{ inputs.repository }})" \
-            --body-file pr-body.md \
-            --base main \
-            --head "${{ steps.commit.outputs.branch }}" \
-            --label "team-qa")
-          echo "pr-url=$PR_URL" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.github-token }}
+          REPOSITORY: ${{ inputs.repository }}
+          BRANCH: ${{ steps.commit.outputs.branch }}
+          PR_LABEL: ${{ inputs.pr-label }}
+        run: |
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url' 2>/dev/null || true)
+          if [[ -n "$EXISTING" ]]; then
+            echo "pr-url=$EXISTING" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LABEL_ARGS=()
+          if [[ -n "$PR_LABEL" ]]; then
+            LABEL_ARGS=(--label "$PR_LABEL")
+          fi
+          PR_URL=$(gh pr create \
+            --title "[QA] Sync Feature Flag Registry ($REPOSITORY)" \
+            --body-file pr-body.md \
+            --base main \
+            --head "$BRANCH" \
+            "${LABEL_ARGS[@]}")
+          echo "pr-url=$PR_URL" >> "$GITHUB_OUTPUT"
