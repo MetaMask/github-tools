@@ -609,6 +609,10 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
     for (const pr of prs) {
       // Check if PR modifies automated test files
       const automatedTestsModified = await checkAutomatedTestFiles(owner, repo, pr.number);
+      const validatedA = '';
+      const validatedB = '';
+      const designValidation = '';
+      const comments = '';
 
       const row = [
         makePrHyperlinkCell(pr.html_url, pr.title, pr.number),
@@ -617,10 +621,10 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
         extractSize(pr.labels || []),
         automatedTestsModified,
         extractTeam(pr.labels || []),
-        '',
-        '',
-        '',
-        '',
+        validatedA,
+        validatedB,
+        designValidation,
+        comments,
       ];
       tabToRows.get(title).entries.push({
         row,
