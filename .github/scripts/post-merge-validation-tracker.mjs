@@ -71,7 +71,6 @@ function headerRowFor(type) {
     'Team Responsible',
     colG,
     colH,
-    'Comment',
   ];
 }
 
@@ -142,7 +141,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A2:I2`,
+      range: `${title}!A2:H2`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headerRowFor(platformType)] },
     });
@@ -198,7 +197,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A2:I2`,
+    range: `${title}!A2:H2`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
@@ -225,7 +224,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:I`,
+      range: `${title}!A3:J`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -239,7 +238,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:I`,
+    range: `${title}!A4:J`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -450,7 +449,7 @@ function applyAutoSkipToRow(row, labels, repoName, isMainRelease) {
     : validLabels;
 
   if (shouldSkipFirstValidated || shouldSkipSecondValidated) {
-    updatedRow[8] = `Release validation automatically skipped due to PR labels: ${labelsForComment.join(', ')}`;
+    updatedRow[9] = `Release validation automatically skipped due to PR labels: ${labelsForComment.join(', ')}`;
   }
 
   return updatedRow;
@@ -618,6 +617,7 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
         extractSize(pr.labels || []),
         automatedTestsModified,
         extractTeam(pr.labels || []),
+        '',
         '',
         '',
         '',
