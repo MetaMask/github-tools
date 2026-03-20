@@ -22,6 +22,7 @@ const AUTOMATED_TEST_PATTERNS = [
   /(^|\/)e2e\//,
   /(^|\/)wdio\//
 ];
+const SKIP_RELEASE_VALIDATION_LABEL = 'skip-release-validation';
 
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 if (!spreadsheetId) throw new Error('Missing SHEET_ID env var');
@@ -223,7 +224,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:H`,
+      range: `${title}!A3:J`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -237,7 +238,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:H`,
+    range: `${title}!A4:J`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -382,6 +383,73 @@ function splitByReleaseAndTitle(items) {
   }
 
   return { relevant, skippedByTitle };
+}
+
+function getAutoSkipLabelsForPR(labels, repoName) {
+  const labelNames = (labels || []).map((label) => label.name).filter(Boolean);
+  const hasSkipAll = labelNames.includes(SKIP_RELEASE_VALIDATION_LABEL);
+
+  const granularLabels = labelNames.filter((name) =>
+    /^skip-release-validation\[(android|ios|design|chrome|firefox)\]$/i.test(name),
+  );
+
+  const lowerRepoName = String(repoName || '').toLowerCase();
+  const isMobile = lowerRepoName.endsWith('-mobile');
+  const isExtension = lowerRepoName.endsWith('-extension');
+
+  const validGranularLabels = granularLabels.filter((name) => {
+    const target = name.toLowerCase();
+    if (isMobile && (target.includes('[chrome]') || target.includes('[firefox]'))) {
+      return false;
+    }
+    if (isExtension && (target.includes('[android]') || target.includes('[ios]'))) {
+      return false;
+    }
+    return true;
+  });
+
+  return {
+    hasSkipAll,
+    validLabels: validGranularLabels,
+  };
+}
+
+function applyAutoSkipToRow(row, labels, repoName) {
+
+  const { hasSkipAll, validLabels } = getAutoSkipLabelsForPR(labels, repoName);
+  if (!hasSkipAll && validLabels.length === 0) {
+    return row;
+  }
+
+  const updatedRow = [...row];
+  const validLabelSet = new Set(validLabels.map((label) => label.toLowerCase()));
+  const isMobile = String(repoName || '').toLowerCase().endsWith('-mobile');
+
+  const shouldSkipFirstValidated =
+    hasSkipAll ||
+    validLabelSet.has('skip-release-validation[design]') ||
+    validLabelSet.has(isMobile ? 'skip-release-validation[android]' : 'skip-release-validation[chrome]');
+  const shouldSkipSecondValidated =
+    hasSkipAll ||
+    validLabelSet.has('skip-release-validation[design]') ||
+    validLabelSet.has(isMobile ? 'skip-release-validation[ios]' : 'skip-release-validation[firefox]');
+
+  if (shouldSkipFirstValidated) {
+    updatedRow[6] = 'Skipped';
+  }
+  if (shouldSkipSecondValidated) {
+    updatedRow[7] = 'Skipped';
+  }
+
+  const labelsForComment = hasSkipAll
+    ? [SKIP_RELEASE_VALIDATION_LABEL, ...validLabels]
+    : validLabels;
+
+  if (shouldSkipFirstValidated || shouldSkipSecondValidated) {
+    updatedRow[9] = `Release validation automatically skipped due to PR labels: ${labelsForComment.join(', ')}`;
+  }
+
+  return updatedRow;
 }
 
 // Add efficient version detection with caching
@@ -538,6 +606,10 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
     for (const pr of prs) {
       // Check if PR modifies automated test files
       const automatedTestsModified = await checkAutomatedTestFiles(owner, repo, pr.number);
+      const validatedA = '';
+      const validatedB = '';
+      const designValidation = '';
+      const comments = '';
 
       const row = [
         makePrHyperlinkCell(pr.html_url, pr.title, pr.number),
@@ -546,10 +618,16 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
         extractSize(pr.labels || []),
         automatedTestsModified,
         extractTeam(pr.labels || []),
-        '',
-        '',
+        validatedA,
+        validatedB,
+        designValidation,
+        comments,
       ];
-      tabToRows.get(title).entries.push({ row, mergedAtIso: pr.closed_at || '' });
+      tabToRows.get(title).entries.push({
+        row,
+        mergedAtIso: pr.closed_at || '',
+        labels: pr.labels || [],
+      });
     }
   }
 
@@ -736,7 +814,7 @@ async function processTab(authClient, title, entries, platformType) {
   const sortedRows = entries
     .slice()
     .sort((a, b) => new Date(a.mergedAtIso) - new Date(b.mergedAtIso))
-    .map((e) => e.row);
+    .map((e) => applyAutoSkipToRow(e.row, e.labels, repo));
   const deduped = [];
   for (const r of sortedRows) {
     const num = parsePrNumberFromCell(r[0]);
