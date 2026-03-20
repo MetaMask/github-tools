@@ -414,10 +414,7 @@ function getAutoSkipLabelsForPR(labels, repoName) {
   };
 }
 
-function applyAutoSkipToRow(row, labels, repoName, isMainRelease) {
-  if (!isMainRelease) {
-    return row;
-  }
+function applyAutoSkipToRow(row, labels, repoName) {
 
   const { hasSkipAll, validLabels } = getAutoSkipLabelsForPR(labels, repoName);
   if (!hasSkipAll && validLabels.length === 0) {
@@ -814,11 +811,10 @@ async function processTab(authClient, title, entries, platformType) {
       .filter((n) => n !== null)
       .map((n) => uniqKey(n)),
   );
-  const isMainRelease = !actualTitle.startsWith('pre-');
   const sortedRows = entries
     .slice()
     .sort((a, b) => new Date(a.mergedAtIso) - new Date(b.mergedAtIso))
-    .map((e) => applyAutoSkipToRow(e.row, e.labels, repo, isMainRelease));
+    .map((e) => applyAutoSkipToRow(e.row, e.labels, repo));
   const deduped = [];
   for (const r of sortedRows) {
     const num = parsePrNumberFromCell(r[0]);
