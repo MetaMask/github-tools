@@ -6,7 +6,7 @@ const githubToken = process.env.GITHUB_TOKEN;
 const spreadsheetId = process.env.SHEET_ID; // 1uSERA-Mczy0pjlrr1vv...
 // GOOGLE_APPLICATION_CREDENTIALS_BASE64 can be found in MM QA 1pasword vault
 const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
-const repo = process.env.REPO || "MetaMask/metamask-extension";
+const repo = process.env.REPO || "MetaMask/metamask-mobile";
 const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
@@ -14,6 +14,7 @@ const START_MINUTE_UTC = 0;
 const RELEVANT_TITLE_REGEX = /^(feat|perf|fix|chore|refactor)\s*(\(|:|!|\/)|\bbump\b/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
+const RISK_LABEL_PREFIX = 'risk-';
 const AUTOMATED_TEST_PATTERNS = [
   /\.test\.(js|ts|tsx)$/,
   /\.spec\.(js|ts|tsx)$/,
@@ -66,6 +67,7 @@ function headerRowFor(type) {
     'Merged Time (UTC)',
     'Author',
     'PR Size',
+    'Risk Level',
     'Tests changes?',
     'Team Responsible',
     colG,
@@ -140,7 +142,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A2:H2`,
+      range: `${title}!A2:I2`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headerRowFor(platformType)] },
     });
@@ -196,7 +198,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A2:H2`,
+    range: `${title}!A2:I2`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
@@ -223,7 +225,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:H`,
+      range: `${title}!A3:I`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -237,7 +239,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:H`,
+      range: `${title}!A4:I`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -274,6 +276,11 @@ function extractTeam(labels) {
 
 function extractSize(labels) {
   const found = labels.find((l) => l.name?.startsWith(SIZE_LABEL_PREFIX));
+  return found ? found.name : 'unknown';
+}
+
+function extractRisk(labels) {
+  const found = labels.find((l) => l.name?.startsWith(RISK_LABEL_PREFIX));
   return found ? found.name : 'unknown';
 }
 
@@ -398,12 +405,8 @@ async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
 
   console.log(`🔍 Analyzing version timeline for ${owner}/${repo}...`);
 
-  // Get current version from package.json
+  // Get current version from package.json (throws on failure)
   const currentVersion = await getCurrentPackageVersion(owner, repo);
-  if (!currentVersion) {
-    console.log(`⚠️ Could not determine current version for ${owner}/${repo}`);
-    return { currentVersion: null, versionBumps: [] };
-  }
 
   // Find version bumps in lookback period  
   const versionBumps = await findVersionBumpCommits(owner, repo, sinceDateISO);
@@ -431,20 +434,31 @@ async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
 }
 
 async function getCurrentPackageVersion(owner, repo) {
+  let data;
   try {
-    const { data } = await octokit.rest.repos.getContent({
+    ({ data } = await octokit.rest.repos.getContent({
       owner,
       repo,
       path: 'package.json',
       ref: 'main'
-    });
-    const content = Buffer.from(data.content, 'base64').toString('utf8');
-    const packageJson = JSON.parse(content);
-    return packageJson.version;
+    }));
   } catch (e) {
-    console.log(`⚠️ Failed to fetch package.json version: ${e.message}`);
-    return null;
+    throw new Error(`Failed to fetch package.json for ${owner}/${repo}: ${e.message}`);
   }
+
+  let packageJson;
+  try {
+    const content = Buffer.from(data.content, 'base64').toString('utf8');
+    packageJson = JSON.parse(content);
+  } catch (e) {
+    throw new Error(`Failed to parse package.json for ${owner}/${repo}: ${e.message}`);
+  }
+
+  if (!packageJson.version) {
+    throw new Error(`package.json for ${owner}/${repo} does not contain a "version" field`);
+  }
+
+  return packageJson.version;
 }
 
 function parseVersionFromPatch(patch) {
@@ -505,13 +519,8 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
   const tabToRows = new Map();
   const platformType = repoType(repo);
 
-  // Get version timeline once for this repo
+  // Get version timeline once for this repo (throws if version cannot be determined)
   const versionTimeline = await getVersionTimelineForRepo(owner, repo, sinceDateISO);
-
-  if (!versionTimeline.currentVersion) {
-    console.log(`❌ Cannot determine versions for ${owner}/${repo} - skipping`);
-    return tabToRows;
-  }
 
   // Group PRs by determined release version
   const prsByVersion = new Map();
@@ -544,6 +553,7 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
         formatDateHumanUTC(pr.closed_at || ''),
         pr.user.login,
         extractSize(pr.labels || []),
+        extractRisk(pr.labels || []),
         automatedTestsModified,
         extractTeam(pr.labels || []),
         '',
@@ -772,6 +782,11 @@ async function processTab(authClient, title, entries, platformType) {
 
 async function processRepo(authClient, owner, repo, since) {
   console.log(`\nScanning ${owner}/${repo}...`);
+
+  // Fail fast: ensure package.json version is reachable before doing any other work.
+  // Result is cached so the subsequent call inside buildTabGrouping() is a no-op.
+  await getVersionTimelineForRepo(owner, repo, since);
+
   let insertedThisRepo = 0;
   const items = await fetchMergedPRsSince(owner, repo, since);
   const { relevant, skippedByTitle } = splitByReleaseAndTitle(items);
