@@ -119,7 +119,7 @@ jobs:
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync feature flag registry from E2E"
-            git push --force origin "$BRANCH"
+            git push origin "$BRANCH"
             {
               echo "has_changes=true"
               echo "branch=$BRANCH"
@@ -136,9 +136,9 @@ jobs:
           TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
           PR_LABEL: ${{ inputs.pr-label }}
         run: |
-          # Close stale open PRs superseded by this run
-          gh pr list --search "Sync Feature Flag Registry in:title" \
-            --state open --json number --jq '.[].number' 2>/dev/null | \
+          # Close stale open PRs on qa/sync-ff-registry-* branches (not title search, to avoid closing unrelated PRs)
+          gh pr list --state open --json number,headRefName 2>/dev/null | jq -r --arg head "$BRANCH" \
+            '.[] | select(.headRefName | startswith("qa/sync-ff-registry-")) | select(.headRefName != $head) | .number' | \
           while read -r pr_number; do
             [[ -z "$pr_number" ]] && continue
             gh pr close "$pr_number" \
