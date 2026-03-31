@@ -23,7 +23,12 @@ on:
         required: false
         type: string
         default: ''
-        description: 'Label to apply to the created PR (must exist in the target repo)'
+        description: 'Label(s) to apply to the created PR (comma or newline-separated; must exist in the target repo)'
+      pr-title-prefix:
+        required: false
+        type: string
+        default: 'test: Sync Feature Flag Registry'
+        description: 'Title prefix for the PR (timestamp will be appended automatically)'
       workflow-run-url:
         required: false
         type: string
@@ -135,6 +140,7 @@ jobs:
           BRANCH: ${{ steps.commit.outputs.branch }}
           TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
           PR_LABEL: ${{ inputs.pr-label }}
+          PR_TITLE_PREFIX: ${{ inputs.pr-title-prefix }}
         run: |
           # Close stale open PRs on qa/sync-ff-registry-* branches (not title search, to avoid closing unrelated PRs)
           gh pr list --state open --json number,headRefName 2>/dev/null | jq -r --arg head "$BRANCH" \
@@ -147,10 +153,13 @@ jobs:
           done
           LABEL_ARGS=()
           if [[ -n "$PR_LABEL" ]]; then
-            LABEL_ARGS=(--label "$PR_LABEL")
+            while IFS= read -r label; do
+              label=$(echo "$label" | xargs)
+              [[ -n "$label" ]] && LABEL_ARGS+=(--label "$label")
+            done < <(echo "$PR_LABEL" | tr ',' '\n')
           fi
           PR_URL=$(gh pr create \
-            --title "[QA] Sync Feature Flag Registry - $TIMESTAMP" \
+            --title "${PR_TITLE_PREFIX} - $TIMESTAMP" \
             --body-file pr-body.md \
             --base main \
             --head "$BRANCH" \
