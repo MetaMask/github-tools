@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download actionlint
         id: download-actionlint
@@ -19,7 +19,6 @@ jobs:
       - name: Lint workflow files
         env:
           EXECUTABLE: ${{ steps.download-actionlint.outputs.executable }}
-        # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
         run: |
           "$EXECUTABLE" -color
         shell: bash

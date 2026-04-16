@@ -60,7 +60,7 @@ runs:
 
     # Fetch PR metadata (head and base branches) using the GitHub API
     - name: Get PR Details
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
@@ -97,7 +97,7 @@ runs:
     # Check if the PR has the required approval status
     - name: Verify Approval
       if: steps.verify-branches.outputs.should_skip != 'true'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
@@ -164,7 +164,7 @@ runs:
     # - the version change is a valid semver bump
     - name: Verify a version bump
       if: ${{ steps.verify-branches.outputs.should_skip != 'true' && inputs.verify-version-bump == 'true' }}
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
       with:
@@ -250,7 +250,7 @@ runs:
     # Execute the merge if all checks pass
     - name: Merge PR
       if: steps.verify-branches.outputs.should_skip != 'true'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         PR_NUMBER: ${{ inputs.pr-number }}
         MERGE_METHOD: ${{ inputs.merge-method }}

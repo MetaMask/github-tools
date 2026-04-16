@@ -40,7 +40,7 @@ runs:
   using: composite
   steps:
     - name: Post RCA Form Link
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       env:
         GOOGLE_FORM_BASE_URL: ${{ inputs.google-form-base-url }}
         ISSUE_LABELS: ${{ inputs.issue-labels }}

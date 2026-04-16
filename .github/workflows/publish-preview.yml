@@ -54,7 +54,7 @@ jobs:
     outputs:
       IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Determine whether this PR is from a fork
         id: is-fork
         run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
@@ -83,7 +83,7 @@ jobs:
     needs: react-to-comment
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Check out pull request
         run: gh pr checkout "${PR_NUMBER}"
@@ -92,7 +92,7 @@ jobs:
           PR_NUMBER: ${{ github.event.issue.number }}
 
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
 
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload build artifacts (monorepo)
         if: ${{ inputs.is-monorepo }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts
           include-hidden-files: true
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload build artifacts (polyrepo)
         if: ${{ !inputs.is-monorepo }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts
           include-hidden-files: true
@@ -183,12 +183,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
 
       - name: Restore build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: preview-build-artifacts
 

@@ -41,7 +41,7 @@ runs:
     - name: Get pull request details
       continue-on-error: true
       id: pr-details
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       env:
         HEAD_REF: ${{ inputs.head-ref }}
       with:
@@ -85,7 +85,7 @@ runs:
     - name: Check if pull request is up-to-date with base branch
       continue-on-error: true
       id: up-to-date
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       env:
         BASE_REF: ${{ inputs.base-ref }}
         PR_BRANCH: ${{ steps.pr-details.outputs.pr-branch }}

@@ -45,7 +45,7 @@ runs:
       run: ./github-tools/.github/scripts/get-release-timelines.sh
 
     - name: Upload artifact release-timelines-${{ inputs.version }}.csv
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: release-timelines-${{ inputs.version }}.csv
         path: release-timelines-${{ inputs.version }}.csv
