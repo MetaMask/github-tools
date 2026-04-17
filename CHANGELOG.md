@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0]
+
+### Changed
+
+- ci: update all actions to their newest versions to solve "Node.js 20 actions are deprecated" (#234)
+- test: multi label + update title (#233)
+- test: MMQA-1609 - feature flag registry slack notification and create PR (#229)
+- Auto-skip release validation columns from PR labels on main release tabs (#231)
+
 ## [1.8.0]
 
 ### Added
@@ -144,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/MetaMask/github-tools/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MetaMask/github-tools/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/MetaMask/github-tools/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/MetaMask/github-tools/compare/v1.6.0...v1.7.0
