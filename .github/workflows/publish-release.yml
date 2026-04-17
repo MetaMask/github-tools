@@ -24,7 +24,7 @@ jobs:
     name: Announce release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - id: name-hash
         name: Get Slack name and hash
         shell: bash
@@ -47,7 +47,7 @@ jobs:
           echo "FINAL_TEXT=$FINAL_TEXT" >> "$GITHUB_OUTPUT"
       - name: Post to a Slack channel
         if: inputs.slack-subteam != ''
-        uses: slackapi/slack-github-action@007b2c3c751a190b6f0f040e47ed024deaa72844
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
         with:
           payload: |
             {
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # This is to guarantee that the most recent tag is fetched, which we
           # need for updating the shorthand major version tag.

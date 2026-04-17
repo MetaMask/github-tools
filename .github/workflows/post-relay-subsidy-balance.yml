@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
@@ -47,7 +47,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Send Slack notification
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
         with:
           webhook: '${{ secrets.SLACK_RELAY_SUBSIDY_BALANCE_TRACKER_WEBHOOK_URL }}'
           webhook-type: incoming-webhook
