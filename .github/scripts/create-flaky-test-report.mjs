@@ -2,9 +2,11 @@
 
 // Based on the original script done by @itsyoboieltr on Extension repo
 
+import fs from 'fs';
 import { Octokit } from '@octokit/rest';
 import unzipper from 'unzipper';
 import { IncomingWebhook } from '@slack/webhook';
+import { WebClient } from '@slack/web-api';
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
@@ -18,6 +20,8 @@ const env = {
   WORKFLOW_ID: process.env.WORKFLOW_ID || 'ci.yml',
   BRANCH: process.env.BRANCH || 'main',
   SLACK_WEBHOOK_FLAKY_TESTS: process.env.SLACK_WEBHOOK_FLAKY_TESTS || '',
+  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN || '',
+  SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID || '',
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
     ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
     : ['test-e2e-android-json-report', 'test-e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
@@ -326,27 +330,53 @@ function summarizeFailures(realFailures, flakyTests = []) {
 }
 
 async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount) {
-  if (!env.SLACK_WEBHOOK_FLAKY_TESTS || !env.SLACK_WEBHOOK_FLAKY_TESTS.startsWith('https://')) {
-    console.log('Skipping Slack notification');
-    return;
+  const useBotToken = env.SLACK_BOT_TOKEN && env.SLACK_CHANNEL_ID;
+  const useWebhook = env.SLACK_WEBHOOK_FLAKY_TESTS && env.SLACK_WEBHOOK_FLAKY_TESTS.startsWith('https://');
+
+  if (!useBotToken && !useWebhook) {
+    console.log('Skipping Slack notification (no SLACK_BOT_TOKEN+SLACK_CHANNEL_ID or SLACK_WEBHOOK_FLAKY_TESTS)');
+    return null;
   }
 
   console.log('\n📤 Sending report to Slack...');
+  const blocks = createSlackBlocks(summary, dateDisplay, workflowCount, failedCount);
+  const BATCH_SIZE = 50;
+
+  if (useBotToken) {
+    try {
+      const slack = new WebClient(env.SLACK_BOT_TOKEN);
+      let threadTs = null;
+
+      for (let i = 0; i < blocks.length; i += BATCH_SIZE) {
+        const batch = blocks.slice(i, i + BATCH_SIZE);
+        const result = await slack.chat.postMessage({
+          channel: env.SLACK_CHANNEL_ID,
+          blocks: batch,
+          text: 'Flaky Test Report',
+          ...(threadTs ? { thread_ts: threadTs } : {}),
+        });
+        if (!threadTs) threadTs = result.ts;
+      }
+
+      console.log(`✅ Report sent to Slack via WebClient (thread_ts: ${threadTs})`);
+      return threadTs;
+    } catch (slackError) {
+      console.error('❌ Failed to send Slack notification via WebClient:', slackError.message);
+      return null;
+    }
+  }
+
   try {
     const webhook = new IncomingWebhook(env.SLACK_WEBHOOK_FLAKY_TESTS);
-    const blocks = createSlackBlocks(summary, dateDisplay, workflowCount, failedCount);
-
-    // Slack has a limit of 50 blocks per message
-    const BATCH_SIZE = 50;
     for (let i = 0; i < blocks.length; i += BATCH_SIZE) {
       const batch = blocks.slice(i, i + BATCH_SIZE);
       await webhook.send({ blocks: batch });
     }
-
-    console.log('✅ Report sent to Slack successfully');
+    console.log('✅ Report sent to Slack via webhook (no thread_ts available)');
   } catch (slackError) {
-    console.error('❌ Failed to send Slack notification:', slackError.message);
+    console.error('❌ Failed to send Slack notification via webhook:', slackError.message);
   }
+  return null;
 }
 
 function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount = 0) {
@@ -602,6 +632,15 @@ function displayResults(summary, dateDisplay) {
   }
 }
 
+function setGitHubOutput(name, value) {
+  const outputFile = process.env.GITHUB_OUTPUT;
+  if (outputFile) {
+    const delimiter = `ghadelimiter_${crypto.randomUUID?.() || Date.now()}`;
+    fs.appendFileSync(outputFile, `${name}<<${delimiter}\n${value}\n${delimiter}\n`);
+  }
+  console.log(`::set-output name=${name}::${value}`);
+}
+
 async function main() {
   const github = new Octokit({ auth: env.GITHUB_TOKEN });
 
@@ -641,7 +680,25 @@ async function main() {
 
     const summary = summarizeFailures(realFailures, flakyTests);
     displayResults(summary, dateRange.display);
-    await sendSlackReport(summary, dateRange.display, workflowRuns.length, failedRuns.length);
+    const threadTs = await sendSlackReport(summary, dateRange.display, workflowRuns.length, failedRuns.length);
+
+    const top10 = summary.slice(0, 10);
+    const hasFailures = top10.length > 0;
+    const failuresJson = JSON.stringify(top10.map(test => ({
+      name: test.name,
+      path: test.path,
+      realFailures: test.realFailures,
+      totalRetries: test.totalRetries,
+      lastError: test.lastRealFailureError || test.flakyFailureError || '',
+      jobId: test.lastRealFailureJobId || test.flakyFailureJobId,
+      runId: test.lastRealFailureRunId || test.flakyFailureRunId,
+      suite: test.suite,
+      isFlaky: test.realFailures === 0,
+    })));
+
+    setGitHubOutput('thread_ts', threadTs || '');
+    setGitHubOutput('has_failures', hasFailures ? 'true' : 'false');
+    setGitHubOutput('failures_json', failuresJson);
 
   } catch (error) {
     console.error('❌ Error:', error.message);
