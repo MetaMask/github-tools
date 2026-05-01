@@ -76,8 +76,8 @@ function headerRowFor(type) {
 
 function platformLabelFor(type) {
   const t = String(type).toLowerCase();
-  if (t === 'mobile') return '📱 Mobile';
-  if (t === 'extension') return '🔌 Extension';
+  if (t === 'mobile') return '📱 Mobile - Pull requests';
+  if (t === 'extension') return '🔌 Extension - Pull requests';
   return t;
 }
 
@@ -129,7 +129,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
       },
     });
     const newSheetId = duplicateRes.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
-    // Write platform label in A1 and platform-specific labels; keep row 2 headers from template to preserve formatting
+    // Write platform label in A1
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
@@ -137,15 +137,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [[platformLabelFor(platformType)]] },
     });
-    // Overwrite entire row 2 with headerRowFor(type)
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      auth: authClient,
-      range: `${title}!A2:H2`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [headerRowFor(platformType)] },
-    });
-    // Insert a blank row at index 2 (0-based) so data can start at row 4
+    // Insert a blank row at index 1 (0-based) so data can start at row 3
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       auth: authClient,
@@ -159,7 +151,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
           },
           {
             insertDimension: {
-              range: { sheetId: newSheetId, dimension: 'ROWS', startIndex: 2, endIndex: 3 },
+              range: { sheetId: newSheetId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
               inheritFromBefore: false,
             },
           },
@@ -186,20 +178,13 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     },
   });
   const sheetId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
-  // Write platform label in A1 and dynamic headers in row 2
+  // Write platform label in A1
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
     range: `${title}!A1:A1`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[platformLabelFor(platformType)]] },
-  });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    auth: authClient,
-    range: `${title}!A2:H2`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [headerRowFor(platformType)] },
   });
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
@@ -224,7 +209,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:J`,
+      range: `${title}!A2:J`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -238,7 +223,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:J`,
+    range: `${title}!A3:J`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -838,7 +823,7 @@ async function processTab(authClient, title, entries, platformType) {
         requests: [
           {
             deleteDimension: {
-              range: { sheetId, dimension: 'ROWS', startIndex: 2, endIndex: 3 },
+              range: { sheetId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
             },
           },
         ],
