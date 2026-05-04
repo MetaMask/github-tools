@@ -130,13 +130,13 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
       },
     });
     const newSheetId = duplicateRes.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
-    // Write platform label in A1
+    // Write all platform-specific column headers into row 1 (preserves template cell formatting)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A1:A1`,
+      range: `${title}!A1:H1`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[platformLabelFor(platformType)]] },
+      requestBody: { values: [headerRowFor(platformType)] },
     });
     // Insert a blank row at index 1 (0-based) so data can start at row 3
     await sheets.spreadsheets.batchUpdate({
