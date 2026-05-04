@@ -58,12 +58,20 @@ function tabTitleFor(repo, releaseLabel) {
   return `pre-${releaseLabel} (${repoType(repo)})`;
 }
 
+function platformLabelFor(type) {
+  const t = String(type).toLowerCase();
+  if (t === 'mobile') return '📱 Mobile - Pull requests';
+  if (t === 'extension') return '🔌 Extension - Pull requests';
+  return t;
+}
+
 function headerRowFor(type) {
-  const isMobile = String(type).toLowerCase() === 'mobile';
+  const t = String(type).toLowerCase();
+  const isMobile = t === 'mobile';
   const colG = isMobile ? 'Validated (Android)' : 'Validated (Chrome)';
   const colH = isMobile ? 'Validated (iOS)' : 'Validated (Firefox)';
   return [
-    'Pull Request',
+    platformLabelFor(type),
     'Merged Time (UTC)',
     'Author',
     'PR Size',
@@ -72,13 +80,6 @@ function headerRowFor(type) {
     colG,
     colH,
   ];
-}
-
-function platformLabelFor(type) {
-  const t = String(type).toLowerCase();
-  if (t === 'mobile') return '📱 Mobile - Pull requests';
-  if (t === 'extension') return '🔌 Extension - Pull requests';
-  return t;
 }
 
 async function ensureSheetExists(authClient, title, platformType) {
@@ -178,13 +179,13 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     },
   });
   const sheetId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
-  // Write platform label in A1
+  // Write all column headers into row 1 (no template to provide them)
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A1:A1`,
+    range: `${title}!A1:H1`,
     valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [[platformLabelFor(platformType)]] },
+    requestBody: { values: [headerRowFor(platformType)] },
   });
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
