@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1]
+
+### Uncategorized
+
+- chore: use single header row for post merge spreadsheet ([#242](https://github.com/MetaMask/github-tools/pull/242))
+
 ## [1.9.0]
 
 ### Changed
@@ -153,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/MetaMask/github-tools/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/MetaMask/github-tools/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MetaMask/github-tools/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/MetaMask/github-tools/compare/v1.7.0...v1.7.1
