@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.1]
 
-### Uncategorized
+### Changed
 
 - chore: use single header row for post merge spreadsheet ([#242](https://github.com/MetaMask/github-tools/pull/242))
 
