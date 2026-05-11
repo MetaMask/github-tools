@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.2]
 
-### Uncategorized
+### Changed
 
 - fix: bump Yarn to 4.14.1 ([#244](https://github.com/MetaMask/github-tools/pull/244))
 
