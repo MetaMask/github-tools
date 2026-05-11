@@ -293,7 +293,7 @@ create_changelog_pr() {
       # Switch to github-tools directory
       cd ./github-tools/
       ls -ltra
-      corepack prepare yarn@4.5.1 --activate
+      corepack prepare yarn@4.14.1 --activate
       # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
       yarn --cwd install
 
