@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- fix: bump Yarn to 4.14.1 ([#244](https://github.com/MetaMask/github-tools/pull/244))
+- chore: bump Yarn to 4.14.1 ([#244](https://github.com/MetaMask/github-tools/pull/244))
 
 ## [1.9.1]
 
