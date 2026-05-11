@@ -293,11 +293,6 @@ create_changelog_pr() {
       # Switch to github-tools directory
       cd ./github-tools/
       ls -ltra
-      # Match the bundled yarnPath in github-tools/.yarnrc.yml. Older Yarn versions
-      # (e.g. 4.5.1, 4.10.3) reject newer .yarnrc.yml settings such as
-      # `approvedGitRepositories` (added in Yarn 4.14), which the consumer repo
-      # may inherit one level up; keep this in sync with github-tools' own
-      # `packageManager` / `yarnPath`.
       corepack prepare yarn@4.14.1 --activate
       # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
       yarn --cwd install
