@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2]
+
+### Uncategorized
+
+- fix: bump Yarn to 4.14.1 ([#244](https://github.com/MetaMask/github-tools/pull/244))
+
 ## [1.9.1]
 
 ### Changed
@@ -159,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/MetaMask/github-tools/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/MetaMask/github-tools/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/MetaMask/github-tools/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MetaMask/github-tools/compare/v1.7.1...v1.8.0
