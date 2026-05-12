@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.3]
 
-### Uncategorized
+### Changed
 
 - chore: scan more open PRs in release-branch-sync ([#247](https://github.com/MetaMask/github-tools/pull/247))
 
