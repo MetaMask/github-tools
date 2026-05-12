@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.3]
 
-### Changed
+### Fixed
 
-- chore: scan more open PRs in release-branch-sync ([#247](https://github.com/MetaMask/github-tools/pull/247))
+- fix: fix `release-branch-sync` failure when there are too many open PRs more recent than the release PR ([#247](https://github.com/MetaMask/github-tools/pull/247))
 
 ## [1.9.2]
 
