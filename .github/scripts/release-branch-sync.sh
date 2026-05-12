@@ -111,6 +111,8 @@ get_active_release_branches() {
   local pr_data
   pr_data=$(gh pr list \
     --state open \
+    --limit 500 \
+    --search 'in:title release' \
     --json title,isDraft \
     --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+"; "i")) | .title' \
     2>/dev/null || echo "")
