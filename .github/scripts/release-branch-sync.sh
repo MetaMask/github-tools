@@ -106,15 +106,6 @@ stable_has_new_commits() {
 get_active_release_branches() {
   local branches=""
   
-  # Query open and draft PRs with title starting with "release:" (case-insensitive)
-  # The jq filter extracts version from PR titles like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
-  #
-  # `--limit` must be high enough that the next release PR is always in the
-  # result set. The default `gh pr list` limit is 30, which is not enough for
-  # busy repos (e.g. metamask-extension) where the release PR is often older
-  # than the 30 most-recently-created open PRs — in that case the script would
-  # silently log "No active release branches found" and exit without creating
-  # any sync PR. See https://consensyssoftware.atlassian.net/browse/MCRM-66.
   local pr_data
   pr_data=$(gh pr list \
     --state open \
