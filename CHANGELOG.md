@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `release-branch-sync` action silently skipping the next release PR when the repo has many open PRs. `gh pr list` was called without `--limit` and defaulted to 30 results, so the next release PR could fall outside the returned set. This caused hotfix sync PRs (e.g. `release/13.20.1` → `release/13.21.0` on metamask-extension) not to be auto-created. Now scans up to 500 open PRs ([MCRM-66](https://consensyssoftware.atlassian.net/browse/MCRM-66)).
+
 ## [1.9.2]
 
 ### Changed
