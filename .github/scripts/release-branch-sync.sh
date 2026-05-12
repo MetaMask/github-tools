@@ -106,6 +106,8 @@ stable_has_new_commits() {
 get_active_release_branches() {
   local branches=""
   
+  # Query open and draft PRs with title starting with "release:" (case-insensitive)
+  # The jq filter extracts version from PR titles like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
   local pr_data
   pr_data=$(gh pr list \
     --state open \
