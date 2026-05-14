@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
       - id: name-hash
         name: Get Slack name and hash
         shell: bash
@@ -33,6 +34,7 @@ jobs:
           NAME_VERSION_TEXT=$(jq --raw-output '.name + "@" + .version' package.json )
           NAME_VERSION_TEXT_STRIPPED="${NAME_VERSION_TEXT#@}"
           echo "NAME_VERSION=$NAME_VERSION_TEXT_STRIPPED" >> "$GITHUB_OUTPUT"
+
       - id: final-text
         name: Get Slack final text
         shell: bash
@@ -45,20 +47,20 @@ jobs:
             FINAL_TEXT="<!subteam^$SUBTEAM_TEXT> $DEFAULT_TEXT"
           fi
           echo "FINAL_TEXT=$FINAL_TEXT" >> "$GITHUB_OUTPUT"
+
       - name: Post to a Slack channel
         if: inputs.slack-subteam != ''
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        continue-on-error: true
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "${{ steps.final-text.outputs.FINAL_TEXT }}",
               "icon_url": "${{ inputs.slack-icon-url }}",
               "username": "${{ inputs.slack-username }}"
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-        continue-on-error: true
 
   publish-release:
     name: Publish release
@@ -75,11 +77,13 @@ jobs:
           # need for updating the shorthand major version tag.
           fetch-depth: 0
           ref: ${{ github.sha }}
+
       - name: Publish release
         uses: MetaMask/action-publish-release@v3
         id: publish-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update shorthand major version tag
         run: |
           ./.github/workflows/scripts/update-major-version-tag.sh \
