@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.4]
+
+### Fixed
+
+- fix: drop deleted bitrise.yml from stable-sync preserve list ([#251](https://github.com/MetaMask/github-tools/pull/251))
+- ci: fix the announce-release Slack post ([#250](https://github.com/MetaMask/github-tools/pull/250))
+
 ## [1.9.3]
 
 ### Fixed
@@ -171,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.3...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.4...HEAD
+[1.9.4]: https://github.com/MetaMask/github-tools/compare/v1.9.3...v1.9.4
 [1.9.3]: https://github.com/MetaMask/github-tools/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/MetaMask/github-tools/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/MetaMask/github-tools/compare/v1.9.0...v1.9.1
