@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.4]
 
-### Uncategorized
+### Fixed
 
 - fix: drop deleted bitrise.yml from stable-sync preserve list ([#251](https://github.com/MetaMask/github-tools/pull/251))
 - ci: fix the announce-release Slack post ([#250](https://github.com/MetaMask/github-tools/pull/250))
