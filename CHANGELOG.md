@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `is-snap` input to the `publish-preview` reusable workflow
   - When set to `true`, the workflow installs dependencies and runs the build _before_ renaming workspace manifests to the preview NPM scope. This ensures snap artifacts (e.g. `dist/bundle.js`, `snap.manifest.json` and its `source.shasum`) are produced with the original `@metamask/...` package name.
   - Defaults to `false` to preserve existing behavior for non-snap consumers.
+- Add `BUILD_ENV` secret input to the `publish-preview` reusable workflow
+  - Accepts a JSON object of environment variables that will be passed to the build step (e.g. `'{"API_URL":"https://...","LOG_LEVEL":"all"}'`). Useful when the build command needs additional configuration or secret values to produce a valid preview build.
 
 ## [1.9.4]
 

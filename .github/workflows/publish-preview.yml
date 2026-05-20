@@ -51,6 +51,9 @@ on:
     secrets:
       PUBLISH_PREVIEW_NPM_TOKEN:
         required: true
+      BUILD_ENV:
+        description: 'JSON object of environment variables to pass to the build step (e.g. ''{"FOO":"bar","API_URL":"https://..."}''). Use this for build-time configuration and secrets needed by the build command.'
+        required: false
 
 jobs:
   is-fork-pull-request:
@@ -111,6 +114,7 @@ jobs:
 
       - name: Build (snap, pre-rename)
         if: ${{ inputs.is-snap }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
       - name: Prepare preview manifests
@@ -157,6 +161,7 @@ jobs:
 
       - name: Build
         if: ${{ !inputs.is-snap }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
       - name: Upload build artifacts (monorepo)
