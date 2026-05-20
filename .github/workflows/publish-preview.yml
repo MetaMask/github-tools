@@ -23,6 +23,11 @@ on:
         type: boolean
         required: false
         default: true
+      is-snap:
+        description: 'Whether the consumer is a Snap. When true, the build runs before manifests are renamed so that snap artifacts (e.g. dist/bundle.js, snap.manifest.json) capture the original package name.'
+        type: boolean
+        required: false
+        default: false
       environment:
         description: 'GitHub environment for the publish job (e.g., default-branch). Empty = no gate.'
         type: string
@@ -100,7 +105,15 @@ jobs:
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare preview builds
+      - name: Install dependencies (snap, pre-build)
+        if: ${{ inputs.is-snap }}
+        run: yarn install --no-immutable
+
+      - name: Build (snap, pre-rename)
+        if: ${{ inputs.is-snap }}
+        run: ${{ inputs.build-command }}
+
+      - name: Prepare preview manifests
         env:
           NPM_SCOPE: ${{ inputs.npm-scope }}
           COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
@@ -139,10 +152,11 @@ jobs:
             prepare_manifest package.json
           fi
 
-          echo "Installing dependencies..."
-          yarn install --no-immutable
+      - name: Install dependencies
+        run: yarn install --no-immutable
 
       - name: Build
+        if: ${{ !inputs.is-snap }}
         run: ${{ inputs.build-command }}
 
       - name: Upload build artifacts (monorepo)

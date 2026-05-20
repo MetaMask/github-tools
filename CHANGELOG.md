@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `is-snap` input to the `publish-preview` reusable workflow
+  - When set to `true`, the workflow installs dependencies and runs the build _before_ renaming workspace manifests to the preview NPM scope. This ensures snap artifacts (e.g. `dist/bundle.js`, `snap.manifest.json` and its `source.shasum`) are produced with the original `@metamask/...` package name.
+  - Defaults to `false` to preserve existing behavior for non-snap consumers.
+
 ## [1.9.4]
 
 ### Fixed
