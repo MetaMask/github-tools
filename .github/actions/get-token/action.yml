@@ -82,5 +82,3 @@ runs:
           core.setOutput('token', token);
 
           core.info(`Access token obtained successfully. Token expires at: "${expires_at}".`);
-
-
