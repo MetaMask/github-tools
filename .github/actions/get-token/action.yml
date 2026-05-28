@@ -8,6 +8,10 @@ inputs:
   permissions:
     description: 'The permissions to request for the access token, in the format of "scope: permission", separated by newlines.'
     required: true
+  target-repository:
+    description: 'The repository to target for the access token. Defaults to the current repository.'
+    required: false
+    default: '${{ github.repository }}'
 
 outputs:
   token:
@@ -33,13 +37,14 @@ runs:
         OIDC_TOKEN: ${{ steps.oidc-token.outputs.token }}
         TOKEN_EXCHANGE_URL: ${{ inputs.token-exchange-url }}
         REQUESTED_PERMISSIONS: ${{ inputs.permissions }}
+        TARGET_REPOSITORY: ${{ inputs.target-repository }}
       with:
         script: |
           const {
-            GITHUB_REPOSITORY,
             OIDC_TOKEN,
             TOKEN_EXCHANGE_URL,
             REQUESTED_PERMISSIONS,
+            TARGET_REPOSITORY,
           } = process.env;
 
           // This assumes `REQUESTED_PERMISSIONS` is a newline-separated string
@@ -62,7 +67,7 @@ runs:
             },
             body: JSON.stringify({
               oidcToken: OIDC_TOKEN,
-              targetRepo: GITHUB_REPOSITORY,
+              targetRepo: TARGET_REPOSITORY,
               requested_permissions: requestedPermissions,
             }),
           });
