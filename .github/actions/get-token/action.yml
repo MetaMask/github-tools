@@ -22,7 +22,7 @@ runs:
       uses: actions/github-script@v9
       with:
         script: |
-          const token = await core.getIDToken();
+          const token = await core.getIDToken('api://token-exchange-service');
           core.setSecret(token);
           core.setOutput('token', token);
 
