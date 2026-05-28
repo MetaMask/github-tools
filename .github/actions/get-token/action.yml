@@ -48,13 +48,12 @@ runs:
           // contents: read
           // issues: write
           // ```
-          const requestedPermissions = REQUESTED_PERMISSIONS
-            .split('\n')
-            .filter(line => line.trim() !== '')
-            .map(line => {
-              const [scope, permission] = line.split(':').map(part => part.trim());
-              return { scope, permission };
-            });
+          const requestedPermissions = Object.fromEntries(
+            REQUESTED_PERMISSIONS
+              .split('\n')
+              .filter(line => line.trim() !== '')
+              .map(line => line.split(':').map(part => part.trim()))
+          );
 
           const response = await fetch(`${TOKEN_EXCHANGE_URL}/api/exchange/token`, {
             method: 'POST',
