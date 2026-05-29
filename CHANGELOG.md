@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0]
+
+### Added
+
+- Add `get-token` action to get short-lived access token using OIDC ([#255](https://github.com/MetaMask/github-tools/pull/255))
+
 ## [1.9.4]
 
 ### Fixed
@@ -178,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.4...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/MetaMask/github-tools/compare/v1.9.4...v1.10.0
 [1.9.4]: https://github.com/MetaMask/github-tools/compare/v1.9.3...v1.9.4
 [1.9.3]: https://github.com/MetaMask/github-tools/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/MetaMask/github-tools/compare/v1.9.1...v1.9.2
