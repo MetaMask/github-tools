@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.10.0]
 
-### Uncategorized
+### Added
 
-- feat: Add action to get short-lived access token using OIDC ([#255](https://github.com/MetaMask/github-tools/pull/255))
+- Add `get-token` action to get short-lived access token using OIDC ([#255](https://github.com/MetaMask/github-tools/pull/255))
 
 ## [1.9.4]
 
