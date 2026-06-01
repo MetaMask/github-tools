@@ -6,6 +6,10 @@ inputs:
     description: 'GitHub token with access to read topology.json and add labels to PRs.'
     required: true
 
+  planning-token:
+    description: 'GitHub token with access to read topology.json. Optional if team-label-token already has this access.'
+    required: false
+
 runs:
   using: composite
   steps:
@@ -13,7 +17,7 @@ runs:
     - name: Get team label
       id: get-team-label
       env:
-        GH_TOKEN: ${{ inputs.team-label-token }}
+        GH_TOKEN: ${{ inputs.planning-token || inputs.team-label-token }}
         USER: ${{ github.event.pull_request.user.login }}
       shell: bash
       run: |
