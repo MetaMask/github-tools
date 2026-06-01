@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.11.0]
 
-### Uncategorized
+### Added
 
-- feat: Add optional `planning-token` to Add Team Label action ([#257](https://github.com/MetaMask/github-tools/pull/257))
+- Add optional `planning-token` to `add-team-label` action ([#257](https://github.com/MetaMask/github-tools/pull/257))
 
 ## [1.10.0]
 
