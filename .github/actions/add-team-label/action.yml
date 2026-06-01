@@ -9,7 +9,6 @@ inputs:
   planning-token:
     description: 'GitHub token with access to read topology.json. Optional if team-label-token already has this access.'
     required: false
-    default: ${{ inputs.team-label-token }}
 
 runs:
   using: composite
@@ -18,7 +17,7 @@ runs:
     - name: Get team label
       id: get-team-label
       env:
-        GH_TOKEN: ${{ inputs.planning-token }}
+        GH_TOKEN: ${{ inputs.planning-token || inputs.team-label-token }}
         USER: ${{ github.event.pull_request.user.login }}
       shell: bash
       run: |
