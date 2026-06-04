@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `actionlint` from `1.7.7` to `1.7.12` in the `lint-workflows` workflow ([#259](https://github.com/MetaMask/github-tools/pull/259))
+
 ## [1.11.0]
 
 ### Added
