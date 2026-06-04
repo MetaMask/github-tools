@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0]
+
 ### Changed
 
 - Bump `actionlint` from `1.7.7` to `1.7.12` in the `lint-workflows` workflow ([#259](https://github.com/MetaMask/github-tools/pull/259))
@@ -194,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/MetaMask/github-tools/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/MetaMask/github-tools/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/MetaMask/github-tools/compare/v1.9.4...v1.10.0
 [1.9.4]: https://github.com/MetaMask/github-tools/compare/v1.9.3...v1.9.4
