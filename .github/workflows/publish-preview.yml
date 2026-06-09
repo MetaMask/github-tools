@@ -23,8 +23,8 @@ on:
         type: boolean
         required: false
         default: true
-      is-snap:
-        description: 'Whether the consumer is a Snap. When true, the build runs before manifests are renamed so that snap artifacts (e.g. dist/bundle.js, snap.manifest.json) capture the original package name.'
+      rename-after-install-and-build:
+        description: 'Governs where in the workflow that packages in the repo are renamed to use the preview build scope. If true, this step runs after the install and build steps; if false (default), it runs before. This option is mostly for Snaps so that artifacts (e.g. dist/bundle.js, snap.manifest.json) capture the original package name, not the preview build name.'
         type: boolean
         required: false
         default: false
