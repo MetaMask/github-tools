@@ -15,6 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `BUILD_ENV` secret input to the `publish-preview` reusable workflow
   - Accepts a JSON object of environment variables that will be passed to the build step (e.g. `'{"API_URL":"https://...","LOG_LEVEL":"all"}'`). Useful when the build command needs additional configuration or secret values to produce a valid preview build.
 
+## [1.12.0]
+
+### Changed
+
+- Bump `actionlint` from `1.7.7` to `1.7.12` in the `lint-workflows` workflow ([#259](https://github.com/MetaMask/github-tools/pull/259))
+
+## [1.11.0]
+
+### Added
+
+- Add optional `planning-token` to `add-team-label` action ([#257](https://github.com/MetaMask/github-tools/pull/257))
+
+## [1.10.0]
+
+### Added
+
+- Add `get-token` action to get short-lived access token using OIDC ([#255](https://github.com/MetaMask/github-tools/pull/255))
+
 ## [1.9.4]
 
 ### Fixed
@@ -186,7 +204,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.9.4...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/MetaMask/github-tools/compare/v1.11.0...v1.12.0
+[1.11.0]: https://github.com/MetaMask/github-tools/compare/v1.10.0...v1.11.0
+[1.10.0]: https://github.com/MetaMask/github-tools/compare/v1.9.4...v1.10.0
 [1.9.4]: https://github.com/MetaMask/github-tools/compare/v1.9.3...v1.9.4
 [1.9.3]: https://github.com/MetaMask/github-tools/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/MetaMask/github-tools/compare/v1.9.1...v1.9.2
