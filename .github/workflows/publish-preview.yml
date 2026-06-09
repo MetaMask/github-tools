@@ -109,11 +109,11 @@ jobs:
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies (snap, pre-build)
-        if: ${{ inputs.is-snap }}
+        if: ${{ inputs.rename-after-install-and-build }}
         run: yarn install --no-immutable
 
       - name: Build (snap, pre-rename)
-        if: ${{ inputs.is-snap }}
+        if: ${{ inputs.rename-after-install-and-build }}
         env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
@@ -160,7 +160,7 @@ jobs:
         run: yarn install --no-immutable
 
       - name: Build
-        if: ${{ !inputs.is-snap }}
+        if: ${{ !inputs.rename-after-install-and-build }}
         env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
