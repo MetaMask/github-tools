@@ -23,6 +23,11 @@ on:
         type: boolean
         required: false
         default: true
+      rename-after-install-and-build:
+        description: 'Governs where in the workflow that packages in the repo are renamed to use the preview build scope. If true, this step runs after the install and build steps; if false (default), it runs before. This option is mostly for Snaps so that artifacts (e.g. dist/bundle.js, snap.manifest.json) capture the original package name, not the preview build name.'
+        type: boolean
+        required: false
+        default: false
       environment:
         description: 'GitHub environment for the publish job (e.g., default-branch). Empty = no gate.'
         type: string
@@ -46,6 +51,9 @@ on:
     secrets:
       PUBLISH_PREVIEW_NPM_TOKEN:
         required: true
+      BUILD_ENV:
+        description: 'JSON object of environment variables to pass to the build step (e.g. ''{"FOO":"bar","API_URL":"https://..."}''). Use this for build-time configuration and secrets needed by the build command.'
+        required: false
 
 jobs:
   is-fork-pull-request:
@@ -100,7 +108,28 @@ jobs:
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare preview builds
+      - name: Install dependencies (pre-build)
+        if: ${{ inputs.rename-after-install-and-build }}
+        run: yarn install --no-immutable
+
+      - name: Mask build environment values
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if [[ -n "$BUILD_ENV" ]]; then
+            while IFS= read -r line; do
+              if [[ -n "$line" ]]; then
+                echo "::add-mask::$line"
+              fi
+            done < <(jq --raw-output '.[] | tostring' <<< "$BUILD_ENV")
+          fi
+
+      - name: Build (pre-rename)
+        if: ${{ inputs.rename-after-install-and-build }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
+        run: ${{ inputs.build-command }}
+
+      - name: Prepare preview manifests
         env:
           NPM_SCOPE: ${{ inputs.npm-scope }}
           COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
@@ -139,10 +168,12 @@ jobs:
             prepare_manifest package.json
           fi
 
-          echo "Installing dependencies..."
-          yarn install --no-immutable
+      - name: Install dependencies
+        run: yarn install --no-immutable
 
-      - name: Build
+      - name: Build (post-rename)
+        if: ${{ !inputs.rename-after-install-and-build }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
       - name: Upload build artifacts (monorepo)
