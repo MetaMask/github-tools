@@ -112,6 +112,18 @@ jobs:
         if: ${{ inputs.rename-after-install-and-build }}
         run: yarn install --no-immutable
 
+      - name: Mask build environment values
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if [[ -n "$BUILD_ENV" ]]; then
+            while IFS= read -r line; do
+              if [[ -n "$line" ]]; then
+                echo "::add-mask::$line"
+              fi
+            done < <(jq --raw-output '.[] | tostring' <<< "$BUILD_ENV")
+          fi
+
       - name: Build (snap, pre-rename)
         if: ${{ inputs.rename-after-install-and-build }}
         env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
