@@ -108,7 +108,7 @@ jobs:
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies (snap, pre-build)
+      - name: Install dependencies (pre-build)
         if: ${{ inputs.rename-after-install-and-build }}
         run: yarn install --no-immutable
 
