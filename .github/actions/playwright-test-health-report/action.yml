@@ -1,0 +1,91 @@
+name: Playwright Test Health Report
+description: >-
+  Aggregates Playwright JSON test reports from GitHub Actions artifacts,
+  classifies flaky and broken tests, and posts a summary to Slack.
+
+inputs:
+  repository:
+    description: Repository name (e.g. metamask-mobile, metamask-extension)
+    required: true
+  workflow-ids:
+    description: >-
+      Comma-separated workflow files to analyze (e.g. ci.yml or main.yml).
+      Runs from all listed workflows are merged into one report.
+    required: true
+  github-token:
+    description: GitHub token with repo and actions:read
+    required: true
+  slack-webhook:
+    description: Slack incoming webhook URL
+    required: true
+  owner:
+    description: GitHub org/user. Defaults to MetaMask.
+    required: false
+    default: MetaMask
+  branch:
+    description: Branch to filter workflow runs
+    required: false
+    default: main
+  lookback-days:
+    description: Number of days to look back for workflow runs
+    required: false
+    default: '1'
+  artifact-name-prefix:
+    description: >-
+      Only download artifacts whose name starts with this prefix.
+      Example: playwright-json-report
+    required: false
+    default: playwright-json-report
+  results-file-pattern:
+    description: >-
+      File name prefix inside artifact zip to parse as JSON.
+      Example: playwright-report (matches playwright-report.json,
+      playwright-report-1.json, etc.)
+    required: false
+    default: playwright-report
+  top-n:
+    description: Maximum number of tests to include in Slack report
+    required: false
+    default: '10'
+  report-title:
+    description: Slack header title override
+    required: false
+    default: Playwright Test Health Report
+  github-tools-repository:
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache: yarn
+        cache-dependency-path: ./github-tools/yarn.lock
+    - shell: bash
+      working-directory: ./github-tools
+      run: corepack enable && yarn --immutable
+    - shell: bash
+      working-directory: ./github-tools
+      env:
+        OWNER: ${{ inputs.owner }}
+        REPOSITORY: ${{ inputs.repository }}
+        WORKFLOW_IDS: ${{ inputs.workflow-ids }}
+        BRANCH: ${{ inputs.branch }}
+        LOOKBACK_DAYS: ${{ inputs.lookback-days }}
+        ARTIFACT_NAME_PREFIX: ${{ inputs.artifact-name-prefix }}
+        RESULTS_FILE_PATTERN: ${{ inputs.results-file-pattern }}
+        TOP_N: ${{ inputs.top-n }}
+        REPORT_TITLE: ${{ inputs.report-title }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
+      run: node .github/scripts/create-playwright-test-health-report.mjs
