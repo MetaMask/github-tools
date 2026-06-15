@@ -48,13 +48,15 @@ function walkSuites(suites, currentFile, findings, metadata) {
         }
 
         const projectName = test.projectName || 'default';
-        const key = `${projectName}::${spec.file || suiteFile || 'unknown-file'}::${test.title}`;
+        const specFile = spec.file || suiteFile || 'unknown-file';
+        const testTitle = test.title || spec.title || 'unknown-test';
+        const key = `${projectName}::${specFile}::${testTitle}`;
         const results = Array.isArray(test.results) ? test.results : [];
 
         findings.push({
           key,
-          name: test.title,
-          path: spec.file || suiteFile || 'unknown-file',
+          name: testTitle,
+          path: specFile,
           projectName,
           classification,
           retries: Math.max(0, results.length - 1),
