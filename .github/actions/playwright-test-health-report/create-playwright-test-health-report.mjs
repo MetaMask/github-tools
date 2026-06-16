@@ -3,7 +3,7 @@
 import { Octokit } from '@octokit/rest';
 import { downloadArtifactZip, findFilesInZip } from './lib/artifact-download.mjs';
 import { parsePlaywrightJsonReport } from './lib/parse-playwright-json.mjs';
-import { sendSlackBatched, truncateError } from './lib/slack-test-health-blocks.mjs';
+import { createSlackBlocks, sendSlackBatched } from './lib/slack-test-health-blocks.mjs';
 import { summarizeTestHealth } from './lib/summarize-test-health.mjs';
 import { getDateRange, getWorkflowRuns } from './lib/workflow-runs.mjs';
 
@@ -122,103 +122,22 @@ async function collectFindings(github, runs) {
   return { findings, matchingArtifacts };
 }
 
-function createSlackBlocks(summary, dateDisplay, metadata) {
-  const topItems = summary.slice(0, env.TOP_N);
-  const broken = topItems.filter(item => item.brokenCount > 0);
-  const flaky = topItems.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
-
-  const blocks = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: `${env.REPORT_TITLE} — Top ${env.TOP_N}`,
-        emoji: true,
-      },
-    },
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `Period (UTC): ${dateDisplay} | Repo: ${env.REPOSITORY} | Workflows: ${metadata.workflowsScanned.join(', ')} | Failed CI Runs: ${metadata.failedRunCount}/${metadata.workflowCount} from ${env.BRANCH}`,
-        },
-      ],
-    },
-    { type: 'divider' },
-  ];
-
-  if (topItems.length === 0) {
-    blocks.push({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: 'No flaky or broken tests found ✅',
-      },
-    });
-    return blocks;
-  }
-
-  if (broken.length > 0) {
-    blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: '*❌ Broken (failed all retries)*' },
-    });
-
-    broken.forEach((test, index) => {
-      const fileUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/blob/${env.BRANCH}/${test.path}`;
-      const runUrl = test.lastBrokenRunUrl || `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastBrokenRunId}`;
-      blocks.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `${index + 1}. <${fileUrl}|${test.name}> *(${test.projectName})* — broken: *${test.brokenCount}*, flaky: *${test.flakyCount}*, retries: *${test.totalRetries}*${runUrl ? ` | <${runUrl}|run log>` : ''}`,
-        },
-      });
-      blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: `_${truncateError(test.lastBrokenError)}_` },
-      });
-    });
-  }
-
-  if (broken.length > 0 && flaky.length > 0) {
-    blocks.push({ type: 'divider' });
-  }
-
-  if (flaky.length > 0) {
-    blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: '*🟡 Flaky (passed on retry)*' },
-    });
-
-    flaky.forEach((test, index) => {
-      const fileUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/blob/${env.BRANCH}/${test.path}`;
-      const runUrl = test.lastFlakyRunUrl || `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastFlakyRunId}`;
-      blocks.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `${index + 1}. <${fileUrl}|${test.name}> *(${test.projectName})* — flaky: *${test.flakyCount}*, retries: *${test.totalRetries}*${runUrl ? ` | <${runUrl}|run log>` : ''}`,
-        },
-      });
-      blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: `_${truncateError(test.lastFlakyError)}_` },
-      });
-    });
-  }
-
-  return blocks;
-}
-
 async function sendSlackReport(summary, dateDisplay, metadata) {
   if (!env.SLACK_WEBHOOK || !env.SLACK_WEBHOOK.startsWith('https://')) {
     console.log('Skipping Slack notification');
     return;
   }
 
-  const blocks = createSlackBlocks(summary, dateDisplay, metadata);
+  const blocks = createSlackBlocks(summary, dateDisplay, {
+    owner: env.OWNER,
+    repository: env.REPOSITORY,
+    branch: env.BRANCH,
+    reportTitle: env.REPORT_TITLE,
+    topN: env.TOP_N,
+    workflowsScanned: metadata.workflowsScanned,
+    failedRunCount: metadata.failedRunCount,
+    workflowCount: metadata.workflowCount,
+  });
   await sendSlackBatched(env.SLACK_WEBHOOK, blocks);
   console.log('✅ Report sent to Slack successfully');
 }

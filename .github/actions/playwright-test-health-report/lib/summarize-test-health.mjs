@@ -18,8 +18,9 @@ export function summarizeTestHealth(findings) {
       }
 
       existing.totalRetries += finding.retries;
-      if (finding.date > existing.lastSeen) {
+      if (finding.date >= existing.lastSeen) {
         existing.lastSeen = finding.date;
+        existing.latestClassification = finding.classification;
       }
       continue;
     }
@@ -33,6 +34,7 @@ export function summarizeTestHealth(findings) {
       flakyCount: finding.classification === 'flaky' ? 1 : 0,
       totalRetries: finding.retries,
       lastSeen: finding.date,
+      latestClassification: finding.classification,
       lastBrokenRunId: finding.classification === 'broken' ? finding.runId : undefined,
       lastBrokenRunUrl: finding.classification === 'broken' ? finding.runUrl : undefined,
       lastBrokenError: finding.classification === 'broken' ? finding.error : undefined,
@@ -42,7 +44,15 @@ export function summarizeTestHealth(findings) {
     });
   }
 
-  return Array.from(summary.values()).sort((a, b) => {
+  return Array.from(summary.values())
+    .map(item => {
+      const latestIsBroken = item.latestClassification === 'broken';
+      return {
+        ...item,
+        brokenCount: latestIsBroken ? item.brokenCount : 0,
+      };
+    })
+    .sort((a, b) => {
     if (a.brokenCount !== b.brokenCount) {
       return b.brokenCount - a.brokenCount;
     }
@@ -50,5 +60,5 @@ export function summarizeTestHealth(findings) {
       return b.flakyCount - a.flakyCount;
     }
     return b.totalRetries - a.totalRetries;
-  });
+    });
 }
