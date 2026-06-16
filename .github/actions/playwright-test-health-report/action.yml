@@ -88,4 +88,4 @@ runs:
         REPORT_TITLE: ${{ inputs.report-title }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
-      run: node .github/scripts/create-playwright-test-health-report.mjs
+      run: node .github/actions/playwright-test-health-report/create-playwright-test-health-report.mjs

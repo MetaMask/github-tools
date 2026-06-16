@@ -3,9 +3,8 @@
 // Based on the original script done by @itsyoboieltr on Extension repo
 
 import { Octokit } from '@octokit/rest';
-import { downloadArtifactZip, findFilesInZip } from './lib/artifact-download.mjs';
-import { sendSlackBatched, truncateError } from './lib/slack-test-health-blocks.mjs';
-import { getDateRange, getWorkflowRuns } from './lib/workflow-runs.mjs';
+import unzipper from 'unzipper';
+import { IncomingWebhook } from '@slack/webhook';
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
@@ -23,6 +22,92 @@ const env = {
     ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
     : ['test-e2e-android-json-report', 'test-e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
 };
+
+function getDateRange() {
+  const today = new Date();
+  const daysAgo = new Date(today.getTime() - (env.LOOKBACK_DAYS * 24 * 60 * 60 * 1000));
+
+  const fromDisplay = daysAgo.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+
+  const toDisplay = today.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+
+  return {
+    from: daysAgo.toISOString(),
+    to: today.toISOString(),
+    display: `${fromDisplay} - ${toDisplay}`
+  };
+}
+
+async function getWorkflowRuns(github, from, to) {
+  try {
+    const runs = await github.paginate(
+      github.rest.actions.listWorkflowRuns,
+      {
+        owner: env.OWNER,
+        repo: env.REPOSITORY,
+        workflow_id: env.WORKFLOW_ID,
+        branch: env.BRANCH,
+        created: `${from}..${to}`,
+        per_page: 100,
+      }
+    );
+
+    // Filter to only completed runs from push or schedule events (excludes fork PRs)
+    const completedRuns = runs.filter(run =>
+      run.status === 'completed' &&
+      (run.event === 'push' || run.event === 'schedule')
+    );
+
+    // Sort by created date (newest first)
+    completedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return completedRuns;
+  } catch (error) {
+    if (error.status === 404) {
+      throw new Error(`Workflow '${env.WORKFLOW_ID}' not found in ${env.OWNER}/${env.REPOSITORY}`);
+    }
+    throw error;
+  }
+}
+
+async function downloadArtifact(github, artifact) {
+  try {
+    const response = await github.rest.actions.downloadArtifact({
+      owner: env.OWNER,
+      repo: env.REPOSITORY,
+      artifact_id: artifact.id,
+      archive_format: 'zip',
+    });
+
+    const buffer = Buffer.from(response.data);
+    const zip = await unzipper.Open.buffer(buffer);
+
+    const testFile = zip.files.find(file => file.path.startsWith(env.TEST_RESULTS_FILE_PATTERN));
+    if (!testFile) {
+      console.log(`  ⚠️  No ${env.TEST_RESULTS_FILE_PATTERN} file found in ${artifact.name}`);
+      return null;
+    }
+
+    const content = await testFile.buffer();
+    const data = JSON.parse(content.toString());
+
+    console.log(`   Parsed ${artifact.name} (${data.length} top testSuites)`);
+    return data;
+  } catch (error) {
+    console.log(`  ❌ Failed to download ${artifact.name}: ${error.message}`);
+    return null;
+  }
+}
 
 async function downloadTestArtifacts(github, runs) {
   const allTestData = [];
@@ -50,25 +135,9 @@ async function downloadTestArtifacts(github, runs) {
       }
 
       for (const artifact of testArtifacts) {
-        try {
-          const zip = await downloadArtifactZip(github, {
-            owner: env.OWNER,
-            repo: env.REPOSITORY,
-            artifactId: artifact.id,
-          });
-          const testFiles = findFilesInZip(zip, env.TEST_RESULTS_FILE_PATTERN);
-          const testFile = testFiles[0];
-          if (!testFile) {
-            console.log(`  ⚠️  No ${env.TEST_RESULTS_FILE_PATTERN} file found in ${artifact.name}`);
-            continue;
-          }
-
-          const content = await testFile.buffer();
-          const testData = JSON.parse(content.toString());
-          console.log(`   Parsed ${artifact.name} (${testData.length} top testSuites)`);
+        const testData = await downloadArtifact(github, artifact);
+        if (testData) {
           allTestData.push(...testData);
-        } catch (error) {
-          console.log(`  ❌ Failed to download ${artifact.name}: ${error.message}`);
         }
       }
     } catch (error) {
@@ -264,8 +333,15 @@ async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount)
 
   console.log('\n📤 Sending report to Slack...');
   try {
+    const webhook = new IncomingWebhook(env.SLACK_WEBHOOK_FLAKY_TESTS);
     const blocks = createSlackBlocks(summary, dateDisplay, workflowCount, failedCount);
-    await sendSlackBatched(env.SLACK_WEBHOOK_FLAKY_TESTS, blocks);
+
+    // Slack has a limit of 50 blocks per message
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < blocks.length; i += BATCH_SIZE) {
+      const batch = blocks.slice(i, i + BATCH_SIZE);
+      await webhook.send({ blocks: batch });
+    }
 
     console.log('✅ Report sent to Slack successfully');
   } catch (slackError) {
@@ -363,12 +439,13 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
       // Error message (if exists)
       const error = test.lastRealFailureError;
       if (error) {
+        const errorPreview = error.length > 150 ? error.substring(0, 150) + '...' : error;
         blocks.push({
           type: 'rich_text',
           elements: [{
             type: 'rich_text_section',
             elements: [
-              { type: 'text', text: `  ${truncateError(error).replace(/\n/g, ' ')}`, style: { italic: true } }
+              { type: 'text', text: `  ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
             ]
           }]
         });
@@ -438,12 +515,13 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
       // Error message (if exists)
       const error = test.flakyFailureError;
       if (error) {
+        const errorPreview = error.length > 150 ? error.substring(0, 150) + '...' : error;
         blocks.push({
           type: 'rich_text',
           elements: [{
             type: 'rich_text_section',
             elements: [
-              { type: 'text', text: `     ${truncateError(error).replace(/\n/g, ' ')}`, style: { italic: true } }
+              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
             ]
           }]
         });
@@ -492,7 +570,10 @@ function displayResults(summary, dateDisplay) {
 
       // Show error for real failures
       if (test.lastRealFailureError) {
-        console.log(`    💥 Error: ${truncateError(test.lastRealFailureError, 100).replace(/\n/g, ' ')}`);
+        const errorPreview = test.lastRealFailureError.length > 100
+          ? test.lastRealFailureError.substring(0, 100) + '...'
+          : test.lastRealFailureError;
+        console.log(`    💥 Error: ${errorPreview.replace(/\n/g, ' ')}`);
       }
     } else {
       // Flaky tests (failed initially but eventually passed)
@@ -506,7 +587,10 @@ function displayResults(summary, dateDisplay) {
 
       // Show error from initial failure
       if (test.flakyFailureError) {
-        console.log(`    💥 Initial error: ${truncateError(test.flakyFailureError, 100).replace(/\n/g, ' ')}`);
+        const errorPreview = test.flakyFailureError.length > 100
+          ? test.flakyFailureError.substring(0, 100) + '...'
+          : test.flakyFailureError;
+        console.log(`    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`);
       }
     }
 
@@ -523,19 +607,12 @@ async function main() {
 
   console.log('🧪🧐 Flaky Test Report\n');
 
-  const dateRange = getDateRange(env.LOOKBACK_DAYS);
+  const dateRange = getDateRange();
   console.log(`Time range: ${dateRange.from} to ${dateRange.to}\n`);
 
   try {
     console.log('Fetching workflow runs...');
-    const workflowRuns = await getWorkflowRuns(github, {
-      owner: env.OWNER,
-      repo: env.REPOSITORY,
-      workflowId: env.WORKFLOW_ID,
-      branch: env.BRANCH,
-      from: dateRange.from,
-      to: dateRange.to,
-    });
+    const workflowRuns = await getWorkflowRuns(github, dateRange.from, dateRange.to);
 
     if (workflowRuns.length === 0) {
       console.log('⚠️ No workflow runs found.');
