@@ -37,22 +37,24 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     workflowCount,
   } = options;
 
-  const relevantItems = summary.filter(
-    item =>
-      item.brokenCount > 0 ||
-      item.flakyCount > 0 ||
-      (item.latestClassification === 'passed' && ((item.historicalBrokenCount ?? 0) > 0 || (item.historicalFlakyCount ?? 0) > 0)),
-  );
-  const topItems = relevantItems.slice(0, topN);
-  const broken = topItems.filter(item => item.brokenCount > 0);
-  const flaky = topItems.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
-  const review = topItems.filter(
+  const maxBroken = Math.min(topN > 5 ? 5 : Math.floor(topN / 2), topN);
+  const maxFlaky = Math.min(topN > 10 ? 3 : Math.floor(topN / 3), topN);
+  const maxReview = Math.min(topN > 10 ? 2 : 1, topN);
+
+  const brokenItems = summary.filter(item => item.brokenCount > 0);
+  const flakyItems = summary.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
+  const reviewItems = summary.filter(
     item =>
       item.latestClassification === 'passed' &&
       item.brokenCount === 0 &&
       item.flakyCount === 0 &&
       ((item.historicalBrokenCount ?? 0) > 0 || (item.historicalFlakyCount ?? 0) > 0),
   );
+
+  const broken = brokenItems.slice(0, maxBroken);
+  const flaky = flakyItems.slice(0, maxFlaky);
+  const review = reviewItems.slice(0, maxReview);
+  const topItems = [...broken, ...flaky, ...review];
 
   const blocks = [
     {
@@ -71,7 +73,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
           text:
             `Period (UTC): ${dateDisplay} | Repo: ${repository} | Workflows: ${workflowsScanned.join(', ')} | ` +
             `Failed CI Runs: ${failedRunCount}/${workflowCount} from ${branch}` +
-            `\nFound: ${broken.length} broken, ${flaky.length} flaky, ${review.length} review`,
+            `\nTotal: ${brokenItems.length} broken, ${flakyItems.length} flaky, ${reviewItems.length} review | Showing top ${broken.length}, ${flaky.length}, ${review.length}`,
         },
       ],
     },
