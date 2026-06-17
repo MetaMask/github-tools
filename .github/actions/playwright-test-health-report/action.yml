@@ -1,7 +1,7 @@
 name: Playwright Test Health Report
 description: >-
   Aggregates Playwright JSON test reports from GitHub Actions artifacts,
-  classifies flaky and broken tests, and posts a summary to Slack.
+  classifies flaky and failing tests, and posts a summary to Slack.
 
 inputs:
   repository:

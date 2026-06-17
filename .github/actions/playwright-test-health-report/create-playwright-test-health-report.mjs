@@ -170,7 +170,7 @@ function logClassificationDiagnostics(summary, metadata) {
   console.log(`  Lookback: ${env.LOOKBACK_DAYS} day(s)`);
   console.log(`  Unique tests observed: ${summary.length}`);
   console.log(
-    `  Buckets -> broken: ${brokenItems.length}, flaky: ${flakyItems.length}, watch: ${watchItems.length}, infra: ${infraItems.length}`,
+    `  Buckets -> failing: ${brokenItems.length}, infra: ${infraItems.length}, flaky: ${flakyItems.length}, watch: ${watchItems.length}`,
   );
   console.log(`  CI runs: ${metadata.workflowCount} | Test-failure runs: ${metadata.testFailureRunCount}`);
   console.log(`  Other CI failures: ${metadata.otherFailedRunCount}`);
@@ -181,7 +181,7 @@ function logClassificationDiagnostics(summary, metadata) {
       .map(test => {
         const broken = test.historicalBrokenCount ?? 0;
         const flaky = test.historicalFlakyCount ?? 0;
-        return `${test.name} (${test.projectName}, broken ${broken}, flaky ${flaky})`;
+        return `${test.name} (${test.projectName}, failed ${broken}, flaky ${flaky})`;
       })
       .join('; ');
     console.log(`  Sample watch: ${preview}`);

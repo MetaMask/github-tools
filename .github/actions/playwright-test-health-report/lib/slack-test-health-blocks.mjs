@@ -123,10 +123,10 @@ export function createSlackBlocks(summary, dateDisplay, options) {
   });
 
   const broken = brokenItems.slice(0, maxBroken);
+  const infra = infraItems.slice(0, maxInfra);
   const flaky = flakyItems.slice(0, maxFlaky);
   const watch = watchItems.slice(0, maxWatch);
-  const infra = infraItems.slice(0, maxInfra);
-  const topItems = [...broken, ...flaky, ...watch, ...infra];
+  const topItems = [...broken, ...infra, ...flaky, ...watch];
 
   const blocks = [
     {
@@ -145,8 +145,8 @@ export function createSlackBlocks(summary, dateDisplay, options) {
           text:
             `Period (UTC): ${dateDisplay} | Lookback: ${lookbackDays} day(s) | Repo: ${repository} | Workflows: ${workflowsScanned.join(', ')}` +
             `\nCI runs: ${workflowCount} on ${branch} | Test-failure runs: ${testFailureRunCount} | Other CI failures: ${otherFailedRunCount}` +
-            `\nTests: ${brokenItems.length} broken, ${flakyItems.length} flaky, ${watchItems.length} watch, ${infraItems.length} infra` +
-            ` | Showing ${broken.length}, ${flaky.length}, ${watch.length}, ${infra.length}`,
+            `\nTests: ${brokenItems.length} failing, ${infraItems.length} infra, ${flakyItems.length} flaky, ${watchItems.length} watch` +
+            ` | Showing ${broken.length}, ${infra.length}, ${flaky.length}, ${watch.length}`,
         },
       ],
     },
@@ -159,7 +159,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       elements: [
         {
           type: 'rich_text_section',
-          elements: [{ type: 'text', text: 'No broken, flaky, watch, or infra issues found ✅' }],
+          elements: [{ type: 'text', text: 'No failing, infra, flaky, or watch issues found ✅' }],
         },
       ],
     });
@@ -168,9 +168,58 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   let itemIndex = 0;
 
-  if (broken.length > 0) {
-    pushSectionHeader(blocks, 'x', 'Broken (latest run failed)');
-    broken.forEach(test => {
+  const sections = [
+    {
+      items: broken,
+      emoji: 'x',
+      title: 'Failing (latest run failed)',
+      runKind: 'broken',
+      statusText: test =>
+        `failed ${formatRunRate(test.historicalBrokenCount ?? test.brokenCount, test.totalRuns)}`,
+      error: test => test.lastBrokenError,
+    },
+    {
+      items: infra,
+      emoji: 'warning',
+      title: 'Infra (setup failed, no tests ran)',
+      runKind: 'infra',
+      statusText: test =>
+        `setup failed ${formatRunRate(test.historicalInfraCount ?? test.infraCount, test.totalRuns)}`,
+      error: test => test.lastInfraError,
+    },
+    {
+      items: flaky,
+      emoji: 'large_yellow_circle',
+      title: 'Flaky (latest run flaky)',
+      runKind: 'flaky',
+      statusText: test =>
+        `flaky ${formatRunRate(test.historicalFlakyCount ?? test.flakyCount, test.totalRuns)}`,
+      error: test => test.lastFlakyError,
+    },
+    {
+      items: watch,
+      emoji: 'large_green_circle',
+      title: 'Watch (unstable in window, passing now)',
+      runKind: 'broken',
+      statusText: test => `now passing (${formatWatchHistory(test)})`,
+      error: () => null,
+    },
+  ];
+
+  let previousSectionHadItems = false;
+
+  for (const section of sections) {
+    if (section.items.length === 0) {
+      continue;
+    }
+
+    if (previousSectionHadItems) {
+      blocks.push({ type: 'divider' });
+    }
+
+    pushSectionHeader(blocks, section.emoji, section.title);
+
+    for (const test of section.items) {
       itemIndex += 1;
       pushTestLine(blocks, {
         index: itemIndex,
@@ -178,73 +227,17 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         repository,
         branch,
         test,
-        statusText: `failed ${formatRunRate(test.historicalBrokenCount ?? test.brokenCount, test.totalRuns)}`,
-        runKind: 'broken',
+        statusText: section.statusText(test),
+        runKind: section.runKind,
       });
-      pushErrorLine(blocks, test.lastBrokenError);
-    });
-  }
 
-  if (broken.length > 0 && (flaky.length > 0 || watch.length > 0 || infra.length > 0)) {
-    blocks.push({ type: 'divider' });
-  }
+      const error = section.error(test);
+      if (error) {
+        pushErrorLine(blocks, error);
+      }
+    }
 
-  if (flaky.length > 0) {
-    pushSectionHeader(blocks, 'large_yellow_circle', 'Flaky (latest run flaky)');
-    flaky.forEach(test => {
-      itemIndex += 1;
-      pushTestLine(blocks, {
-        index: itemIndex,
-        owner,
-        repository,
-        branch,
-        test,
-        statusText: `flaky ${formatRunRate(test.historicalFlakyCount ?? test.flakyCount, test.totalRuns)}`,
-        runKind: 'flaky',
-      });
-      pushErrorLine(blocks, test.lastFlakyError);
-    });
-  }
-
-  if (flaky.length > 0 && (watch.length > 0 || infra.length > 0)) {
-    blocks.push({ type: 'divider' });
-  }
-
-  if (watch.length > 0) {
-    pushSectionHeader(blocks, 'large_green_circle', 'Watch (unstable in window, passing now)');
-    watch.forEach(test => {
-      itemIndex += 1;
-      pushTestLine(blocks, {
-        index: itemIndex,
-        owner,
-        repository,
-        branch,
-        test,
-        statusText: `now passing (${formatWatchHistory(test)})`,
-        runKind: 'broken',
-      });
-    });
-  }
-
-  if (watch.length > 0 && infra.length > 0) {
-    blocks.push({ type: 'divider' });
-  }
-
-  if (infra.length > 0) {
-    pushSectionHeader(blocks, 'warning', 'Infra (setup failed, no tests ran)');
-    infra.forEach(test => {
-      itemIndex += 1;
-      pushTestLine(blocks, {
-        index: itemIndex,
-        owner,
-        repository,
-        branch,
-        test,
-        statusText: `setup failed ${formatRunRate(test.historicalInfraCount ?? test.infraCount, test.totalRuns)}`,
-        runKind: 'infra',
-      });
-      pushErrorLine(blocks, test.lastInfraError);
-    });
+    previousSectionHadItems = true;
   }
 
   return blocks;

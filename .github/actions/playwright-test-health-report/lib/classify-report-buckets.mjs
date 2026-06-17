@@ -90,7 +90,7 @@ export function formatWatchHistory(test) {
   const flaky = historicalFlaky(test);
 
   if (broken > 0) {
-    parts.push(`broken ${formatRunRate(broken, test.totalRuns)}`);
+    parts.push(`failed ${formatRunRate(broken, test.totalRuns)}`);
   }
   if (flaky > 0) {
     parts.push(`flaky ${formatRunRate(flaky, test.totalRuns)}`);

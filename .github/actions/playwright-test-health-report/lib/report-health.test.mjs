@@ -94,7 +94,7 @@ describe('formatWatchHistory', () => {
       totalRuns: 8,
     });
 
-    assert.match(text, /broken 2\/8 runs/);
+    assert.match(text, /failed 2\/8 runs/);
     assert.match(text, /flaky 3\/8 runs/);
   });
 });
