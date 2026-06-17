@@ -67,30 +67,16 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   if (topItems.length === 0) {
     blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [{ type: 'text', text: 'No flaky or broken tests found ✅' }],
-        },
-      ],
+      type: 'section',
+      text: { type: 'mrkdwn', text: 'No flaky or broken tests found ✅' },
     });
     return blocks;
   }
 
   if (broken.length > 0) {
     blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [
-            { type: 'emoji', name: 'x' },
-            { type: 'text', text: ' ' },
-            { type: 'text', text: 'Broken', style: { bold: true } },
-          ],
-        },
-      ],
+      type: 'section',
+      text: { type: 'mrkdwn', text: '*❌ Broken*' },
     });
 
     broken.forEach((test, index) => {
@@ -101,30 +87,18 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         (test.lastBrokenRunId
           ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastBrokenRunId}`
           : null);
-      const elements = [
-        { type: 'text', text: `  ${globalIndex}. ` },
-        { type: 'link', url: fileUrl, text: test.name },
-        { type: 'text', text: ` (${test.projectName})` },
-        { type: 'text', text: ` failed ${test.brokenCount}x`, style: { bold: true } },
-      ];
-
-      if (runUrl) {
-        elements.push({ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' });
-      }
+      const line =
+        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) *failed ${test.brokenCount}x*` +
+        (runUrl ? ` - <${runUrl}|run log>` : '');
 
       blocks.push({
-        type: 'rich_text',
-        elements: [{ type: 'rich_text_section', elements }],
+        type: 'section',
+        text: { type: 'mrkdwn', text: line },
       });
 
       blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [{ type: 'text', text: `  ${truncateError(test.lastBrokenError)}`, style: { italic: true } }],
-          },
-        ],
+        type: 'section',
+        text: { type: 'mrkdwn', text: `_${truncateError(test.lastBrokenError)}_` },
       });
     });
   }
@@ -135,17 +109,8 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   if (flaky.length > 0) {
     blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [
-            { type: 'emoji', name: 'large_yellow_circle' },
-            { type: 'text', text: ' ' },
-            { type: 'text', text: 'Flaky', style: { bold: true } },
-          ],
-        },
-      ],
+      type: 'section',
+      text: { type: 'mrkdwn', text: '*🟡 Flaky*' },
     });
 
     flaky.forEach((test, index) => {
@@ -156,30 +121,18 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         (test.lastFlakyRunId
           ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastFlakyRunId}`
           : null);
-      const elements = [
-        { type: 'text', text: `  ${globalIndex}. ` },
-        { type: 'link', url: fileUrl, text: test.name },
-        { type: 'text', text: ` (${test.projectName})` },
-        { type: 'text', text: ` flaky ${test.flakyCount}x`, style: { bold: true } },
-      ];
-
-      if (runUrl) {
-        elements.push({ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' });
-      }
+      const line =
+        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) *flaky ${test.flakyCount}x*` +
+        (runUrl ? ` - <${runUrl}|run log>` : '');
 
       blocks.push({
-        type: 'rich_text',
-        elements: [{ type: 'rich_text_section', elements }],
+        type: 'section',
+        text: { type: 'mrkdwn', text: line },
       });
 
       blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [{ type: 'text', text: `  ${truncateError(test.lastFlakyError)}`, style: { italic: true } }],
-          },
-        ],
+        type: 'section',
+        text: { type: 'mrkdwn', text: `_${truncateError(test.lastFlakyError)}_` },
       });
     });
   }
