@@ -48,7 +48,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       item.latestClassification === 'passed' &&
       item.brokenCount === 0 &&
       item.flakyCount === 0 &&
-      ((item.historicalBrokenCount ?? 0) > 0 || (item.historicalFlakyCount ?? 0) > 0),
+      (item.historicalBrokenCount ?? 0) > 0,
   );
 
   const broken = brokenItems.slice(0, maxBroken);
@@ -222,7 +222,6 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       const globalIndex = broken.length + flaky.length + index + 1;
       const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
       const wasBroken = test.historicalBrokenCount ?? 0;
-      const wasFlaky = test.historicalFlakyCount ?? 0;
       blocks.push({
         type: 'rich_text',
         elements: [
@@ -233,7 +232,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
               { type: 'link', url: fileUrl, text: test.name },
               { type: 'text', text: ` (${test.projectName}) ` },
               { type: 'text', text: 'now passing', style: { bold: true } },
-              { type: 'text', text: ` (was broken ${wasBroken}x, flaky ${wasFlaky}x)` },
+              { type: 'text', text: ` (was broken ${wasBroken}x)` },
             ],
           },
         ],
