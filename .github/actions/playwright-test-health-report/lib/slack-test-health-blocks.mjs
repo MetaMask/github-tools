@@ -37,9 +37,9 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     workflowCount,
   } = options;
 
-  const maxBroken = Math.min(topN > 5 ? 5 : Math.floor(topN / 2), topN);
-  const maxFlaky = Math.min(topN > 10 ? 3 : Math.floor(topN / 3), topN);
-  const maxReview = Math.min(topN > 10 ? 2 : 1, topN);
+  const maxBroken = Math.max(Math.ceil(topN * 0.5), 3);
+  const maxFlaky = Math.max(Math.ceil(topN * 0.3), 2);
+  const maxReview = Math.max(Math.ceil(topN * 0.2), 1);
 
   const brokenItems = summary.filter(item => item.brokenCount > 0);
   const flakyItems = summary.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
