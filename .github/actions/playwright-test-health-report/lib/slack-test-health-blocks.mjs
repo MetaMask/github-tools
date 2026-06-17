@@ -1,4 +1,10 @@
 import { IncomingWebhook } from '@slack/webhook';
+import {
+  allocateBucketSlots,
+  formatRunRate,
+  formatWatchHistory,
+  partitionSummary,
+} from './classify-report-buckets.mjs';
 
 export function normalizeErrorForSlack(message, maxLength = 120) {
   if (!message) {
@@ -25,6 +31,75 @@ export function truncateError(message, maxLength = 120) {
   return normalizeErrorForSlack(message, maxLength);
 }
 
+function buildRunUrl(owner, repository, test, kind) {
+  const runUrlField = {
+    broken: 'lastBrokenRunUrl',
+    flaky: 'lastFlakyRunUrl',
+    infra: 'lastInfraRunUrl',
+  }[kind];
+  const runIdField = {
+    broken: 'lastBrokenRunId',
+    flaky: 'lastFlakyRunId',
+    infra: 'lastInfraRunId',
+  }[kind];
+
+  return (
+    test[runUrlField] ||
+    (test[runIdField]
+      ? `https://github.com/${owner}/${repository}/actions/runs/${test[runIdField]}`
+      : null)
+  );
+}
+
+function pushSectionHeader(blocks, emoji, title) {
+  blocks.push({
+    type: 'rich_text',
+    elements: [
+      {
+        type: 'rich_text_section',
+        elements: [
+          ...(emoji ? [{ type: 'emoji', name: emoji }] : []),
+          ...(emoji ? [{ type: 'text', text: ' ' }] : []),
+          { type: 'text', text: title, style: { bold: true } },
+        ],
+      },
+    ],
+  });
+}
+
+function pushTestLine(blocks, { index, owner, repository, branch, test, statusText, runKind }) {
+  const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
+  const runUrl = buildRunUrl(owner, repository, test, runKind);
+
+  blocks.push({
+    type: 'rich_text',
+    elements: [
+      {
+        type: 'rich_text_section',
+        elements: [
+          { type: 'text', text: `${index}. ` },
+          { type: 'link', url: fileUrl, text: test.name },
+          { type: 'text', text: ` (${test.projectName}) ` },
+          { type: 'text', text: statusText, style: { bold: true } },
+          ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
+        ],
+      },
+    ],
+  });
+}
+
+function pushErrorLine(blocks, message) {
+  blocks.push({
+    type: 'rich_text',
+    elements: [
+      {
+        type: 'rich_text_section',
+        elements: [{ type: 'text', text: truncateError(message), style: { italic: true } }],
+      },
+    ],
+  });
+}
+
 export function createSlackBlocks(summary, dateDisplay, options) {
   const {
     owner,
@@ -33,28 +108,25 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     reportTitle,
     topN,
     workflowsScanned,
-    failedRunCount,
     workflowCount,
+    testFailureRunCount,
+    otherFailedRunCount,
+    lookbackDays = 1,
   } = options;
 
-  const maxBroken = Math.max(Math.ceil(topN * 0.5), 3);
-  const maxFlaky = Math.max(Math.ceil(topN * 0.3), 2);
-  const maxReview = Math.max(Math.ceil(topN * 0.2), 1);
-
-  const brokenItems = summary.filter(item => item.brokenCount > 0);
-  const flakyItems = summary.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
-  const reviewItems = summary.filter(
-    item =>
-      item.latestClassification === 'passed' &&
-      item.brokenCount === 0 &&
-      item.flakyCount === 0 &&
-      (item.historicalBrokenCount ?? 0) > 0,
-  );
+  const { brokenItems, flakyItems, watchItems, infraItems } = partitionSummary(summary);
+  const { maxBroken, maxFlaky, maxWatch, maxInfra } = allocateBucketSlots(topN, {
+    broken: brokenItems.length,
+    flaky: flakyItems.length,
+    watch: watchItems.length,
+    infra: infraItems.length,
+  });
 
   const broken = brokenItems.slice(0, maxBroken);
   const flaky = flakyItems.slice(0, maxFlaky);
-  const review = reviewItems.slice(0, maxReview);
-  const topItems = [...broken, ...flaky, ...review];
+  const watch = watchItems.slice(0, maxWatch);
+  const infra = infraItems.slice(0, maxInfra);
+  const topItems = [...broken, ...flaky, ...watch, ...infra];
 
   const blocks = [
     {
@@ -71,9 +143,10 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         {
           type: 'mrkdwn',
           text:
-            `Period (UTC): ${dateDisplay} | Repo: ${repository} | Workflows: ${workflowsScanned.join(', ')} | ` +
-            `Failed CI Runs: ${failedRunCount}/${workflowCount} from ${branch}` +
-            `\nTotal: ${brokenItems.length} broken, ${flakyItems.length} flaky, ${reviewItems.length} review | Showing top ${broken.length}, ${flaky.length}, ${review.length}`,
+            `Period (UTC): ${dateDisplay} | Lookback: ${lookbackDays} day(s) | Repo: ${repository} | Workflows: ${workflowsScanned.join(', ')}` +
+            `\nCI runs: ${workflowCount} on ${branch} | Test-failure runs: ${testFailureRunCount} | Other CI failures: ${otherFailedRunCount}` +
+            `\nTests: ${brokenItems.length} broken, ${flakyItems.length} flaky, ${watchItems.length} watch, ${infraItems.length} infra` +
+            ` | Showing ${broken.length}, ${flaky.length}, ${watch.length}, ${infra.length}`,
         },
       ],
     },
@@ -86,157 +159,91 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       elements: [
         {
           type: 'rich_text_section',
-          elements: [{ type: 'text', text: 'No broken/flaky/review tests found ✅' }],
+          elements: [{ type: 'text', text: 'No broken, flaky, watch, or infra issues found ✅' }],
         },
       ],
     });
     return blocks;
   }
 
+  let itemIndex = 0;
+
   if (broken.length > 0) {
-    blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [
-            { type: 'emoji', name: 'x' },
-            { type: 'text', text: ' ' },
-            { type: 'text', text: 'Broken', style: { bold: true } },
-          ],
-        },
-      ],
-    });
-
-    broken.forEach((test, index) => {
-      const globalIndex = index + 1;
-      const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
-      const runUrl =
-        test.lastBrokenRunUrl ||
-        (test.lastBrokenRunId
-          ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastBrokenRunId}`
-          : null);
-      blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [
-              { type: 'text', text: `${globalIndex}. ` },
-              { type: 'link', url: fileUrl, text: test.name },
-              { type: 'text', text: ` (${test.projectName}) ` },
-              { type: 'text', text: `failed ${test.brokenCount}x`, style: { bold: true } },
-              ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
-            ],
-          },
-        ],
+    pushSectionHeader(blocks, 'x', 'Broken (latest run failed)');
+    broken.forEach(test => {
+      itemIndex += 1;
+      pushTestLine(blocks, {
+        index: itemIndex,
+        owner,
+        repository,
+        branch,
+        test,
+        statusText: `failed ${formatRunRate(test.historicalBrokenCount ?? test.brokenCount, test.totalRuns)}`,
+        runKind: 'broken',
       });
-
-      blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [{ type: 'text', text: truncateError(test.lastBrokenError), style: { italic: true } }],
-          },
-        ],
-      });
+      pushErrorLine(blocks, test.lastBrokenError);
     });
   }
 
-  if (broken.length > 0 && flaky.length > 0) {
+  if (broken.length > 0 && (flaky.length > 0 || watch.length > 0 || infra.length > 0)) {
     blocks.push({ type: 'divider' });
   }
 
   if (flaky.length > 0) {
-    blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [
-            { type: 'emoji', name: 'large_yellow_circle' },
-            { type: 'text', text: ' ' },
-            { type: 'text', text: 'Flaky', style: { bold: true } },
-          ],
-        },
-      ],
-    });
-
-    flaky.forEach((test, index) => {
-      const globalIndex = broken.length + index + 1;
-      const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
-      const runUrl =
-        test.lastFlakyRunUrl ||
-        (test.lastFlakyRunId
-          ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastFlakyRunId}`
-          : null);
-      blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [
-              { type: 'text', text: `${globalIndex}. ` },
-              { type: 'link', url: fileUrl, text: test.name },
-              { type: 'text', text: ` (${test.projectName}) ` },
-              { type: 'text', text: `flaky ${test.flakyCount}x`, style: { bold: true } },
-              ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
-            ],
-          },
-        ],
+    pushSectionHeader(blocks, 'large_yellow_circle', 'Flaky (latest run flaky)');
+    flaky.forEach(test => {
+      itemIndex += 1;
+      pushTestLine(blocks, {
+        index: itemIndex,
+        owner,
+        repository,
+        branch,
+        test,
+        statusText: `flaky ${formatRunRate(test.historicalFlakyCount ?? test.flakyCount, test.totalRuns)}`,
+        runKind: 'flaky',
       });
-
-      blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [{ type: 'text', text: truncateError(test.lastFlakyError), style: { italic: true } }],
-          },
-        ],
-      });
+      pushErrorLine(blocks, test.lastFlakyError);
     });
   }
 
-  if ((broken.length > 0 || flaky.length > 0) && review.length > 0) {
+  if (flaky.length > 0 && (watch.length > 0 || infra.length > 0)) {
     blocks.push({ type: 'divider' });
   }
 
-  if (review.length > 0) {
-    blocks.push({
-      type: 'rich_text',
-      elements: [
-        {
-          type: 'rich_text_section',
-          elements: [
-            { type: 'emoji', name: 'large_green_circle' },
-            { type: 'text', text: ' ' },
-            { type: 'text', text: 'Review (now passing)', style: { bold: true } },
-          ],
-        },
-      ],
-    });
-
-    review.forEach((test, index) => {
-      const globalIndex = broken.length + flaky.length + index + 1;
-      const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
-      const wasBroken = test.historicalBrokenCount ?? 0;
-      blocks.push({
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [
-              { type: 'text', text: `${globalIndex}. ` },
-              { type: 'link', url: fileUrl, text: test.name },
-              { type: 'text', text: ` (${test.projectName}) ` },
-              { type: 'text', text: 'now passing', style: { bold: true } },
-              { type: 'text', text: ` (was broken ${wasBroken}x)` },
-            ],
-          },
-        ],
+  if (watch.length > 0) {
+    pushSectionHeader(blocks, 'large_green_circle', 'Watch (unstable in window, passing now)');
+    watch.forEach(test => {
+      itemIndex += 1;
+      pushTestLine(blocks, {
+        index: itemIndex,
+        owner,
+        repository,
+        branch,
+        test,
+        statusText: `now passing (${formatWatchHistory(test)})`,
+        runKind: 'broken',
       });
+    });
+  }
+
+  if (watch.length > 0 && infra.length > 0) {
+    blocks.push({ type: 'divider' });
+  }
+
+  if (infra.length > 0) {
+    pushSectionHeader(blocks, 'warning', 'Infra (setup failed, no tests ran)');
+    infra.forEach(test => {
+      itemIndex += 1;
+      pushTestLine(blocks, {
+        index: itemIndex,
+        owner,
+        repository,
+        branch,
+        test,
+        statusText: `setup failed ${formatRunRate(test.historicalInfraCount ?? test.infraCount, test.totalRuns)}`,
+        runKind: 'infra',
+      });
+      pushErrorLine(blocks, test.lastInfraError);
     });
   }
 

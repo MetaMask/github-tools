@@ -27,7 +27,10 @@ inputs:
     required: false
     default: main
   lookback-days:
-    description: Number of days to look back for workflow runs
+    description: >-
+      Number of days to look back for workflow runs. Use 1 for twice-daily
+      snapshots and 7 for a weekly summary. The same classification logic
+      applies regardless of window length.
     required: false
     default: '1'
   artifact-name-prefix:
@@ -44,9 +47,9 @@ inputs:
     required: false
     default: playwright-report
   top-n:
-    description: Maximum number of tests to include in Slack report
+    description: Maximum number of tests to include in the Slack report
     required: false
-    default: '10'
+    default: '15'
   report-title:
     description: Slack header title override
     required: false

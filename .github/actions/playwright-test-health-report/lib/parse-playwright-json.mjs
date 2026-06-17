@@ -39,6 +39,10 @@ function extractFirstFailureError(test) {
   return firstFailure?.error?.message ?? firstFailure?.errors?.[0]?.message ?? 'No error details';
 }
 
+function extractInfraError(error) {
+  return error?.message ?? error?.stack ?? 'Unknown setup error';
+}
+
 function walkSuites(suites, currentFile, findings, metadata) {
   for (const suite of suites ?? []) {
     const suiteFile = suite.file || currentFile;
@@ -67,6 +71,7 @@ function walkSuites(suites, currentFile, findings, metadata) {
           runId: metadata.runId,
           runUrl: metadata.runUrl,
           date: new Date(metadata.date),
+          artifactName: metadata.artifactName,
         });
       }
     }
@@ -75,8 +80,38 @@ function walkSuites(suites, currentFile, findings, metadata) {
   }
 }
 
+function parseInfraErrors(report, metadata, findings) {
+  const errors = Array.isArray(report?.errors) ? report.errors : [];
+  const suites = report?.suites ?? [];
+
+  if (errors.length === 0 || suites.length > 0) {
+    return;
+  }
+
+  for (const [index, error] of errors.entries()) {
+    const artifactLabel = metadata.artifactName ?? 'unknown-artifact';
+    const location = error?.location?.file ?? 'unknown-file';
+    const key = `infra::${artifactLabel}::${index}`;
+
+    findings.push({
+      key,
+      name: `Setup failure (${artifactLabel})`,
+      path: location,
+      projectName: 'infra',
+      classification: 'infra',
+      retries: 0,
+      error: extractInfraError(error),
+      runId: metadata.runId,
+      runUrl: metadata.runUrl,
+      date: new Date(metadata.date),
+      artifactName: metadata.artifactName,
+    });
+  }
+}
+
 export function parsePlaywrightJsonReport(report, metadata) {
   const findings = [];
   walkSuites(report?.suites ?? [], undefined, findings, metadata);
+  parseInfraErrors(report, metadata, findings);
   return findings;
 }

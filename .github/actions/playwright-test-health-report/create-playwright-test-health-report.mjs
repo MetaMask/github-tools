@@ -4,6 +4,7 @@ import { Octokit } from '@octokit/rest';
 import { downloadArtifactZip, findFilesInZip } from './lib/artifact-download.mjs';
 import { parsePlaywrightJsonReport } from './lib/parse-playwright-json.mjs';
 import { createSlackBlocks, sendSlackBatched } from './lib/slack-test-health-blocks.mjs';
+import { partitionSummary } from './lib/classify-report-buckets.mjs';
 import { summarizeTestHealth } from './lib/summarize-test-health.mjs';
 import { getDateRange, getWorkflowRuns } from './lib/workflow-runs.mjs';
 
@@ -12,15 +13,24 @@ if (!githubToken) {
   throw new Error('Missing GITHUB_TOKEN env var');
 }
 
+const parsePositiveInt = (value, fallback) => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  const parsed = parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const env = {
   OWNER: process.env.OWNER || 'MetaMask',
   REPOSITORY: process.env.REPOSITORY,
   WORKFLOW_IDS: process.env.WORKFLOW_IDS,
   BRANCH: process.env.BRANCH || 'main',
-  LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
+  LOOKBACK_DAYS: parsePositiveInt(process.env.LOOKBACK_DAYS, 1),
   ARTIFACT_NAME_PREFIX: process.env.ARTIFACT_NAME_PREFIX || 'playwright-json-report',
   RESULTS_FILE_PATTERN: process.env.RESULTS_FILE_PATTERN || 'playwright-report',
-  TOP_N: parseInt(process.env.TOP_N ?? '10'),
+  TOP_N: parsePositiveInt(process.env.TOP_N, 15),
   REPORT_TITLE: process.env.REPORT_TITLE || 'Playwright Test Health Report',
   SLACK_WEBHOOK: process.env.SLACK_WEBHOOK || '',
   GITHUB_TOKEN: githubToken,
@@ -37,6 +47,14 @@ function getWorkflowIds() {
   return env.WORKFLOW_IDS.split(',')
     .map(value => value.trim())
     .filter(Boolean);
+}
+
+function isTestFailureFinding(finding) {
+  return finding.classification === 'broken' || finding.classification === 'flaky' || finding.classification === 'infra';
+}
+
+function countTestFailureRuns(findings) {
+  return new Set(findings.filter(isTestFailureFinding).map(finding => finding.runId)).size;
 }
 
 async function getMergedWorkflowRuns(github, dateRange) {
@@ -107,6 +125,7 @@ async function collectFindings(github, runs) {
                 runId: run.id,
                 runUrl: run.html_url || `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${run.id}`,
                 date: run.created_at,
+                artifactName: artifact.name,
               }),
             );
           } catch (error) {
@@ -135,35 +154,37 @@ async function sendSlackReport(summary, dateDisplay, metadata) {
     reportTitle: env.REPORT_TITLE,
     topN: env.TOP_N,
     workflowsScanned: metadata.workflowsScanned,
-    failedRunCount: metadata.failedRunCount,
     workflowCount: metadata.workflowCount,
+    testFailureRunCount: metadata.testFailureRunCount,
+    otherFailedRunCount: metadata.otherFailedRunCount,
+    lookbackDays: env.LOOKBACK_DAYS,
   });
   await sendSlackBatched(env.SLACK_WEBHOOK, blocks);
   console.log('✅ Report sent to Slack successfully');
 }
 
-function logClassificationDiagnostics(summary) {
-  const totalUniqueTests = summary.length;
-  const currentlyBroken = summary.filter(test => test.brokenCount > 0);
-  const currentlyFlaky = summary.filter(test => test.brokenCount === 0 && test.flakyCount > 0);
-  const latestPassed = summary.filter(test => test.latestClassification === 'passed');
-  const resolvedFromFailure = summary.filter(
-    test =>
-      test.latestClassification === 'passed' &&
-      (test.historicalBrokenCount ?? 0) > 0,
-  );
+function logClassificationDiagnostics(summary, metadata) {
+  const { brokenItems, flakyItems, watchItems, infraItems } = partitionSummary(summary);
 
   console.log('\n🧾 Classification diagnostics');
-  console.log(`  Unique tests observed: ${totalUniqueTests}`);
-  console.log(`  Latest state -> broken: ${currentlyBroken.length}, flaky: ${currentlyFlaky.length}, passed: ${latestPassed.length}`);
-  console.log(`  Resolved since earlier runs (had broken history, latest passed): ${resolvedFromFailure.length}`);
+  console.log(`  Lookback: ${env.LOOKBACK_DAYS} day(s)`);
+  console.log(`  Unique tests observed: ${summary.length}`);
+  console.log(
+    `  Buckets -> broken: ${brokenItems.length}, flaky: ${flakyItems.length}, watch: ${watchItems.length}, infra: ${infraItems.length}`,
+  );
+  console.log(`  CI runs: ${metadata.workflowCount} | Test-failure runs: ${metadata.testFailureRunCount}`);
+  console.log(`  Other CI failures: ${metadata.otherFailedRunCount}`);
 
-  if (resolvedFromFailure.length > 0) {
-    const preview = resolvedFromFailure
+  if (watchItems.length > 0) {
+    const preview = watchItems
       .slice(0, 5)
-      .map(test => `${test.name} (${test.projectName})`)
+      .map(test => {
+        const broken = test.historicalBrokenCount ?? 0;
+        const flaky = test.historicalFlakyCount ?? 0;
+        return `${test.name} (${test.projectName}, broken ${broken}, flaky ${flaky})`;
+      })
       .join('; ');
-    console.log(`  Sample resolved (broken→passed): ${preview}`);
+    console.log(`  Sample watch: ${preview}`);
   }
 }
 
@@ -173,6 +194,7 @@ async function main() {
   const workflowsScanned = getWorkflowIds();
 
   console.log('🧪 Playwright Test Health Report\n');
+  console.log(`Lookback: ${env.LOOKBACK_DAYS} day(s)`);
   console.log(`Time range: ${dateRange.from} to ${dateRange.to}`);
   console.log(`Workflows: ${workflowsScanned.join(', ')}\n`);
 
@@ -192,11 +214,20 @@ async function main() {
       return;
     }
 
+    const testFailureRunCount = countTestFailureRuns(findings);
+    const otherFailedRunCount = Math.max(0, failedRunCount - testFailureRunCount);
     const summary = summarizeTestHealth(findings);
-    logClassificationDiagnostics(summary);
+
+    logClassificationDiagnostics(summary, {
+      workflowCount: workflowRuns.length,
+      testFailureRunCount,
+      otherFailedRunCount,
+    });
+
     await sendSlackReport(summary, dateRange.display, {
       workflowCount: workflowRuns.length,
-      failedRunCount,
+      testFailureRunCount,
+      otherFailedRunCount,
       workflowsScanned,
     });
   } catch (error) {
