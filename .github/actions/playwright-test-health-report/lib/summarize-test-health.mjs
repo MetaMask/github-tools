@@ -50,6 +50,8 @@ export function summarizeTestHealth(findings) {
       const latestIsFlaky = item.latestClassification === 'flaky';
       return {
         ...item,
+        historicalBrokenCount: item.brokenCount,
+        historicalFlakyCount: item.flakyCount,
         brokenCount: latestIsBroken ? item.brokenCount : 0,
         flakyCount: latestIsFlaky ? item.flakyCount : 0,
       };

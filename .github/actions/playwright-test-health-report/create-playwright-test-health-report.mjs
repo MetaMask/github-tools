@@ -142,6 +142,31 @@ async function sendSlackReport(summary, dateDisplay, metadata) {
   console.log('✅ Report sent to Slack successfully');
 }
 
+function logClassificationDiagnostics(summary) {
+  const totalUniqueTests = summary.length;
+  const currentlyBroken = summary.filter(test => test.brokenCount > 0);
+  const currentlyFlaky = summary.filter(test => test.brokenCount === 0 && test.flakyCount > 0);
+  const latestPassed = summary.filter(test => test.latestClassification === 'passed');
+  const resolvedFromFailure = summary.filter(
+    test =>
+      test.latestClassification === 'passed' &&
+      ((test.historicalBrokenCount ?? 0) > 0 || (test.historicalFlakyCount ?? 0) > 0),
+  );
+
+  console.log('\n🧾 Classification diagnostics');
+  console.log(`  Unique tests observed: ${totalUniqueTests}`);
+  console.log(`  Latest state -> broken: ${currentlyBroken.length}, flaky: ${currentlyFlaky.length}, passed: ${latestPassed.length}`);
+  console.log(`  Resolved since earlier runs (had broken/flaky history, latest passed): ${resolvedFromFailure.length}`);
+
+  if (resolvedFromFailure.length > 0) {
+    const preview = resolvedFromFailure
+      .slice(0, 5)
+      .map(test => `${test.name} (${test.projectName})`)
+      .join('; ');
+    console.log(`  Sample resolved tests: ${preview}`);
+  }
+}
+
 async function main() {
   const github = new Octokit({ auth: env.GITHUB_TOKEN });
   const dateRange = getDateRange(env.LOOKBACK_DAYS);
@@ -168,6 +193,7 @@ async function main() {
     }
 
     const summary = summarizeTestHealth(findings);
+    logClassificationDiagnostics(summary);
     await sendSlackReport(summary, dateRange.display, {
       workflowCount: workflowRuns.length,
       failedRunCount,
