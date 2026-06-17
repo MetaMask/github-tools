@@ -150,20 +150,20 @@ function logClassificationDiagnostics(summary) {
   const resolvedFromFailure = summary.filter(
     test =>
       test.latestClassification === 'passed' &&
-      ((test.historicalBrokenCount ?? 0) > 0 || (test.historicalFlakyCount ?? 0) > 0),
+      (test.historicalBrokenCount ?? 0) > 0,
   );
 
   console.log('\n🧾 Classification diagnostics');
   console.log(`  Unique tests observed: ${totalUniqueTests}`);
   console.log(`  Latest state -> broken: ${currentlyBroken.length}, flaky: ${currentlyFlaky.length}, passed: ${latestPassed.length}`);
-  console.log(`  Resolved since earlier runs (had broken/flaky history, latest passed): ${resolvedFromFailure.length}`);
+  console.log(`  Resolved since earlier runs (had broken history, latest passed): ${resolvedFromFailure.length}`);
 
   if (resolvedFromFailure.length > 0) {
     const preview = resolvedFromFailure
       .slice(0, 5)
       .map(test => `${test.name} (${test.projectName})`)
       .join('; ');
-    console.log(`  Sample resolved tests: ${preview}`);
+    console.log(`  Sample resolved (broken→passed): ${preview}`);
   }
 }
 
