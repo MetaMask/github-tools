@@ -80,16 +80,30 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   if (topItems.length === 0) {
     blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: 'No broken/flaky/review tests found ✅' },
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [{ type: 'text', text: 'No broken/flaky/review tests found ✅' }],
+        },
+      ],
     });
     return blocks;
   }
 
   if (broken.length > 0) {
     blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: '*❌ Broken*' },
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'emoji', name: 'x' },
+            { type: 'text', text: ' ' },
+            { type: 'text', text: 'Broken', style: { bold: true } },
+          ],
+        },
+      ],
     });
 
     broken.forEach((test, index) => {
@@ -100,18 +114,30 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         (test.lastBrokenRunId
           ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastBrokenRunId}`
           : null);
-      const line =
-        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) *failed ${test.brokenCount}x*` +
-        (runUrl ? ` - <${runUrl}|run log>` : '');
-
       blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: line },
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'text', text: `${globalIndex}. ` },
+              { type: 'link', url: fileUrl, text: test.name },
+              { type: 'text', text: ` (${test.projectName}) ` },
+              { type: 'text', text: `failed ${test.brokenCount}x`, style: { bold: true } },
+              ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
+            ],
+          },
+        ],
       });
 
       blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: `_${truncateError(test.lastBrokenError)}_` },
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [{ type: 'text', text: truncateError(test.lastBrokenError), style: { italic: true } }],
+          },
+        ],
       });
     });
   }
@@ -122,8 +148,17 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   if (flaky.length > 0) {
     blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: '*🟡 Flaky*' },
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'emoji', name: 'large_yellow_circle' },
+            { type: 'text', text: ' ' },
+            { type: 'text', text: 'Flaky', style: { bold: true } },
+          ],
+        },
+      ],
     });
 
     flaky.forEach((test, index) => {
@@ -134,18 +169,30 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         (test.lastFlakyRunId
           ? `https://github.com/${owner}/${repository}/actions/runs/${test.lastFlakyRunId}`
           : null);
-      const line =
-        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) *flaky ${test.flakyCount}x*` +
-        (runUrl ? ` - <${runUrl}|run log>` : '');
-
       blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: line },
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'text', text: `${globalIndex}. ` },
+              { type: 'link', url: fileUrl, text: test.name },
+              { type: 'text', text: ` (${test.projectName}) ` },
+              { type: 'text', text: `flaky ${test.flakyCount}x`, style: { bold: true } },
+              ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
+            ],
+          },
+        ],
       });
 
       blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: `_${truncateError(test.lastFlakyError)}_` },
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [{ type: 'text', text: truncateError(test.lastFlakyError), style: { italic: true } }],
+          },
+        ],
       });
     });
   }
@@ -156,8 +203,17 @@ export function createSlackBlocks(summary, dateDisplay, options) {
 
   if (review.length > 0) {
     blocks.push({
-      type: 'section',
-      text: { type: 'mrkdwn', text: '*🟢 Review (now passing)*' },
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'emoji', name: 'large_green_circle' },
+            { type: 'text', text: ' ' },
+            { type: 'text', text: 'Review (now passing)', style: { bold: true } },
+          ],
+        },
+      ],
     });
 
     review.forEach((test, index) => {
@@ -165,13 +221,20 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
       const wasBroken = test.historicalBrokenCount ?? 0;
       const wasFlaky = test.historicalFlakyCount ?? 0;
-      const line =
-        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) ` +
-        `*now passing* (was broken ${wasBroken}x, flaky ${wasFlaky}x)`;
-
       blocks.push({
-        type: 'section',
-        text: { type: 'mrkdwn', text: line },
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'text', text: `${globalIndex}. ` },
+              { type: 'link', url: fileUrl, text: test.name },
+              { type: 'text', text: ` (${test.projectName}) ` },
+              { type: 'text', text: 'now passing', style: { bold: true } },
+              { type: 'text', text: ` (was broken ${wasBroken}x, flaky ${wasFlaky}x)` },
+            ],
+          },
+        ],
       });
     });
   }
