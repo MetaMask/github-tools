@@ -37,9 +37,22 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     workflowCount,
   } = options;
 
-  const topItems = summary.slice(0, topN);
+  const relevantItems = summary.filter(
+    item =>
+      item.brokenCount > 0 ||
+      item.flakyCount > 0 ||
+      (item.latestClassification === 'passed' && ((item.historicalBrokenCount ?? 0) > 0 || (item.historicalFlakyCount ?? 0) > 0)),
+  );
+  const topItems = relevantItems.slice(0, topN);
   const broken = topItems.filter(item => item.brokenCount > 0);
   const flaky = topItems.filter(item => item.brokenCount === 0 && item.flakyCount > 0);
+  const review = topItems.filter(
+    item =>
+      item.latestClassification === 'passed' &&
+      item.brokenCount === 0 &&
+      item.flakyCount === 0 &&
+      ((item.historicalBrokenCount ?? 0) > 0 || (item.historicalFlakyCount ?? 0) > 0),
+  );
 
   const blocks = [
     {
@@ -58,7 +71,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
           text:
             `Period (UTC): ${dateDisplay} | Repo: ${repository} | Workflows: ${workflowsScanned.join(', ')} | ` +
             `Failed CI Runs: ${failedRunCount}/${workflowCount} from ${branch}` +
-            `\nFound: ${broken.length} broken, ${flaky.length} flaky`,
+            `\nFound: ${broken.length} broken, ${flaky.length} flaky, ${review.length} review`,
         },
       ],
     },
@@ -68,7 +81,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
   if (topItems.length === 0) {
     blocks.push({
       type: 'section',
-      text: { type: 'mrkdwn', text: 'No flaky or broken tests found ✅' },
+      text: { type: 'mrkdwn', text: 'No broken/flaky/review tests found ✅' },
     });
     return blocks;
   }
@@ -133,6 +146,32 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       blocks.push({
         type: 'section',
         text: { type: 'mrkdwn', text: `_${truncateError(test.lastFlakyError)}_` },
+      });
+    });
+  }
+
+  if ((broken.length > 0 || flaky.length > 0) && review.length > 0) {
+    blocks.push({ type: 'divider' });
+  }
+
+  if (review.length > 0) {
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: '*🟢 Review (now passing)*' },
+    });
+
+    review.forEach((test, index) => {
+      const globalIndex = broken.length + flaky.length + index + 1;
+      const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
+      const wasBroken = test.historicalBrokenCount ?? 0;
+      const wasFlaky = test.historicalFlakyCount ?? 0;
+      const line =
+        `${globalIndex}. <${fileUrl}|${test.name}> (${test.projectName}) ` +
+        `*now passing* (was broken ${wasBroken}x, flaky ${wasFlaky}x)`;
+
+      blocks.push({
+        type: 'section',
+        text: { type: 'mrkdwn', text: line },
       });
     });
   }
