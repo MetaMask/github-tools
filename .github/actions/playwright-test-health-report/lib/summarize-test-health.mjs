@@ -47,18 +47,20 @@ export function summarizeTestHealth(findings) {
   return Array.from(summary.values())
     .map(item => {
       const latestIsBroken = item.latestClassification === 'broken';
+      const latestIsFlaky = item.latestClassification === 'flaky';
       return {
         ...item,
         brokenCount: latestIsBroken ? item.brokenCount : 0,
+        flakyCount: latestIsFlaky ? item.flakyCount : 0,
       };
     })
     .sort((a, b) => {
-    if (a.brokenCount !== b.brokenCount) {
-      return b.brokenCount - a.brokenCount;
-    }
-    if (a.flakyCount !== b.flakyCount) {
-      return b.flakyCount - a.flakyCount;
-    }
-    return b.totalRetries - a.totalRetries;
+      if (a.brokenCount !== b.brokenCount) {
+        return b.brokenCount - a.brokenCount;
+      }
+      if (a.flakyCount !== b.flakyCount) {
+        return b.flakyCount - a.flakyCount;
+      }
+      return b.totalRetries - a.totalRetries;
     });
 }

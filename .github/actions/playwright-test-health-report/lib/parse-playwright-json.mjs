@@ -3,13 +3,16 @@ function isFailureResult(result) {
 }
 
 function classifyTest(test) {
+  if (test.status === 'expected') {
+    return 'passed';
+  }
   if (test.status === 'unexpected') {
     return 'broken';
   }
   if (test.status === 'flaky') {
     return 'flaky';
   }
-  if (test.status === 'expected' || test.status === 'skipped') {
+  if (test.status === 'skipped') {
     return null;
   }
 
