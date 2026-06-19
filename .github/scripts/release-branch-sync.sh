@@ -21,8 +21,8 @@
 
 set -e
 
-# Regex pattern for valid release branch names (release/X.Y.Z)
-RELEASE_BRANCH_PATTERN='^release/[0-9]+\.[0-9]+\.[0-9]+$'
+# Regex pattern for valid release branch names (release/X.Y.Z or release/X.Y.Z-ota)
+RELEASE_BRANCH_PATTERN='^release/[0-9]+\.[0-9]+\.[0-9]+(-ota)?$'
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -71,10 +71,10 @@ pr_exists() {
   [[ "$existing_pr" -gt 0 ]]
 }
 
-# Parse version from release branch name (release/X.Y.Z -> X.Y.Z)
+# Parse version from release branch name (release/X.Y.Z or release/X.Y.Z-ota -> X.Y.Z)
 parse_version() {
   local branch=$1
-  echo "$branch" | sed 's|release/||'
+  echo "$branch" | sed 's|release/||' | sed 's|-ota$||'
 }
 
 # Compare two semantic versions
@@ -107,14 +107,15 @@ get_active_release_branches() {
   local branches=""
   
   # Query open and draft PRs with title starting with "release:" (case-insensitive)
-  # The jq filter extracts version from PR titles like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
+  # The jq filter extracts version from PR titles like "release: 7.36.0", "Release: 7.36.0 (#1234)",
+  # or OTA variants like "release: 7.81.1-ota"
   local pr_data
   pr_data=$(gh pr list \
     --state open \
     --limit 500 \
     --search 'in:title release' \
     --json title,isDraft \
-    --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+"; "i")) | .title' \
+    --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+(-ota)?"; "i")) | .title' \
     2>/dev/null || echo "")
   
   if [[ -z "$pr_data" ]]; then
@@ -125,11 +126,11 @@ get_active_release_branches() {
   # Extract version numbers from PR titles and convert to branch names
   while IFS= read -r title; do
     if [[ -n "$title" ]]; then
-      # Extract version (X.Y.Z) from title - jq already validated the format,
-      # so we just need to extract the first semantic version pattern.
+      # Extract version (X.Y.Z or X.Y.Z-ota) from title - jq already validated the format,
+      # so we just need to extract the first semantic version pattern (with optional -ota suffix).
       # Using grep -oE is case-agnostic and simpler than matching "release:" variations.
       local version
-      version=$(echo "$title" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      version=$(echo "$title" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-ota)?' | head -1)
       if [[ -n "$version" ]]; then
         local branch="release/${version}"
         # Only add if not already in list (use grep -Fx for exact string matching,
