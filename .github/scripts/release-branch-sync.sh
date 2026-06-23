@@ -177,7 +177,7 @@ If there are conflicts, they will appear in this PR. Resolve them to ensure the 
 }
 
 # Process a single release branch
-# Returns: 0 = PR created, 1 = failed, 2 = skipped
+# Returns: 0 = PR created or refreshed, 1 = failed, 2 = skipped
 process_release_branch() {
   local release_branch=$1
   local merged_version=$2
@@ -213,12 +213,6 @@ process_release_branch() {
   # Create sync branch name (replace / with -)
   local sync_branch="stable-sync-${release_branch//\//-}"
   
-  # Check if a sync PR already exists
-  if pr_exists "$release_branch" "$sync_branch"; then
-    log_warning "Sync PR already exists for ${release_branch}, skipping"
-    return 2
-  fi
-  
   # Check if stable has any new commits compared to the release branch
   if ! stable_has_new_commits "$release_branch"; then
     log_success "${release_branch} is already up-to-date with stable, no sync needed"
@@ -237,13 +231,21 @@ process_release_branch() {
   # Create sync branch from stable
   git checkout -b "$sync_branch" origin/stable
   
-  # Push the sync branch (force in case it exists remotely)
+  # Push the sync branch (force in case it exists remotely). This overwrites the
+  # remote branch and refreshes any open PR already pointing at it.
   log_info "Pushing ${sync_branch}..."
   if git push -u origin "$sync_branch" --force; then
     log_success "Pushed ${sync_branch}"
   else
     log_error "Failed to push ${sync_branch}"
     return 1
+  fi
+  
+  # If a sync PR already exists, the force-push above just refreshed it, so we're
+  # done. Creating a new PR would fail on the duplicate head branch.
+  if pr_exists "$release_branch" "$sync_branch"; then
+    log_success "Refreshed existing sync PR for ${release_branch}"
+    return 0
   fi
   
   # Create the PR (stable-sync branch → release branch)
