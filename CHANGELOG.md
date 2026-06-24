@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.14.0]
 
-### Uncategorized
+### Added
 
-- every sync into a given release branch reuses the same branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
 - accept release ota branch ([#263](https://github.com/MetaMask/github-tools/pull/263))
 - feat(actions): add unified Playwright test health reporting for extension and mobile ([#262](https://github.com/MetaMask/github-tools/pull/262))
+
+### Fixed
+- every sync into a given release branch reuses the same branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
 
 ## [1.13.0]
 
