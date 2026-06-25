@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0]
+
+### Added
+
+- Support OTA branches in `release-branch-sync` action ([#263](https://github.com/MetaMask/github-tools/pull/263))
+- Add `playwright-test-health-report` action for creating reports for Playwright tests, and posting to Slack ([#262](https://github.com/MetaMask/github-tools/pull/262))
+
+### Fixed
+
+- Allow `release-branch-sync` action to reuse branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
+
 ## [1.13.0]
 
 ### Added
@@ -206,7 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/MetaMask/github-tools/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/MetaMask/github-tools/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/MetaMask/github-tools/compare/v1.10.0...v1.11.0
