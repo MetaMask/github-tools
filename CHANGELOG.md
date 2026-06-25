@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- every sync into a given release branch reuses the same branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
+- Allow `release-branch-sync` action to reuse branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
 
 ## [1.13.0]
 
