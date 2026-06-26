@@ -85,6 +85,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get token
+        id: get-token
         uses: ./.github/actions/get-token
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
