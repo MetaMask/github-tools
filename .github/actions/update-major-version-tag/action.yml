@@ -1,0 +1,41 @@
+name: Update Major Version Tag
+description: 'Create or update the major version shorthand tag (e.g., v1) to point to HEAD, for use when releasing a GitHub Action.'
+
+inputs:
+  release-version:
+    required: true
+    description: 'Full release version (e.g., 1.2.3).'
+  github-token:
+    required: true
+    description: 'GitHub token with contents write permission.'
+
+runs:
+  using: composite
+  steps:
+    - name: Update major version tag
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        RELEASE_VERSION: ${{ inputs.release-version }}
+      run: |
+        set -euo pipefail
+
+        MAJOR_VERSION_TAG="v${RELEASE_VERSION/\.*/}"
+        SHA=$(git rev-parse HEAD)
+
+        # Try to update the existing tag; create it if it doesn't exist yet.
+        if gh api --method PATCH \
+          "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_VERSION_TAG}" \
+          --field "sha=${SHA}" \
+          --field "force=true" \
+          2>/dev/null; then
+          echo "Updated existing tag \"${MAJOR_VERSION_TAG}\"."
+        else
+          echo "Tag \"${MAJOR_VERSION_TAG}\" does not exist, creating it from scratch."
+          gh api --method POST \
+            "/repos/${GITHUB_REPOSITORY}/git/refs" \
+            --field "ref=refs/tags/${MAJOR_VERSION_TAG}" \
+            --field "sha=${SHA}"
+        fi
+
+        echo "Updated shorthand major version tag."

@@ -64,7 +64,7 @@ jobs:
 
   publish-release:
     name: Publish release
-    environment: npm-publish
+    environment: action-publish
     needs: announce-release
     permissions:
       contents: write
@@ -84,7 +84,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get token
+        uses: ./.github/actions/get-token
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+
       - name: Update shorthand major version tag
-        run: |
-          ./.github/workflows/scripts/update-major-version-tag.sh \
-            ${{ steps.publish-release.outputs.release-version }}
+        uses: ./.github/actions/update-major-version-tag
+        with:
+          release-version: ${{ steps.publish-release.outputs.release-version }}
+          github-token: ${{ steps.get-token.outputs.token }}
