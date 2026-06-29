@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.15.0]
 
-### Uncategorized
+### Added
 
-- feat: add `update-major-version-tag` reusable composite action ([#267](https://github.com/MetaMask/github-tools/pull/267))
+- Add `update-major-version-tag` reusable composite action ([#267](https://github.com/MetaMask/github-tools/pull/267))
+  - This action can be used to update the major version tag (e.g., `v1`) for repositories containing GitHub Actions.
 
 ## [1.14.0]
 
