@@ -19,6 +19,9 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   announce-release:
     name: Announce release
@@ -64,10 +67,11 @@ jobs:
 
   publish-release:
     name: Publish release
-    environment: npm-publish
+    environment: action-publish
     needs: announce-release
     permissions:
-      contents: write
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -78,13 +82,22 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.sha }}
 
+      - name: Get token
+        id: get-token
+        uses: ./.github/actions/get-token
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+
       - name: Publish release
         uses: MetaMask/action-publish-release@v3
         id: publish-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get-token.outputs.token }}
 
       - name: Update shorthand major version tag
-        run: |
-          ./.github/workflows/scripts/update-major-version-tag.sh \
-            ${{ steps.publish-release.outputs.release-version }}
+        uses: ./.github/actions/update-major-version-tag
+        with:
+          release-version: ${{ steps.publish-release.outputs.release-version }}
+          github-token: ${{ steps.get-token.outputs.token }}
