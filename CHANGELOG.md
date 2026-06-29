@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0]
+
+### Uncategorized
+
+- feat: add `update-major-version-tag` reusable composite action ([#267](https://github.com/MetaMask/github-tools/pull/267))
+
 ## [1.14.0]
 
 ### Added
@@ -217,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.15.0...HEAD
+[1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/MetaMask/github-tools/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/MetaMask/github-tools/compare/v1.11.0...v1.12.0
