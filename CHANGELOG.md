@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0]
+
 ### Changed
 
-- Mobile release automation no longer reads from or writes to `bitrise.yml`; the build number (`versionCode` / `CURRENT_PROJECT_VERSION`) and semver (`versionName` / `MARKETING_VERSION`) are now sourced from `android/app/build.gradle` and `ios/MetaMask.xcodeproj/project.pbxproj` directly
-  - `set-semvar-version.sh`, `set-mobile-build-version.sh`, and `create-platform-release-pr.sh` updated accordingly, allowing consumers to remove `bitrise.yml`
+- chore: Remove `bitrise.yml` dependency and source mobile version from build.gradle/pbxproj instead ([#269](https://github.com/MetaMask/github-tools/pull/269))
 
 ## [1.15.0]
 
@@ -229,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/MetaMask/github-tools/compare/v1.12.0...v1.13.0
