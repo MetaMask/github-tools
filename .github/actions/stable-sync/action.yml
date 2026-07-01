@@ -133,7 +133,6 @@ runs:
 
         Preserves specific files from the stable branch:
           - CHANGELOG.md
-          - bitrise.yml
           - android/app/build.gradle
           - ios/MetaMask.xcodeproj/project.pbxproj
           - package.json
