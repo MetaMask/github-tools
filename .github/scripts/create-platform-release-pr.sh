@@ -79,7 +79,7 @@ get_expected_changed_files() {
   local expected_changed_files=""
 
   if [[ "$platform" == "mobile" ]]; then
-    expected_changed_files="package.json android/app/build.gradle ios/MetaMask.xcodeproj/project.pbxproj bitrise.yml"
+    expected_changed_files="package.json android/app/build.gradle ios/MetaMask.xcodeproj/project.pbxproj"
   elif [[ "$platform" == "extension" ]]; then
     expected_changed_files="package.json"
   else

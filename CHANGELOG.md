@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Mobile release automation no longer reads from or writes to `bitrise.yml`; the build number (`versionCode` / `CURRENT_PROJECT_VERSION`) and semver (`versionName` / `MARKETING_VERSION`) are now sourced from `android/app/build.gradle` and `ios/MetaMask.xcodeproj/project.pbxproj` directly
+  - `set-semvar-version.sh`, `set-mobile-build-version.sh`, and `create-platform-release-pr.sh` updated accordingly, allowing consumers to remove `bitrise.yml`
+
 ## [1.15.0]
 
 ### Added
