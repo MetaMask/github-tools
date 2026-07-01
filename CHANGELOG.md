@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.16.0]
 
-### Uncategorized
+### Changed
 
 - chore: Remove `bitrise.yml` dependency and source mobile version from build.gradle/pbxproj instead ([#269](https://github.com/MetaMask/github-tools/pull/269))
 
