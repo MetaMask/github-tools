@@ -1,5 +1,5 @@
 name: Add Team Label
-description: "Adds a GitHub team label to a pull request based on the author's entry in the MetaMask topology file."
+description: "Adds a GitHub team label to a pull request based on the author's entry in the MetaMask topology file. Skips if the PR already has a team-* or external-contributor label."
 
 inputs:
   team-label-token:
@@ -13,9 +13,27 @@ inputs:
 runs:
   using: composite
   steps:
+    # Prefer a manually applied team label (or external-contributor) over topology lookup.
+    - name: Check for existing team label
+      id: check-existing-label
+      env:
+        GH_TOKEN: ${{ inputs.team-label-token }}
+        PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}
+      shell: bash
+      run: |
+        existing=$(gh pr view "$PULL_REQUEST_URL" --json labels --jq '[.labels[].name] | map(select(startswith("team-") or . == "external-contributor")) | .[0] // empty')
+        if [ -n "$existing" ]; then
+          echo "PR already has team label: $existing — skipping topology assignment"
+          echo "SKIP=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "No existing team label — assigning from topology"
+          echo "SKIP=false" >> "$GITHUB_OUTPUT"
+        fi
+
     # Fetch the team label for the PR author from topology.json and expose it as a step output.
     - name: Get team label
       id: get-team-label
+      if: ${{ steps.check-existing-label.outputs.SKIP != 'true' }}
       env:
         GH_TOKEN: ${{ inputs.planning-token || inputs.team-label-token }}
         USER: ${{ github.event.pull_request.user.login }}
@@ -32,6 +50,7 @@ runs:
 
     # Apply the retrieved label to the pull request using the GitHub CLI.
     - name: Add team label
+      if: ${{ steps.check-existing-label.outputs.SKIP != 'true' }}
       env:
         GH_TOKEN: ${{ inputs.team-label-token }}
         PULL_REQUEST_URL: ${{ github.event.pull_request.html_url }}

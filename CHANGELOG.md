@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label`
+
 ## [1.16.0]
 
 ### Changed
