@@ -34,8 +34,12 @@ inputs:
 runs:
   using: composite
   steps:
+    # Checkout the PR head (not the merge commit) so the three-dot diff against
+    # the live base stays correct even when the webhook base is stale.
     - name: Checkout code
       uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Resolve current PR base branch
       id: resolve-base
