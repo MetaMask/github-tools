@@ -37,10 +37,42 @@ runs:
     - name: Checkout code
       uses: actions/checkout@v6
 
+    - name: Resolve current PR base branch
+      id: resolve-base
+      uses: actions/github-script@v9
+      env:
+        WEBHOOK_BASE: ${{ github.event.pull_request.base.ref }}
+        FALLBACK_BASE: ${{ inputs.base-ref }}
+      with:
+        script: |
+          const { WEBHOOK_BASE, FALLBACK_BASE } = process.env;
+
+          if (!context.payload.pull_request) {
+            core.setOutput('base_branch', FALLBACK_BASE);
+            return;
+          }
+
+          // The webhook payload can lag a base-branch retarget that happened
+          // right before this run (e.g. force-push immediately followed by
+          // switching the PR base). Re-fetch the PR to get the live base.
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+          });
+
+          const liveBase = pr.base.ref;
+
+          if (liveBase !== WEBHOOK_BASE) {
+            console.log(`⚠️  Webhook base '${WEBHOOK_BASE}' is stale, using live base '${liveBase}' instead.`);
+          }
+
+          core.setOutput('base_branch', liveBase);
+
     - name: Calculate changed lines
       id: line-count
       env:
-        BASE_BRANCH: ${{ github.event.pull_request.base.ref || inputs.base-ref }}
+        BASE_BRANCH: ${{ steps.resolve-base.outputs.base_branch }}
         IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
       shell: bash
       run: |
