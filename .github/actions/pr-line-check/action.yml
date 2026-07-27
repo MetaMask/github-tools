@@ -76,7 +76,7 @@ runs:
     - name: Calculate changed lines
       id: line-count
       env:
-        BASE_BRANCH: ${{ steps.resolve-base.outputs.base_branch }}
+        BASE_BRANCH: ${{ github.event.pull_request.base.sha || inputs.base-ref }}
         IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
       shell: bash
       run: |
