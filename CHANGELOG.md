@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Count changed lines in `pr-line-check` from the pull request files API rather than a `git` checkout ([#273](https://github.com/MetaMask/github-tools/pull/273))
+  - The count now reflects the pull request's current base branch, so a webhook payload that lags a base retarget no longer skews it.
+  - The action requires `pull-requests: read`, which callers granting `pull-requests: write` for labelling already have.
+  - The `base-ref` input has been removed, along with the checkout and history fetching it fed.
+
 ### Fixed
 
 - Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label`
