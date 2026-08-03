@@ -5,6 +5,8 @@ import {
   formatWatchHistory,
   partitionSummary,
 } from './classify-report-buckets.mjs';
+import { normalizeRepoFilePath } from './normalize-repo-file-path.mjs';
+import { createSlackBlocks } from './slack-test-health-blocks.mjs';
 import { summarizeTestHealth } from './summarize-test-health.mjs';
 
 describe('summarizeTestHealth', () => {
@@ -96,5 +98,95 @@ describe('formatWatchHistory', () => {
 
     assert.match(text, /failed 2\/8 runs/);
     assert.match(text, /flaky 3\/8 runs/);
+  });
+});
+
+describe('normalizeRepoFilePath', () => {
+  it('prefixes testDir-relative paths', () => {
+    assert.equal(
+      normalizeRepoFilePath('accounts/account-syncing-settings-toggle.spec.ts', {
+        prefix: 'tests/smoke-appium',
+      }),
+      'tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
+    );
+  });
+
+  it('strips CI absolute checkout paths to repo-relative', () => {
+    assert.equal(
+      normalizeRepoFilePath(
+        '/Users/runner/work/metamask-mobile/metamask-mobile/tests/framework/config/global.setup.ts',
+      ),
+      'tests/framework/config/global.setup.ts',
+    );
+  });
+
+  it('leaves paths already under tests/ unchanged when prefix is set', () => {
+    assert.equal(
+      normalizeRepoFilePath('tests/smoke-appium/accounts/foo.spec.ts', {
+        prefix: 'tests/smoke-appium',
+      }),
+      'tests/smoke-appium/accounts/foo.spec.ts',
+    );
+  });
+
+  it('does not double-apply an identical prefix', () => {
+    assert.equal(
+      normalizeRepoFilePath('tests/smoke-appium/accounts/foo.spec.ts', {
+        prefix: 'tests/smoke-appium',
+      }),
+      'tests/smoke-appium/accounts/foo.spec.ts',
+    );
+  });
+
+  it('returns relative paths unchanged when no prefix is set', () => {
+    assert.equal(normalizeRepoFilePath('accounts/foo.spec.ts'), 'accounts/foo.spec.ts');
+  });
+});
+
+describe('createSlackBlocks path links', () => {
+  it('builds blob URLs with normalized repo-relative paths', () => {
+    const blocks = createSlackBlocks(
+      [
+        {
+          name: 'toggles sync',
+          path: 'accounts/account-syncing-settings-toggle.spec.ts',
+          projectName: 'ios',
+          latestClassification: 'broken',
+          historicalBrokenCount: 1,
+          historicalFlakyCount: 0,
+          historicalInfraCount: 0,
+          brokenCount: 1,
+          flakyCount: 0,
+          infraCount: 0,
+          totalRuns: 1,
+          lastBrokenError: 'timeout',
+          lastBrokenRunUrl: 'https://github.com/MetaMask/metamask-mobile/actions/runs/1',
+        },
+      ],
+      '2026-06-24',
+      {
+        owner: 'MetaMask',
+        repository: 'metamask-mobile',
+        branch: 'main',
+        reportTitle: 'Playwright Test Health Report',
+        topN: 15,
+        workflowsScanned: ['ci.yml'],
+        workflowCount: 1,
+        testFailureRunCount: 1,
+        otherFailedRunCount: 0,
+        lookbackDays: 1,
+        testSourcePrefix: 'tests/smoke-appium',
+      },
+    );
+
+    const link = blocks
+      .flatMap(block => block.elements || [])
+      .flatMap(element => element.elements || [])
+      .find(element => element.type === 'link' && element.text === 'toggles sync');
+
+    assert.equal(
+      link?.url,
+      'https://github.com/MetaMask/metamask-mobile/blob/main/tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
+    );
   });
 });

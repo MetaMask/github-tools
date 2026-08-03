@@ -5,6 +5,7 @@ import {
   formatWatchHistory,
   partitionSummary,
 } from './classify-report-buckets.mjs';
+import { normalizeRepoFilePath } from './normalize-repo-file-path.mjs';
 
 export function normalizeErrorForSlack(message, maxLength = 120) {
   if (!message) {
@@ -67,8 +68,9 @@ function pushSectionHeader(blocks, emoji, title) {
   });
 }
 
-function pushTestLine(blocks, { index, owner, repository, branch, test, statusText, runKind }) {
-  const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${test.path}`;
+function pushTestLine(blocks, { index, owner, repository, branch, test, statusText, runKind, testSourcePrefix }) {
+  const repoPath = normalizeRepoFilePath(test.path, { prefix: testSourcePrefix });
+  const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${repoPath}`;
   const runUrl = buildRunUrl(owner, repository, test, runKind);
 
   blocks.push({
@@ -112,6 +114,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     testFailureRunCount,
     otherFailedRunCount,
     lookbackDays = 1,
+    testSourcePrefix,
   } = options;
 
   const { brokenItems, flakyItems, watchItems, infraItems } = partitionSummary(summary);
@@ -229,6 +232,7 @@ export function createSlackBlocks(summary, dateDisplay, options) {
         test,
         statusText: section.statusText(test),
         runKind: section.runKind,
+        testSourcePrefix,
       });
 
       const error = section.error(test);

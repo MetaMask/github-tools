@@ -32,6 +32,7 @@ const env = {
   RESULTS_FILE_PATTERN: process.env.RESULTS_FILE_PATTERN || 'playwright-report',
   TOP_N: parsePositiveInt(process.env.TOP_N, 15),
   REPORT_TITLE: process.env.REPORT_TITLE || 'Playwright Test Health Report',
+  TEST_SOURCE_PREFIX: process.env.TEST_SOURCE_PREFIX?.trim() || '',
   SLACK_WEBHOOK: process.env.SLACK_WEBHOOK || '',
   GITHUB_TOKEN: githubToken,
 };
@@ -158,6 +159,7 @@ async function sendSlackReport(summary, dateDisplay, metadata) {
     testFailureRunCount: metadata.testFailureRunCount,
     otherFailedRunCount: metadata.otherFailedRunCount,
     lookbackDays: env.LOOKBACK_DAYS,
+    testSourcePrefix: env.TEST_SOURCE_PREFIX,
   });
   await sendSlackBatched(env.SLACK_WEBHOOK, blocks);
   console.log('✅ Report sent to Slack successfully');
