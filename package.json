@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@metamask/auto-changelog": "^5.3.2",
-    "@metamask/utils": "^7.1.0",
+    "@metamask/utils": "^11.11.0",
     "@octokit/graphql": "^7.0.1",
     "@octokit/request": "^8.1.1",
     "@octokit/rest": "^19.0.13",
