@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label`
+- Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
 
 ## [1.16.0]
 
