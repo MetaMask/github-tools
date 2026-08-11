@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0]
+
+### Uncategorized
+
+- fix: pass github-token to primary checkout in stable-sync action ([#276](https://github.com/MetaMask/github-tools/pull/276))
+- fix: normalize Slack blob links in Playwright test health report ([#274](https://github.com/MetaMask/github-tools/pull/274))
+- fix: prefer existing team labels over topology in add-team-label ([#272](https://github.com/MetaMask/github-tools/pull/272))
+- feat: removed schedule trigger from post-relay-subsidy-balance ([#271](https://github.com/MetaMask/github-tools/pull/271))
+
 ### Fixed
 
 - Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label`
@@ -234,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.17.0...HEAD
+[1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0
