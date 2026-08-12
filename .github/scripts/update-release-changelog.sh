@@ -145,13 +145,9 @@ checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 
-yarn auto-changelog update --rc \
+yarn update-changelog \
     --repo "${GITHUB_REPOSITORY_URL}" \
-    --currentVersion "${VERSION}" \
-    --autoCategorize \
-    --useChangelogEntry \
-    --useShortPrLink \
-    --requirePrNumbers
+    --currentVersion "${VERSION}"
 
 # commits.csv generation removed (no longer required)
 
