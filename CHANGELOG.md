@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.18.0]
 
-### Uncategorized
+### Changed
 
-- bump: auto-changelog to 6.2.0 ([#279](https://github.com/MetaMask/github-tools/pull/279))
+- Bumped auto-changelog to 6.2.0, and made the clients responsible for their own flags ([#279](https://github.com/MetaMask/github-tools/pull/279))
 
 ## [1.17.0]
 
