@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0]
+
+### Uncategorized
+
+- bump: auto-changelog to 6.2.0 ([#279](https://github.com/MetaMask/github-tools/pull/279))
+
 ## [1.17.0]
 
 ### Fixed
@@ -239,7 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.17.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
