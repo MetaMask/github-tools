@@ -3,16 +3,20 @@
 # Merge Previous Release Branches Script
 #
 # This script is triggered when a new release branch is created (e.g., release/2.1.2).
-# It finds all previous release branches and merges them into the new release branch.
+# It finds older *active* release branches (those with an open/draft release PR) and
+# merges them into the new release branch.
 #
 # Key behaviors:
-# - Merges ALL older release branches into the new one
+# - Only considers release branches with open release PRs targeting stable
+#   (closed RCs are already covered by the stable sync process)
+# - Merges those older active RCs into the new release branch
 # - For merge conflicts, favors the destination branch (new release)
 # - Both branches remain open after merge
 # - Fails fast on errors to prevent pushing partial merges
 #
 # Environment variables:
 # - NEW_RELEASE_BRANCH: The newly created release branch (e.g., release/2.1.2)
+# - GITHUB_TOKEN: Token used by `gh` to list open release PRs
 
 set -e
 
@@ -135,6 +139,25 @@ merge_with_favor_destination() {
   return 0  # Return 0 to indicate merged
 }
 
+
+# Find release branches that still have an open/draft release PR targeting stable.
+# Returns: newline-separated list of branch names (e.g., release/7.36.0)
+get_active_release_branches() {
+  local pr_heads
+  # Fail loudly on auth/API errors so we do not silently skip merges.
+  if ! pr_heads=$(gh pr list \
+    --state open \
+    --base stable \
+    --limit 500 \
+    --json headRefName \
+    --jq '.[] | select(.headRefName | test("^release/[0-9]+\\.[0-9]+\\.[0-9]+$")) | .headRefName'); then
+    echo "Error: failed to query open release PRs (check GitHub token permissions)" >&2
+    return 1
+  fi
+
+  echo "$pr_heads"
+}
+
 main() {
   if [[ -z "$NEW_RELEASE_BRANCH" ]]; then
     echo "Error: NEW_RELEASE_BRANCH environment variable is not set"
@@ -154,34 +177,39 @@ main() {
   read -r new_major new_minor new_patch <<< "$new_version"
   echo "Parsed version: ${new_major}.${new_minor}.${new_patch}"
 
-  # Fetch all remote branches
+  # Fetch remotes so merge-base / merge use up-to-date refs
   git_exec fetch origin
 
-  # Get all release branches
-  local all_release_branches=()
-  while IFS= read -r branch; do
-    # Remove "origin/" prefix and whitespace
-    branch="${branch#*origin/}"
-    branch="${branch// /}"
-    if [[ -n "$branch" ]] && [[ -n "$(parse_release_version "$branch")" ]]; then
-      all_release_branches+=("$branch")
-    fi
-  done < <(git branch -r --list "origin/release/*")
-
   echo ""
-  echo "Found ${#all_release_branches[@]} release branches:"
-  for b in "${all_release_branches[@]}"; do
+  echo "Finding older release branches with open release PRs targeting stable..."
+  local active_release_branches=()
+  local active_branches_raw
+  active_branches_raw=$(get_active_release_branches) || exit 1
+  while IFS= read -r branch; do
+    branch="${branch// /}"
+    if [[ -n "$branch" ]] && [[ "$branch" != "$NEW_RELEASE_BRANCH" ]]; then
+      active_release_branches+=("$branch")
+    fi
+  done <<< "$active_branches_raw"
+
+  echo "Found ${#active_release_branches[@]} active release branch(es) (open/draft PRs):"
+  for b in "${active_release_branches[@]}"; do
     echo "  - $b"
   done
 
-  # Filter to only branches older than the new one
+  # Keep only active branches older than the new release
   local older_branches=()
-  for branch in "${all_release_branches[@]}"; do
+  for branch in "${active_release_branches[@]}"; do
     local version
     version=$(parse_release_version "$branch")
     if [[ -n "$version" ]]; then
       read -r major minor patch <<< "$version"
       if is_version_older "$major" "$minor" "$patch" "$new_major" "$new_minor" "$new_patch"; then
+        # Skip if the branch no longer exists on the remote
+        if ! git ls-remote --heads origin "$branch" | grep -Fq "$branch"; then
+          echo "⚠️  Skipping ${branch} (open PR found, but branch does not exist on remote)"
+          continue
+        fi
         older_branches+=("$branch")
       fi
     fi
@@ -196,18 +224,18 @@ main() {
 
   if [[ ${#older_branches[@]} -eq 0 ]]; then
     echo ""
-    echo "No older release branches found. Nothing to merge."
+    echo "No older active release branches found. Nothing to merge."
     exit 0
   fi
 
   echo ""
-  echo "Older release branches found (oldest to newest):"
+  echo "Older active release branches to merge (oldest to newest):"
   for b in "${older_branches[@]}"; do
     echo "  - $b"
   done
 
   echo ""
-  echo "Will merge all ${#older_branches[@]} older branches."
+  echo "Will merge ${#older_branches[@]} older active branch(es)."
 
   # Verify we're on the right branch
   local current_branch

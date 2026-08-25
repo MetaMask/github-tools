@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([MCRM-80](https://consensyssoftware.atlassian.net/browse/MCRM-80))
+
 ## [1.18.0]
 
 ### Changed
