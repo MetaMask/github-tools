@@ -7,9 +7,7 @@
 # merges them into the new release branch.
 #
 # Key behaviors:
-# - Only considers release branches with open release PRs targeting stable
-#   (closed RCs are already covered by the stable sync process)
-# - Merges those older active RCs into the new release branch
+# - Merges older active RCs into the new release branch
 # - For merge conflicts, favors the destination branch (new release)
 # - Both branches remain open after merge
 # - Fails fast on errors to prevent pushing partial merges
@@ -187,7 +185,7 @@ main() {
   active_branches_raw=$(get_active_release_branches) || exit 1
   while IFS= read -r branch; do
     branch="${branch// /}"
-    if [[ -n "$branch" ]] && [[ "$branch" != "$NEW_RELEASE_BRANCH" ]]; then
+    if [[ -n "$branch" ]] && [[ -n "$(parse_release_version "$branch")" ]]; then
       active_release_branches+=("$branch")
     fi
   done <<< "$active_branches_raw"
@@ -205,11 +203,6 @@ main() {
     if [[ -n "$version" ]]; then
       read -r major minor patch <<< "$version"
       if is_version_older "$major" "$minor" "$patch" "$new_major" "$new_minor" "$new_patch"; then
-        # Skip if the branch no longer exists on the remote
-        if ! git ls-remote --heads origin "$branch" | grep -Fq "$branch"; then
-          echo "⚠️  Skipping ${branch} (open PR found, but branch does not exist on remote)"
-          continue
-        fi
         older_branches+=("$branch")
       fi
     fi
