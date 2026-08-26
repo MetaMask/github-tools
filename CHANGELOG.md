@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** `merge-previous-releases` now requires `GITHUB_TOKEN` to query open release PRs via GitHub API ([#282](https://github.com/MetaMask/github-tools/pull/282))
-
 ### Fixed
 
 - Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([#282](https://github.com/MetaMask/github-tools/pull/282))
