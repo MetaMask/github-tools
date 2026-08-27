@@ -84,7 +84,7 @@ merge_with_favor_destination() {
 
   # Reset all files to destination (new RC) version
   echo "Resetting all files to destination branch version..."
-  git checkout --ours -- . 2>/dev/null || true
+  git checkout HEAD -- . 2>/dev/null || true
 
   # Stage all changes
   git_exec add -- . ':!github-tools'
