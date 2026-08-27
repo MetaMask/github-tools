@@ -72,26 +72,9 @@ merge_with_favor_destination() {
     return 1  # Return 1 to indicate skipped
   fi
 
-  # Start merge without auto-commit
-  echo "Starting merge (no auto-commit)..."
-  git_exec merge "origin/${source_branch}" --no-commit --no-ff || true
-
-  # Verify we're in a merge state
-  if [[ ! -f .git/MERGE_HEAD ]]; then
-    echo "❌ Merge failed unexpectedly (no merge state). Aborting."
-    exit 1
-  fi
-
-  # Reset all files to destination (new RC) version
-  echo "Resetting all files to destination branch version..."
-  git checkout HEAD -- . 2>/dev/null || true
-
-  # Stage all changes
-  git_exec add -- . ':!github-tools'
-
-  # Commit the merge
-  if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify --allow-empty; then
-    echo "❌ Failed to commit merge of ${source_branch}"
+  # -s ours: creates merge commit but keeps destination content entirely
+  if ! git_exec merge -s ours "origin/${source_branch}" -m "Merge ${source_branch} into ${dest_branch}"; then
+    echo "❌ Failed to merge ${source_branch}"
     exit 1
   fi
 
