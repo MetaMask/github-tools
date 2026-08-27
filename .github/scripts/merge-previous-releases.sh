@@ -8,7 +8,8 @@
 #
 # Key behaviors:
 # - Merges older active RCs into the new release branch
-# - For merge conflicts, favors the destination branch (new release)
+# - Always resets to destination (new RC) content after merge, preventing
+#   git from creating duplicate content when both branches have the same changes
 # - Both branches remain open after merge
 # - Fails fast on errors to prevent pushing partial merges
 #
@@ -54,7 +55,8 @@ is_branch_merged() {
   git merge-base --is-ancestor "origin/${source_branch}" HEAD 2>/dev/null
 }
 
-# Merge a source branch (older release branch) into the current branch (new release branch), favoring current branch on conflicts
+# Merge a source branch (older release branch) into the current branch (new release branch),
+# always keeping destination content.
 merge_with_favor_destination() {
   local source_branch="$1"
   local dest_branch="$2"
@@ -70,73 +72,32 @@ merge_with_favor_destination() {
     return 1  # Return 1 to indicate skipped
   fi
 
-  # Try to merge with "ours" strategy for conflicts (favors current branch (new release))
-  if git_exec merge "origin/${source_branch}" -X ours --no-edit -m "Merge ${source_branch} into ${dest_branch}"; then
-    echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
-    return 0  # Return 0 to indicate merged
-  fi
+  # Start merge without auto-commit
+  echo "Starting merge (no auto-commit)..."
+  git_exec merge "origin/${source_branch}" --no-commit --no-ff || true
 
-  # If merge still fails (shouldn't happen with -X ours, but just in case)
-  # First verify we're actually in a merge state (MERGE_HEAD exists)
+  # Verify we're in a merge state
   if [[ ! -f .git/MERGE_HEAD ]]; then
     echo "❌ Merge failed unexpectedly (no merge state). Aborting."
     exit 1
   fi
 
-  echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
+  # Reset all files to destination (new RC) version
+  echo "Resetting all files to destination branch version..."
+  git checkout --ours -- . 2>/dev/null || true
 
-  # Resolve any unmerged (conflicted) files by keeping destination version.
-  #
-  # Git merge terminology in this context:
-  #   - "ours"   = destination branch (new release, e.g., release/2.1.2) - the branch we're ON
-  #   - "theirs" = source branch (older release, e.g., release/2.1.1) - the branch being merged IN
-  #
-  # We favor "ours" (destination) because the new release branch should take precedence.
-  local conflict_files
-  local conflict_count=0
-  conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
-  if [[ -n "$conflict_files" ]]; then
-    while IFS= read -r file; do
-      if [[ -n "$file" ]]; then
-        echo "  - Conflict in: ${file} → keeping destination version"
-        # Try to checkout destination version ("ours")
-        # If checkout fails, the file was deleted in destination - keep that deletion
-        if git checkout --ours "$file" 2>/dev/null; then
-          git add "$file"
-        else
-          # Modify/delete conflict scenario:
-          #   - Destination branch (new release) ALREADY deleted this file intentionally
-          #   - Source branch (older release) modified this file
-          #   - Git doesn't know which action to keep
-          #
-          # We use "git rm" to confirm the deletion should stand (destination wins).
-          # This does NOT delete a file that exists - it tells Git "keep the file deleted".
-          # The --force flag is required because the file is in a conflicted/unmerged state.
-          echo "    (file was deleted in destination, keeping deletion)"
-          git rm --force "$file" 2>/dev/null || true
-        fi
-        ((conflict_count++)) || true
-      fi
-    done <<< "$conflict_files"
-    echo "✅ Resolved ${conflict_count} conflict(s) by keeping destination branch version"
-  fi
-
-  # Now add any remaining files (non-conflicted changes), excluding github-tools directory
+  # Stage all changes
   git_exec add -- . ':!github-tools'
 
-  # Complete the merge - always commit when in merge state, even if no content changes
-  # Check if we're in a merge state (MERGE_HEAD exists)
-  if [[ -f .git/MERGE_HEAD ]]; then
-    if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify --allow-empty; then
-      echo "Failed to commit merge of ${source_branch}"
-      exit 1
-    fi
+  # Commit the merge
+  if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify --allow-empty; then
+    echo "❌ Failed to commit merge of ${source_branch}"
+    exit 1
   fi
 
-  echo "✅ Successfully merged ${source_branch} into ${dest_branch} (${conflict_count} conflict(s) resolved)"
+  echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
   return 0  # Return 0 to indicate merged
 }
-
 
 # Find release branches that still have an open/draft release PR targeting stable.
 # Returns: newline-separated list of branch names (e.g., release/7.36.0)
