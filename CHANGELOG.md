@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1]
+
+### Uncategorized
+
+- fix(publish-preview): include `.yarn/patches` in preview build artifacts ([#284](https://github.com/MetaMask/github-tools/pull/284))
+
 ### Fixed
 
 - Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([#282](https://github.com/MetaMask/github-tools/pull/282))
@@ -249,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.1...HEAD
+[1.18.1]: https://github.com/MetaMask/github-tools/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
