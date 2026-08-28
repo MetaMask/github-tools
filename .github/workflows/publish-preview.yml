@@ -184,7 +184,7 @@ jobs:
           include-hidden-files: true
           retention-days: ${{ inputs.artifact-retention-days }}
           path: |
-            ./.yarn/patches/*/
+            ./.yarn/patches/*
             ./yarn.lock
             ./package.json
             ./packages/*/
