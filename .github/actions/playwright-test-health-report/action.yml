@@ -54,6 +54,13 @@ inputs:
     description: Slack header title override
     required: false
     default: Playwright Test Health Report
+  test-source-prefix:
+    description: >-
+      Optional path prefix prepended to Playwright testDir-relative paths when
+      building GitHub blob links (e.g. tests/smoke-appium). Absolute CI paths
+      are stripped to repo-relative regardless of this value.
+    required: false
+    default: ''
   github-tools-repository:
     required: false
     default: ${{ github.action_repository }}
@@ -89,6 +96,7 @@ runs:
         RESULTS_FILE_PATTERN: ${{ inputs.results-file-pattern }}
         TOP_N: ${{ inputs.top-n }}
         REPORT_TITLE: ${{ inputs.report-title }}
+        TEST_SOURCE_PREFIX: ${{ inputs.test-source-prefix }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
       run: node .github/actions/playwright-test-health-report/create-playwright-test-health-report.mjs

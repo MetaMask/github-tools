@@ -9,8 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label`
 - Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
+- Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([#282](https://github.com/MetaMask/github-tools/pull/282))
+
+## [1.18.0]
+
+### Changed
+
+- Bump `@metamask/auto-changelog` to `^6.2.0` ([#279](https://github.com/MetaMask/github-tools/pull/279), [#281](https://github.com/MetaMask/github-tools/pull/281))
+
+## [1.17.0]
+
+### Fixed
+
+- Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label` ([#272](https://github.com/MetaMask/github-tools/pull/272))
+- pass github-token to primary checkout in stable-sync action ([#276](https://github.com/MetaMask/github-tools/pull/276))
+- normalize Slack blob links in Playwright test health report ([#274](https://github.com/MetaMask/github-tools/pull/274))
+- removed schedule trigger from post-relay-subsidy-balance ([#271](https://github.com/MetaMask/github-tools/pull/271))
 
 ## [1.16.0]
 
@@ -235,7 +250,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
+[1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0

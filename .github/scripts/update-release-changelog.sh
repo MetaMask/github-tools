@@ -145,13 +145,22 @@ checkout_or_create_branch "${CHANGELOG_BRANCH}" "${RELEASE_BRANCH}"
 
 echo "Generating changelog for ${PLATFORM} ${VERSION}.."
 
-yarn auto-changelog update --rc \
+# Use the calling repository's changelog policy when it defines the script.
+# Preserve the legacy invocation for consumers that have not adopted it yet.
+if yarn run --silent update-changelog --help >/dev/null 2>&1; then
+  yarn update-changelog \
+    --repo "${GITHUB_REPOSITORY_URL}" \
+    --currentVersion "${VERSION}"
+else
+  echo "No update-changelog script found; using legacy auto-changelog invocation." >&2
+  yarn auto-changelog update --rc \
     --repo "${GITHUB_REPOSITORY_URL}" \
     --currentVersion "${VERSION}" \
     --autoCategorize \
     --useChangelogEntry \
     --useShortPrLink \
     --requirePrNumbers
+fi
 
 # commits.csv generation removed (no longer required)
 
