@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
+
 ## [1.18.1]
 
 ### Fixed
