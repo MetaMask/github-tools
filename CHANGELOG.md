@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `authorize-commenter` action, which checks whether the author of a comment has write access to the repository, so that `issue_comment` triggered workflows can refuse to run privileged steps for someone who only has read access ([#286](https://github.com/MetaMask/github-tools/pull/286))
+- Add `authorize-commenter` action, which fails unless the author of a comment has write access to the repository, so that `issue_comment` triggered workflows can refuse to run privileged jobs for someone who only has read access ([#286](https://github.com/MetaMask/github-tools/pull/286))
 
 ### Fixed
 

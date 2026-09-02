@@ -1,0 +1,36 @@
+name: Test "Authorize Commenter" Action
+
+# Temporary. This exists to confirm that the default GITHUB_TOKEN can read
+# collaborator permissions. Remove it, or wire it into main.yml as a permanent
+# test, once that question is settled.
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: A login with write access is authorized
+        uses: ./.github/actions/authorize-commenter
+        with:
+          username: ${{ github.actor }}
+
+      - name: A login without write access is refused
+        id: refused
+        continue-on-error: true
+        uses: ./.github/actions/authorize-commenter
+        with:
+          username: octocat
+
+      - name: Fail if the refusal did not happen
+        if: steps.refused.outcome != 'failure'
+        run: |
+          echo "Expected octocat to be refused, but the action succeeded."
+          exit 1

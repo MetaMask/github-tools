@@ -1,15 +1,22 @@
 name: Authorize commenter
 description: >-
-  Check whether the author of a comment has write access to the repository.
+  Check that the author of a comment has write access to the repository, and
+  fail if they do not.
 
   Workflows triggered by `issue_comment` run from the default branch with
   access to secrets, so gating them on the comment body alone lets anyone who
-  can comment start them. Use this action as the first job of such a workflow
-  and make the privileged jobs depend on it.
+  can comment start them. Run this action as the first job of such a workflow
+  and give every privileged job `needs` on that job. A failed dependency skips
+  the jobs that need it, so there is no condition to forget.
 
-  The check fails closed, so if the permission cannot be read then nobody is
-  authorized. The token must be able to read collaborator permissions, which
-  the default `GITHUB_TOKEN` may not be.
+  This authorizes the person who wrote the comment, not the code they wrote it
+  on. A workflow that passes this gate and then checks out the pull request
+  head or merge ref runs untrusted code with the privileges the gate was
+  protecting.
+
+  The token must be able to read collaborator permissions, which the default
+  `GITHUB_TOKEN` may not be. If it cannot, this action fails, so an
+  underpowered token denies everyone rather than quietly authorizing them.
 
 inputs:
   username:
@@ -24,16 +31,10 @@ inputs:
     required: true
     default: ${{ github.token }}
 
-outputs:
-  authorized:
-    value: ${{ steps.authorize.outputs.authorized || 'false' }}
-    description: Whether the user has write access to the repository.
-
 runs:
   using: composite
   steps:
     - name: Check the commenter's repository permission
-      id: authorize
       uses: actions/github-script@v9
       env:
         USERNAME: ${{ inputs.username }}
@@ -46,15 +47,19 @@ runs:
             return core.setFailed('No username to authorize. Pass `username`, or run this action on an event that has a comment author.');
           }
 
-          // `permission` collapses custom roles onto admin/write/read/none, so
-          // write and admin are exactly the people who can push to the repo.
-          // On a public repository everyone else reads back as `read`, so
-          // there is no "not a collaborator" error case to handle.
+          // `permission` collapses custom roles onto admin, write, read and
+          // none, so admin and write are exactly the logins that can push.
+          // Everyone else reads back as `read` on a public repository and
+          // `none` on a private one. A login that no longer resolves, such as
+          // `ghost`, raises instead, which fails this step rather than
+          // authorizing.
           const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
             ...context.repo,
             username: USERNAME,
           });
 
-          const authorized = ['admin', 'write'].includes(data.permission);
-          core.info(`${USERNAME} has ${data.permission} permission, ${authorized ? 'authorized' : 'not authorized'}.`);
-          core.setOutput('authorized', String(authorized));
+          if (!['admin', 'write'].includes(data.permission)) {
+            return core.setFailed(`@${USERNAME} has ${data.permission} permission on this repository, which is not enough to run this command.`);
+          }
+
+          core.info(`@${USERNAME} has ${data.permission} permission.`);
