@@ -1,8 +1,7 @@
 name: Test "Authorize Commenter" Action
 
-# Temporary. This exists to confirm that the default GITHUB_TOKEN can read
-# collaborator permissions. Remove it, or wire it into main.yml as a permanent
-# test, once that question is settled.
+# Unlike the other test-*.yml workflows, this one triggers directly rather than
+# through workflow_call, so that it actually runs on every pull request.
 
 on: pull_request
 
@@ -17,7 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Skipped on forks, where the author has read access and would be refused.
       - name: A login with write access is authorized
+        if: github.event.pull_request.head.repo.fork == false
         uses: ./.github/actions/authorize-commenter
         with:
           username: ${{ github.actor }}

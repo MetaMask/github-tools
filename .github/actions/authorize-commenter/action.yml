@@ -14,8 +14,8 @@ description: >-
   head or merge ref runs untrusted code with the privileges the gate was
   protecting.
 
-  The token must be able to read collaborator permissions, which the default
-  `GITHUB_TOKEN` may not be. If it cannot, this action fails, so an
+  The default `GITHUB_TOKEN` can read collaborator permissions with no more
+  than `contents: read`. If a token ever cannot, this action fails, so an
   underpowered token denies everyone rather than quietly authorizing them.
 
 inputs:
