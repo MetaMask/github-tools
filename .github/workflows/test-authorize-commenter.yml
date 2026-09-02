@@ -1,0 +1,37 @@
+name: Test "Authorize Commenter" Action
+
+# Unlike the other test-*.yml workflows, this one triggers directly rather than
+# through workflow_call, so that it actually runs on every pull request.
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Skipped on forks, where the author has read access and would be refused.
+      - name: A login with write access is authorized
+        if: github.event.pull_request.head.repo.fork == false
+        uses: ./.github/actions/authorize-commenter
+        with:
+          username: ${{ github.actor }}
+
+      - name: A login without write access is refused
+        id: refused
+        continue-on-error: true
+        uses: ./.github/actions/authorize-commenter
+        with:
+          username: octocat
+
+      - name: Fail if the refusal did not happen
+        if: steps.refused.outcome != 'failure'
+        run: |
+          echo "Expected octocat to be refused, but the action succeeded."
+          exit 1

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `authorize-commenter` action, which fails unless the author of a comment has write access to the repository, so that `issue_comment` triggered workflows can refuse to run privileged jobs for someone who only has read access ([#286](https://github.com/MetaMask/github-tools/pull/286))
+
 ### Fixed
 
 - Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
