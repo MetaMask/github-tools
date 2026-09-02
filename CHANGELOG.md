@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
+- Fix `merge-previous-releases` creating duplicate content when git auto-merges identical changes from both branches ([#283](https://github.com/MetaMask/github-tools/pull/283))
 
 ## [1.18.1]
 
@@ -17,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Include `.yarn/patches` in `publish-preview` build artifacts ([#284](https://github.com/MetaMask/github-tools/pull/284))
 - Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([#282](https://github.com/MetaMask/github-tools/pull/282))
-- Fix `merge-previous-releases` creating duplicate content when git auto-merges identical changes from both branches ([#283](https://github.com/MetaMask/github-tools/pull/283))
 
 ## [1.18.0]
 
