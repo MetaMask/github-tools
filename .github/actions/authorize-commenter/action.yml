@@ -1,0 +1,60 @@
+name: Authorize commenter
+description: >-
+  Check whether the author of a comment has write access to the repository.
+
+  Workflows triggered by `issue_comment` run from the default branch with
+  access to secrets, so gating them on the comment body alone lets anyone who
+  can comment start them. Use this action as the first job of such a workflow
+  and make the privileged jobs depend on it.
+
+  The check fails closed, so if the permission cannot be read then nobody is
+  authorized. The token must be able to read collaborator permissions, which
+  the default `GITHUB_TOKEN` may not be.
+
+inputs:
+  username:
+    description: The login to authorize. Defaults to the author of the comment
+      that triggered the workflow.
+    required: true
+    default: ${{ github.event.comment.user.login }}
+
+  github-token:
+    description: The GitHub token to use for authentication. Defaults to the
+      standard GITHUB_TOKEN.
+    required: true
+    default: ${{ github.token }}
+
+outputs:
+  authorized:
+    value: ${{ steps.authorize.outputs.authorized || 'false' }}
+    description: Whether the user has write access to the repository.
+
+runs:
+  using: composite
+  steps:
+    - name: Check the commenter's repository permission
+      id: authorize
+      uses: actions/github-script@v9
+      env:
+        USERNAME: ${{ inputs.username }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { USERNAME } = process.env;
+
+          if (!USERNAME) {
+            return core.setFailed('No username to authorize. Pass `username`, or run this action on an event that has a comment author.');
+          }
+
+          // `permission` collapses custom roles onto admin/write/read/none, so
+          // write and admin are exactly the people who can push to the repo.
+          // On a public repository everyone else reads back as `read`, so
+          // there is no "not a collaborator" error case to handle.
+          const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+            ...context.repo,
+            username: USERNAME,
+          });
+
+          const authorized = ['admin', 'write'].includes(data.permission);
+          core.info(`${USERNAME} has ${data.permission} permission, ${authorized ? 'authorized' : 'not authorized'}.`);
+          core.setOutput('authorized', String(authorized));
