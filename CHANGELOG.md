@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.2]
+
+### Uncategorized
+
+- Move #283 under Unreleased ([#287](https://github.com/MetaMask/github-tools/pull/287))
+
 ### Fixed
 
 - Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
@@ -257,7 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.2...HEAD
+[1.18.2]: https://github.com/MetaMask/github-tools/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/MetaMask/github-tools/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
