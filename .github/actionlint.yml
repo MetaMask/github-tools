@@ -1,5 +1,0 @@
-paths:
-  .github/workflows/test-checkout-and-setup.yml:
-    ignore:
-      # We need to ignore the expected missing inputs in test-checkout-and-setup.yml
-      - 'missing input "is-high-risk-environment".+'

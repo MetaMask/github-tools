@@ -1,0 +1,88 @@
+name: Get Token
+description: 'Get a short-lived access token to interact with the GitHub API. Note: Using this action requires the "id-token: write" permission to be set for the GitHub Actions workflow job.'
+
+inputs:
+  token-exchange-url:
+    description: 'The URL to exchange the OIDC token for an access token.'
+    required: true
+  permissions:
+    description: 'The permissions to request for the access token, in the format of "scope: permission", separated by newlines.'
+    required: true
+  target-repository:
+    description: 'The repository to target for the access token. Defaults to the current repository.'
+    required: false
+    default: '${{ github.repository }}'
+
+outputs:
+  token:
+    value: '${{ steps.access-token.outputs.token }}'
+    description: 'The short-lived access token obtained from the token exchange service.'
+
+runs:
+  using: composite
+  steps:
+    - name: Get OIDC token
+      id: oidc-token
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const token = await core.getIDToken('api://token-exchange-service');
+          core.setSecret(token);
+          core.setOutput('token', token);
+
+    - name: Exchange OIDC token
+      id: access-token
+      uses: actions/github-script@v9
+      env:
+        OIDC_TOKEN: ${{ steps.oidc-token.outputs.token }}
+        TOKEN_EXCHANGE_URL: ${{ inputs.token-exchange-url }}
+        REQUESTED_PERMISSIONS: ${{ inputs.permissions }}
+        TARGET_REPOSITORY: ${{ inputs.target-repository }}
+      with:
+        script: |
+          const {
+            OIDC_TOKEN,
+            TOKEN_EXCHANGE_URL,
+            REQUESTED_PERMISSIONS,
+            TARGET_REPOSITORY,
+          } = process.env;
+
+          // This assumes `REQUESTED_PERMISSIONS` is a newline-separated string
+          // of "scope: permission" pairs, e.g.:
+          // ```
+          // contents: read
+          // issues: write
+          // ```
+          const requestedPermissions = Object.fromEntries(
+            REQUESTED_PERMISSIONS
+              .split('\n')
+              .filter(line => line.trim() !== '')
+              .map(line => line.split(':').map(part => part.trim()))
+          );
+
+          const response = await fetch(`${TOKEN_EXCHANGE_URL}/api/exchange/token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              oidcToken: OIDC_TOKEN,
+              targetRepo: TARGET_REPOSITORY,
+              requested_permissions: requestedPermissions,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            return core.setFailed(`Token exchange failed: ${response.status} ${response.statusText} - ${errorText}`);
+          }
+
+          const { token, permissions, expires_at, } = await response.json();
+          if (!token) {
+            return core.setFailed('Token exchange response did not contain an access token.');
+          }
+
+          core.setSecret(token);
+          core.setOutput('token', token);
+
+          core.info(`Access token obtained successfully. Token expires at: "${expires_at}".`);

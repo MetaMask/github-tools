@@ -7,6 +7,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.2]
+
+### Fixed
+
+- Count changed lines in `pr-line-check` from the pull request files API, so the count always reflects the pull request's current base branch ([#273](https://github.com/MetaMask/github-tools/pull/273))
+- Fix `merge-previous-releases` creating duplicate content when git auto-merges identical changes from both branches ([#283](https://github.com/MetaMask/github-tools/pull/283))
+
+## [1.18.1]
+
+### Fixed
+
+- Include `.yarn/patches` in `publish-preview` build artifacts ([#284](https://github.com/MetaMask/github-tools/pull/284))
+- Restrict `merge-previous-releases` to older branches that still have an open/draft release PR targeting `stable`, instead of every older `release/*` branch ([#282](https://github.com/MetaMask/github-tools/pull/282))
+
+## [1.18.0]
+
+### Changed
+
+- Bump `@metamask/auto-changelog` to `^6.2.0` ([#279](https://github.com/MetaMask/github-tools/pull/279), [#281](https://github.com/MetaMask/github-tools/pull/281))
+
+## [1.17.0]
+
+### Fixed
+
+- Prefer manually added team labels (or `external-contributor`) over topology lookup in `add-team-label` ([#272](https://github.com/MetaMask/github-tools/pull/272))
+- pass github-token to primary checkout in stable-sync action ([#276](https://github.com/MetaMask/github-tools/pull/276))
+- normalize Slack blob links in Playwright test health report ([#274](https://github.com/MetaMask/github-tools/pull/274))
+- removed schedule trigger from post-relay-subsidy-balance ([#271](https://github.com/MetaMask/github-tools/pull/271))
+
+## [1.16.0]
+
+### Changed
+
+- chore: Remove `bitrise.yml` dependency and source mobile version from build.gradle/pbxproj instead ([#269](https://github.com/MetaMask/github-tools/pull/269))
+
+## [1.15.0]
+
+### Added
+
+- Add `update-major-version-tag` reusable composite action ([#267](https://github.com/MetaMask/github-tools/pull/267))
+  - This action can be used to update the major version tag (e.g., `v1`) for repositories containing GitHub Actions.
+
+## [1.14.0]
+
+### Added
+
+- Support OTA branches in `release-branch-sync` action ([#263](https://github.com/MetaMask/github-tools/pull/263))
+- Add `playwright-test-health-report` action for creating reports for Playwright tests, and posting to Slack ([#262](https://github.com/MetaMask/github-tools/pull/262))
+
+### Fixed
+
+- Allow `release-branch-sync` action to reuse branch ([#264](https://github.com/MetaMask/github-tools/pull/264))
+
+## [1.13.0]
+
+### Added
+
+- Add `rename-after-install-and-build` input to the `publish-preview` reusable workflow ([#254](https://github.com/MetaMask/github-tools/pull/254))
+  - When set to `true`, the workflow installs dependencies and runs the build _before_ renaming workspace manifests to the preview NPM scope. This ensures snap artifacts (e.g. `dist/bundle.js`, `snap.manifest.json` and its `source.shasum`) are produced with the original `@metamask/...` package name.
+  - Defaults to `false` to preserve existing behavior for non-snap consumers.
+- Add `BUILD_ENV` secret input to the `publish-preview` reusable workflow
+  - Accepts a JSON object of environment variables that will be passed to the build step (e.g. `'{"API_URL":"https://...","LOG_LEVEL":"all"}'`). Useful when the build command needs additional configuration or secret values to produce a valid preview build.
+
+## [1.12.0]
+
+### Changed
+
+- Bump `actionlint` from `1.7.7` to `1.7.12` in the `lint-workflows` workflow ([#259](https://github.com/MetaMask/github-tools/pull/259))
+
+## [1.11.0]
+
+### Added
+
+- Add optional `planning-token` to `add-team-label` action ([#257](https://github.com/MetaMask/github-tools/pull/257))
+
+## [1.10.0]
+
+### Added
+
+- Add `get-token` action to get short-lived access token using OIDC ([#255](https://github.com/MetaMask/github-tools/pull/255))
+
+## [1.9.4]
+
+### Fixed
+
+- fix: drop deleted bitrise.yml from stable-sync preserve list ([#251](https://github.com/MetaMask/github-tools/pull/251))
+- ci: fix the announce-release Slack post ([#250](https://github.com/MetaMask/github-tools/pull/250))
+
+## [1.9.3]
+
+### Fixed
+
+- fix: fix `release-branch-sync` failure when there are too many open PRs more recent than the release PR ([#247](https://github.com/MetaMask/github-tools/pull/247))
+
+## [1.9.2]
+
+### Changed
+
+- chore: bump Yarn to 4.14.1 ([#244](https://github.com/MetaMask/github-tools/pull/244))
+
+## [1.9.1]
+
+### Changed
+
+- chore: use single header row for post merge spreadsheet ([#242](https://github.com/MetaMask/github-tools/pull/242))
+
+## [1.9.0]
+
+### Changed
+
+- ci: update all actions to their newest versions to solve "Node.js 20 actions are deprecated" (#234)
+- test: multi label + update title (#233)
+- test: MMQA-1609 - feature flag registry slack notification and create PR (#229)
+- Auto-skip release validation columns from PR labels on main release tabs (#231)
+
 ## [1.8.0]
 
 ### Added
@@ -144,7 +259,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.2...HEAD
+[1.18.2]: https://github.com/MetaMask/github-tools/compare/v1.18.1...v1.18.2
+[1.18.1]: https://github.com/MetaMask/github-tools/compare/v1.18.0...v1.18.1
+[1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
+[1.17.0]: https://github.com/MetaMask/github-tools/compare/v1.16.0...v1.17.0
+[1.16.0]: https://github.com/MetaMask/github-tools/compare/v1.15.0...v1.16.0
+[1.15.0]: https://github.com/MetaMask/github-tools/compare/v1.14.0...v1.15.0
+[1.14.0]: https://github.com/MetaMask/github-tools/compare/v1.13.0...v1.14.0
+[1.13.0]: https://github.com/MetaMask/github-tools/compare/v1.12.0...v1.13.0
+[1.12.0]: https://github.com/MetaMask/github-tools/compare/v1.11.0...v1.12.0
+[1.11.0]: https://github.com/MetaMask/github-tools/compare/v1.10.0...v1.11.0
+[1.10.0]: https://github.com/MetaMask/github-tools/compare/v1.9.4...v1.10.0
+[1.9.4]: https://github.com/MetaMask/github-tools/compare/v1.9.3...v1.9.4
+[1.9.3]: https://github.com/MetaMask/github-tools/compare/v1.9.2...v1.9.3
+[1.9.2]: https://github.com/MetaMask/github-tools/compare/v1.9.1...v1.9.2
+[1.9.1]: https://github.com/MetaMask/github-tools/compare/v1.9.0...v1.9.1
+[1.9.0]: https://github.com/MetaMask/github-tools/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MetaMask/github-tools/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/MetaMask/github-tools/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/MetaMask/github-tools/compare/v1.6.0...v1.7.0

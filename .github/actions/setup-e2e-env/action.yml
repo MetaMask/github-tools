@@ -212,7 +212,7 @@ runs:
         command: ${{ steps.get-corepack-command.outputs.COREPACK_COMMAND }}
 
     - name: Restore Yarn cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           node_modules
@@ -268,7 +268,7 @@ runs:
     # Restore cached Ruby gems
     - name: Restore Bundler cache
       if: ${{ inputs.platform == 'ios' }}
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ios/vendor/bundle
         key: ${{ inputs.cache-prefix }}-bundler-${{ inputs.platform }}-${{ runner.os }}-${{ hashFiles('ios/Gemfile.lock') }}
@@ -330,7 +330,7 @@ runs:
     - name: Restore CocoaPods specs cache
       if: ${{ inputs.platform == 'ios' }}
       id: cocoapods-specs-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.cocoapods/repos
         key: ${{ runner.os }}-cocoapods-specs-${{ hashFiles('ios/Podfile.lock') }}

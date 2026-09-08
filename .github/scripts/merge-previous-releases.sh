@@ -3,16 +3,19 @@
 # Merge Previous Release Branches Script
 #
 # This script is triggered when a new release branch is created (e.g., release/2.1.2).
-# It finds all previous release branches and merges them into the new release branch.
+# It finds older *active* release branches (those with an open/draft release PR) and
+# merges them into the new release branch.
 #
 # Key behaviors:
-# - Merges ALL older release branches into the new one
-# - For merge conflicts, favors the destination branch (new release)
+# - Merges older active RCs into the new release branch
+# - Always resets to destination (new RC) content after merge, preventing
+#   git from creating duplicate content when both branches have the same changes
 # - Both branches remain open after merge
 # - Fails fast on errors to prevent pushing partial merges
 #
 # Environment variables:
 # - NEW_RELEASE_BRANCH: The newly created release branch (e.g., release/2.1.2)
+# - GITHUB_TOKEN: Token used by `gh` to list open release PRs
 
 set -e
 
@@ -52,7 +55,8 @@ is_branch_merged() {
   git merge-base --is-ancestor "origin/${source_branch}" HEAD 2>/dev/null
 }
 
-# Merge a source branch (older release branch) into the current branch (new release branch), favoring current branch on conflicts
+# Merge a source branch (older release branch) into the current branch (new release branch),
+# always keeping destination content.
 merge_with_favor_destination() {
   local source_branch="$1"
   local dest_branch="$2"
@@ -68,71 +72,32 @@ merge_with_favor_destination() {
     return 1  # Return 1 to indicate skipped
   fi
 
-  # Try to merge with "ours" strategy for conflicts (favors current branch (new release))
-  if git_exec merge "origin/${source_branch}" -X ours --no-edit -m "Merge ${source_branch} into ${dest_branch}"; then
-    echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
-    return 0  # Return 0 to indicate merged
-  fi
-
-  # If merge still fails (shouldn't happen with -X ours, but just in case)
-  # First verify we're actually in a merge state (MERGE_HEAD exists)
-  if [[ ! -f .git/MERGE_HEAD ]]; then
-    echo "❌ Merge failed unexpectedly (no merge state). Aborting."
+  # -s ours: creates merge commit but keeps destination content entirely
+  if ! git_exec merge -s ours "origin/${source_branch}" -m "Merge ${source_branch} into ${dest_branch}"; then
+    echo "❌ Failed to merge ${source_branch}"
     exit 1
   fi
 
-  echo "⚠️  Merge conflict detected! Resolving by favoring destination branch (new release)..."
-
-  # Resolve any unmerged (conflicted) files by keeping destination version.
-  #
-  # Git merge terminology in this context:
-  #   - "ours"   = destination branch (new release, e.g., release/2.1.2) - the branch we're ON
-  #   - "theirs" = source branch (older release, e.g., release/2.1.1) - the branch being merged IN
-  #
-  # We favor "ours" (destination) because the new release branch should take precedence.
-  local conflict_files
-  local conflict_count=0
-  conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
-  if [[ -n "$conflict_files" ]]; then
-    while IFS= read -r file; do
-      if [[ -n "$file" ]]; then
-        echo "  - Conflict in: ${file} → keeping destination version"
-        # Try to checkout destination version ("ours")
-        # If checkout fails, the file was deleted in destination - keep that deletion
-        if git checkout --ours "$file" 2>/dev/null; then
-          git add "$file"
-        else
-          # Modify/delete conflict scenario:
-          #   - Destination branch (new release) ALREADY deleted this file intentionally
-          #   - Source branch (older release) modified this file
-          #   - Git doesn't know which action to keep
-          #
-          # We use "git rm" to confirm the deletion should stand (destination wins).
-          # This does NOT delete a file that exists - it tells Git "keep the file deleted".
-          # The --force flag is required because the file is in a conflicted/unmerged state.
-          echo "    (file was deleted in destination, keeping deletion)"
-          git rm --force "$file" 2>/dev/null || true
-        fi
-        ((conflict_count++)) || true
-      fi
-    done <<< "$conflict_files"
-    echo "✅ Resolved ${conflict_count} conflict(s) by keeping destination branch version"
-  fi
-
-  # Now add any remaining files (non-conflicted changes), excluding github-tools directory
-  git_exec add -- . ':!github-tools'
-
-  # Complete the merge - always commit when in merge state, even if no content changes
-  # Check if we're in a merge state (MERGE_HEAD exists)
-  if [[ -f .git/MERGE_HEAD ]]; then
-    if ! git_exec commit -m "Merge ${source_branch} into ${dest_branch}" --no-verify --allow-empty; then
-      echo "Failed to commit merge of ${source_branch}"
-      exit 1
-    fi
-  fi
-
-  echo "✅ Successfully merged ${source_branch} into ${dest_branch} (${conflict_count} conflict(s) resolved)"
+  echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
   return 0  # Return 0 to indicate merged
+}
+
+# Find release branches that still have an open/draft release PR targeting stable.
+# Returns: newline-separated list of branch names (e.g., release/7.36.0)
+get_active_release_branches() {
+  local pr_heads
+  # Fail loudly on auth/API errors so we do not silently skip merges.
+  if ! pr_heads=$(gh pr list \
+    --state open \
+    --base stable \
+    --limit 500 \
+    --json headRefName \
+    --jq '.[] | select(.headRefName | test("^release/[0-9]+\\.[0-9]+\\.[0-9]+$")) | .headRefName'); then
+    echo "Error: failed to query open release PRs (check GitHub token permissions)" >&2
+    return 1
+  fi
+
+  echo "$pr_heads"
 }
 
 main() {
@@ -154,29 +119,29 @@ main() {
   read -r new_major new_minor new_patch <<< "$new_version"
   echo "Parsed version: ${new_major}.${new_minor}.${new_patch}"
 
-  # Fetch all remote branches
+  # Fetch remotes so merge-base / merge use up-to-date refs
   git_exec fetch origin
 
-  # Get all release branches
-  local all_release_branches=()
+  echo ""
+  echo "Finding older release branches with open release PRs targeting stable..."
+  local active_release_branches=()
+  local active_branches_raw
+  active_branches_raw=$(get_active_release_branches) || exit 1
   while IFS= read -r branch; do
-    # Remove "origin/" prefix and whitespace
-    branch="${branch#*origin/}"
     branch="${branch// /}"
     if [[ -n "$branch" ]] && [[ -n "$(parse_release_version "$branch")" ]]; then
-      all_release_branches+=("$branch")
+      active_release_branches+=("$branch")
     fi
-  done < <(git branch -r --list "origin/release/*")
+  done <<< "$active_branches_raw"
 
-  echo ""
-  echo "Found ${#all_release_branches[@]} release branches:"
-  for b in "${all_release_branches[@]}"; do
+  echo "Found ${#active_release_branches[@]} active release branch(es) (open/draft PRs):"
+  for b in "${active_release_branches[@]}"; do
     echo "  - $b"
   done
 
-  # Filter to only branches older than the new one
+  # Keep only active branches older than the new release
   local older_branches=()
-  for branch in "${all_release_branches[@]}"; do
+  for branch in "${active_release_branches[@]}"; do
     local version
     version=$(parse_release_version "$branch")
     if [[ -n "$version" ]]; then
@@ -196,18 +161,18 @@ main() {
 
   if [[ ${#older_branches[@]} -eq 0 ]]; then
     echo ""
-    echo "No older release branches found. Nothing to merge."
+    echo "No older active release branches found. Nothing to merge."
     exit 0
   fi
 
   echo ""
-  echo "Older release branches found (oldest to newest):"
+  echo "Older active release branches to merge (oldest to newest):"
   for b in "${older_branches[@]}"; do
     echo "  - $b"
   done
 
   echo ""
-  echo "Will merge all ${#older_branches[@]} older branches."
+  echo "Will merge ${#older_branches[@]} older active branch(es)."
 
   # Verify we're on the right branch
   local current_branch

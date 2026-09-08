@@ -21,8 +21,8 @@
 
 set -e
 
-# Regex pattern for valid release branch names (release/X.Y.Z)
-RELEASE_BRANCH_PATTERN='^release/[0-9]+\.[0-9]+\.[0-9]+$'
+# Regex pattern for valid release branch names (release/X.Y.Z or release/X.Y.Z-ota)
+RELEASE_BRANCH_PATTERN='^release/[0-9]+\.[0-9]+\.[0-9]+(-ota)?$'
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -71,10 +71,10 @@ pr_exists() {
   [[ "$existing_pr" -gt 0 ]]
 }
 
-# Parse version from release branch name (release/X.Y.Z -> X.Y.Z)
+# Parse version from release branch name (release/X.Y.Z or release/X.Y.Z-ota -> X.Y.Z)
 parse_version() {
   local branch=$1
-  echo "$branch" | sed 's|release/||'
+  echo "$branch" | sed 's|release/||' | sed 's|-ota$||'
 }
 
 # Compare two semantic versions
@@ -107,12 +107,15 @@ get_active_release_branches() {
   local branches=""
   
   # Query open and draft PRs with title starting with "release:" (case-insensitive)
-  # The jq filter extracts version from PR titles like "release: 7.36.0" or "Release: 7.36.0 (#1234)"
+  # The jq filter extracts version from PR titles like "release: 7.36.0", "Release: 7.36.0 (#1234)",
+  # or OTA variants like "release: 7.81.1-ota"
   local pr_data
   pr_data=$(gh pr list \
     --state open \
+    --limit 500 \
+    --search 'in:title release' \
     --json title,isDraft \
-    --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+"; "i")) | .title' \
+    --jq '.[] | select(.title | test("^release:\\s*[0-9]+\\.[0-9]+\\.[0-9]+(-ota)?"; "i")) | .title' \
     2>/dev/null || echo "")
   
   if [[ -z "$pr_data" ]]; then
@@ -123,11 +126,11 @@ get_active_release_branches() {
   # Extract version numbers from PR titles and convert to branch names
   while IFS= read -r title; do
     if [[ -n "$title" ]]; then
-      # Extract version (X.Y.Z) from title - jq already validated the format,
-      # so we just need to extract the first semantic version pattern.
+      # Extract version (X.Y.Z or X.Y.Z-ota) from title - jq already validated the format,
+      # so we just need to extract the first semantic version pattern (with optional -ota suffix).
       # Using grep -oE is case-agnostic and simpler than matching "release:" variations.
       local version
-      version=$(echo "$title" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      version=$(echo "$title" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-ota)?' | head -1)
       if [[ -n "$version" ]]; then
         local branch="release/${version}"
         # Only add if not already in list (use grep -Fx for exact string matching,
@@ -174,7 +177,7 @@ If there are conflicts, they will appear in this PR. Resolve them to ensure the 
 }
 
 # Process a single release branch
-# Returns: 0 = PR created, 1 = failed, 2 = skipped
+# Returns: 0 = PR created or refreshed, 1 = failed, 2 = skipped
 process_release_branch() {
   local release_branch=$1
   local merged_version=$2
@@ -210,12 +213,6 @@ process_release_branch() {
   # Create sync branch name (replace / with -)
   local sync_branch="stable-sync-${release_branch//\//-}"
   
-  # Check if a sync PR already exists
-  if pr_exists "$release_branch" "$sync_branch"; then
-    log_warning "Sync PR already exists for ${release_branch}, skipping"
-    return 2
-  fi
-  
   # Check if stable has any new commits compared to the release branch
   if ! stable_has_new_commits "$release_branch"; then
     log_success "${release_branch} is already up-to-date with stable, no sync needed"
@@ -234,13 +231,21 @@ process_release_branch() {
   # Create sync branch from stable
   git checkout -b "$sync_branch" origin/stable
   
-  # Push the sync branch (force in case it exists remotely)
+  # Push the sync branch (force in case it exists remotely). This overwrites the
+  # remote branch and refreshes any open PR already pointing at it.
   log_info "Pushing ${sync_branch}..."
   if git push -u origin "$sync_branch" --force; then
     log_success "Pushed ${sync_branch}"
   else
     log_error "Failed to push ${sync_branch}"
     return 1
+  fi
+  
+  # If a sync PR already exists, the force-push above just refreshed it, so we're
+  # done. Creating a new PR would fail on the duplicate head branch.
+  if pr_exists "$release_branch" "$sync_branch"; then
+    log_success "Refreshed existing sync PR for ${release_branch}"
+    return 0
   fi
   
   # Create the PR (stable-sync branch → release branch)

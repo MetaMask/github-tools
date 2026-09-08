@@ -58,12 +58,20 @@ function tabTitleFor(repo, releaseLabel) {
   return `pre-${releaseLabel} (${repoType(repo)})`;
 }
 
+function platformLabelFor(type) {
+  const t = String(type).toLowerCase();
+  if (t === 'mobile') return '📱 Mobile - Pull requests';
+  if (t === 'extension') return '🔌 Extension - Pull requests';
+  return t;
+}
+
 function headerRowFor(type) {
-  const isMobile = String(type).toLowerCase() === 'mobile';
+  const t = String(type).toLowerCase();
+  const isMobile = t === 'mobile';
   const colG = isMobile ? 'Validated (Android)' : 'Validated (Chrome)';
   const colH = isMobile ? 'Validated (iOS)' : 'Validated (Firefox)';
   return [
-    'Pull Request',
+    platformLabelFor(type),
     'Merged Time (UTC)',
     'Author',
     'PR Size',
@@ -72,13 +80,6 @@ function headerRowFor(type) {
     colG,
     colH,
   ];
-}
-
-function platformLabelFor(type) {
-  const t = String(type).toLowerCase();
-  if (t === 'mobile') return '📱 Mobile';
-  if (t === 'extension') return '🔌 Extension';
-  return t;
 }
 
 async function ensureSheetExists(authClient, title, platformType) {
@@ -129,23 +130,15 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
       },
     });
     const newSheetId = duplicateRes.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
-    // Write platform label in A1 and platform-specific labels; keep row 2 headers from template to preserve formatting
+    // Write all platform-specific column headers into row 1 (preserves template cell formatting)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A1:A1`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[platformLabelFor(platformType)]] },
-    });
-    // Overwrite entire row 2 with headerRowFor(type)
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      auth: authClient,
-      range: `${title}!A2:H2`,
+      range: `${title}!A1:H1`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [headerRowFor(platformType)] },
     });
-    // Insert a blank row at index 2 (0-based) so data can start at row 4
+    // Insert a blank row at index 1 (0-based) so data can start at row 3
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       auth: authClient,
@@ -159,7 +152,7 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
           },
           {
             insertDimension: {
-              range: { sheetId: newSheetId, dimension: 'ROWS', startIndex: 2, endIndex: 3 },
+              range: { sheetId: newSheetId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
               inheritFromBefore: false,
             },
           },
@@ -186,18 +179,11 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
     },
   });
   const sheetId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
-  // Write platform label in A1 and dynamic headers in row 2
+  // Write all column headers into row 1 (no template to provide them)
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A1:A1`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [[platformLabelFor(platformType)]] },
-  });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    auth: authClient,
-    range: `${title}!A2:H2`,
+    range: `${title}!A1:H1`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [headerRowFor(platformType)] },
   });
@@ -224,7 +210,7 @@ async function readRows(authClient, title) {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       auth: authClient,
-      range: `${title}!A3:J`,
+      range: `${title}!A2:J`,
     });
     return res.data.values || [];
   } catch (e) {
@@ -238,7 +224,7 @@ async function appendRows(authClient, title, rows) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
-    range: `${title}!A4:J`,
+    range: `${title}!A3:J`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows },
@@ -838,7 +824,7 @@ async function processTab(authClient, title, entries, platformType) {
         requests: [
           {
             deleteDimension: {
-              range: { sheetId, dimension: 'ROWS', startIndex: 2, endIndex: 3 },
+              range: { sheetId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
             },
           },
         ],

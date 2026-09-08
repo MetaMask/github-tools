@@ -78,7 +78,7 @@ runs:
 
     # Step 3: Setup environment
     - name: Checkout and setup environment
-      uses: MetaMask/action-checkout-and-setup@v2
+      uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: true
 
@@ -151,7 +151,7 @@ runs:
     # Step 6: Upload commits.csv as artifact (if generated)
     - name: Upload commits.csv artifact
       if: ${{ hashFiles('commits.csv') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: commits-csv
         path: commits.csv

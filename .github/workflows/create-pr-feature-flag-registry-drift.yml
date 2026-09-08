@@ -62,13 +62,13 @@ jobs:
           token: ${{ secrets.github-token }}
 
       - name: Download registry artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.registry-artifact-name }}
           path: ${{ inputs.registry-artifact-name }}
 
       - name: Download report artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.report-artifact-name }}
           path: ${{ inputs.report-artifact-name }}

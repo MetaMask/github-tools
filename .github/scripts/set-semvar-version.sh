@@ -2,7 +2,7 @@
 
 # Script to update semantic versioning across MetaMask platform files
 # This script handles version updates for both mobile and extension platforms
-# For mobile: Updates package.json, Android build.gradle, Bitrise config, and iOS project files
+# For mobile: Updates package.json, Android build.gradle, and iOS project files
 # For extension: Updates package.json only
 
 set -e
@@ -36,7 +36,6 @@ SEMVER_REGEX="\
 # File paths for version updates
 PACKAGE_JSON_FILE=package.json
 ANDROID_BUILD_GRADLE_FILE=android/app/build.gradle
-BITRISE_YML_FILE=bitrise.yml
 IOS_PROJECT_FILE=ios/MetaMask.xcodeproj/project.pbxproj
 
 # Helper Functions
@@ -73,11 +72,6 @@ update_mobile_files () {
     sed -i '' 's/\(\s*versionName \)".*"/\1"'"$SEMVER_VERSION"'"/' "$ANDROID_BUILD_GRADLE_FILE"
     echo "- $ANDROID_BUILD_GRADLE_FILE successfully updated"
 
-    # Update version in Bitrise configuration
-    echo "Updating Bitrise configuration files..."
-    sed -i '' 's/\(\s*VERSION_NAME: \).*/\1'"$SEMVER_VERSION"'/' "$BITRISE_YML_FILE"
-    echo "- $BITRISE_YML_FILE successfully updated"
-
     # Update iOS marketing version
     echo "Updating iOS project settings..."
     sed -i '' 's/\(\s*MARKETING_VERSION = \).*/\1'"$SEMVER_VERSION;"'/' "$IOS_PROJECT_FILE"
@@ -91,11 +85,6 @@ update_mobile_files () {
     sed -i 's/\(\s*versionName \)".*"/\1"'"$SEMVER_VERSION"'"/' "$ANDROID_BUILD_GRADLE_FILE"
     echo "- $ANDROID_BUILD_GRADLE_FILE updated"
 
-    # Update version in Bitrise configuration
-    echo "Updating Bitrise configuration files..."
-    sed -i 's/\(\s*VERSION_NAME: \).*/\1'"$SEMVER_VERSION"'/' "$BITRISE_YML_FILE"
-    echo "- $BITRISE_YML_FILE updated"
-
     # update ios/MetaMask.xcodeproj/project.pbxproj
     echo "Updating iOS project settings..."
     sed -i 's/\(\s*MARKETING_VERSION = \).*/\1'"$SEMVER_VERSION;"'/' "$IOS_PROJECT_FILE"
@@ -104,7 +93,6 @@ update_mobile_files () {
 
   # Print summary of updates
   echo "- $ANDROID_BUILD_GRADLE_FILE updated"
-  echo "- $BITRISE_YML_FILE updated"
   echo "- $IOS_PROJECT_FILE updated"
 
   echo "-------------------"
@@ -123,19 +111,6 @@ fi
 # Validate semantic version format
 if ! [[ $SEMVER_VERSION =~ $SEMVER_REGEX ]]; then
   log_and_exit "$SEMVER_VERSION is invalid semver!"
-fi
-
-# Validate inputs for mobile platform
-if [[ $PLATFORM == "mobile" ]]; then
-  # Get current version numbers from bitrise.yml
-  CURRENT_VERSION_NUMBER=$(awk '/^\s+VERSION_NUMBER: /{print $2}' $BITRISE_YML_FILE);
-  CURRENT_FLASK_VERSION_NUMBER=$(awk '/^\s+FLASK_VERSION_NUMBER: /{print $2}' $BITRISE_YML_FILE);
-
-  # Ensure version number of main variant and flask are aligned
-  if [[ "$CURRENT_VERSION_NUMBER" != "$CURRENT_FLASK_VERSION_NUMBER" ]]; then
-    echo "VERSION_NUMBER $CURRENT_VERSION_NUMBER and FLASK_VERSION_NUMBER $CURRENT_FLASK_VERSION_NUMBER should be the same"
-    log_and_exit "Check why they are different and fix it before proceeding"
-  fi
 fi
 
 echo "SEMVER_VERSION is valid."

@@ -87,9 +87,6 @@ async function runGitCommands() {
       console.log('Executing mobile-specific commands...');
 
       // Preserve these files from main to avoid showing them as changes in the PR
-      await exec(`git checkout origin/main -- bitrise.yml`);
-      console.log(`Executed: git checkout origin/main -- bitrise.yml`);
-
       await exec(`git checkout origin/main -- android/app/build.gradle`);
       console.log(`Executed: git checkout origin/main -- android/app/build.gradle`);
 

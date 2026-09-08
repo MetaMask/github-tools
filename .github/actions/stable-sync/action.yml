@@ -31,6 +31,7 @@ runs:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
+        token: ${{ inputs.github-token }}
 
     - name: Checkout GitHub tools repository
       uses: actions/checkout@v6
@@ -63,7 +64,7 @@ runs:
 
     - name: Check if PR exists
       id: check-pr
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       with:
         script: |
           const { data: prs } = await github.rest.pulls.list({
@@ -133,7 +134,6 @@ runs:
 
         Preserves specific files from the stable branch:
           - CHANGELOG.md
-          - bitrise.yml
           - android/app/build.gradle
           - ios/MetaMask.xcodeproj/project.pbxproj
           - package.json
