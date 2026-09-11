@@ -151,10 +151,21 @@ jobs:
           }
 
           if [[ "$IS_MONOREPO" == "true" ]]; then
+            workspace_list="$(yarn workspaces list --no-private --json \
+              | jq --slurp --raw-output 'map([.location, .name]) | map(@tsv) | .[]')"
+
             # Add resolutions so renamed packages still resolve from local workspace
             echo "Adding workspace resolutions to root manifest..."
-            resolutions="$(yarn workspaces list --no-private --json \
-              | jq --slurp 'reduce .[] as $pkg ({}; .[$pkg.name] = "portal:./" + $pkg.location)')"
+            resolutions='{}'
+            while IFS=$'\t' read -r location name; do
+              version="$(jq --raw-output '.version' "$location/package.json")"
+              resolutions="$(jq \
+                --arg name "$name" \
+                --arg version "$version" \
+                --arg location "$location" \
+                '.[$name + "@^" + $version] = "portal:./" + $location' \
+                <<< "$resolutions")"
+            done <<< "$workspace_list"
             jq --argjson resolutions "$resolutions" '.resolutions = ((.resolutions // {}) + $resolutions)' package.json > temp.json
             mv temp.json package.json
 
@@ -162,7 +173,7 @@ jobs:
             while IFS=$'\t' read -r location name; do
               echo "- $name"
               prepare_manifest "$location/package.json"
-            done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map([.location, .name]) | map(@tsv) | .[]')
+            done <<< "$workspace_list"
           else
             echo "Preparing manifest..."
             prepare_manifest package.json
