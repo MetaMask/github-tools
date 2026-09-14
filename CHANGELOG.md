@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.3]
+
+### Uncategorized
+
+- Fix publish-preview to target only workspaces when adding resolutions ([#290](https://github.com/MetaMask/github-tools/pull/290))
+- Include `src` in preview build artifacts ([#291](https://github.com/MetaMask/github-tools/pull/291))
+- test: tag @metamask-qa-team in feature flag drift Slack noti ([#289](https://github.com/MetaMask/github-tools/pull/289))
+
 ## [1.18.2]
 
 ### Fixed
@@ -259,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.2...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.18.3...HEAD
+[1.18.3]: https://github.com/MetaMask/github-tools/compare/v1.18.2...v1.18.3
 [1.18.2]: https://github.com/MetaMask/github-tools/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/MetaMask/github-tools/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/MetaMask/github-tools/compare/v1.17.0...v1.18.0
