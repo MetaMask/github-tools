@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.19.0]
 
-### Uncategorized
+### Changed
 
-- Fix publish-preview to target only workspaces when adding resolutions ([#290](https://github.com/MetaMask/github-tools/pull/290))
-- Include `src` in preview build artifacts ([#291](https://github.com/MetaMask/github-tools/pull/291))
-- test: tag @metamask-qa-team in feature flag drift Slack noti ([#289](https://github.com/MetaMask/github-tools/pull/289))
+- Tag QA team in feature flag drift Slack notification ([#289](https://github.com/MetaMask/github-tools/pull/289))
+
+### Fixed
+
+- Fix `publish-preview` workflow to target only workspaces when adding resolutions ([#290](https://github.com/MetaMask/github-tools/pull/290))
+- Include `src` in preview build artifacts in `publish-preview` workflow ([#291](https://github.com/MetaMask/github-tools/pull/291))
 
 ## [1.18.2]
 
