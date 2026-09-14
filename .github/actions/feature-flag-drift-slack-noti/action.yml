@@ -15,6 +15,10 @@ inputs:
     description: 'URL of the sync PR (optional; included in message when provided)'
     required: false
     default: ''
+  slack-subteam:
+    description: 'Slack user group ID to mention. Defaults to @metamask-qa-team. Pass empty to skip the mention.'
+    required: false
+    default: S0832MYT8QZ # @metamask-qa-team
 
 runs:
   using: composite
@@ -26,35 +30,53 @@ runs:
         TITLE: ${{ inputs.title }}
         WORKFLOW_URL: ${{ inputs.workflow-run-url }}
         PR_URL: ${{ inputs.pr-url }}
+        SLACK_SUBTEAM: ${{ inputs.slack-subteam }}
       run: |
+        # Incoming webhooks only notify a user group with <!subteam^ID>.
+        # Mention goes at the end of the message, not in the title.
+        # Keep it in `text` too so Slack still fires the push notification.
+        HEADLINE="*[${TITLE}] Feature Flags Drift Detected in E2E tests vs Prod* :warning:"
+        QA_MENTION=""
+        if [[ -n "$SLACK_SUBTEAM" ]]; then
+          QA_MENTION="<!subteam^${SLACK_SUBTEAM}|@metamask-qa-team>"
+        fi
+
         # Use multiple blocks instead of newlines - more reliable in Slack
         if [[ -n "$PR_URL" ]]; then
           PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
+            --arg headline "$HEADLINE" \
+            --arg mention "$QA_MENTION" \
             --arg pr_url "$PR_URL" \
             --arg workflow_url "$WORKFLOW_URL" \
             '{
-              text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:"),
-              blocks: [
-                { type: "section", text: { type: "mrkdwn", text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:") } },
-                { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
-                { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
-                { type: "section", text: { type: "mrkdwn", text: ("A sync PR has been created: <" + $pr_url + "|View PR>") } },
-                { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
-              ]
+              text: (if $mention == "" then $headline else ($headline + " " + $mention) end),
+              link_names: true,
+              blocks: (
+                [
+                  { type: "section", text: { type: "mrkdwn", text: $headline } },
+                  { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
+                  { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
+                  { type: "section", text: { type: "mrkdwn", text: ("A sync PR has been created: <" + $pr_url + "|View PR>") } },
+                  { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
+                ] + (if $mention == "" then [] else [{ type: "section", text: { type: "mrkdwn", text: $mention } }] end)
+              )
             }')
         else
           PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
+            --arg headline "$HEADLINE" \
+            --arg mention "$QA_MENTION" \
             --arg workflow_url "$WORKFLOW_URL" \
             '{
-              text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:"),
-              blocks: [
-                { type: "section", text: { type: "mrkdwn", text: ("*[" + $title + "] Feature Flags Drift Detected in E2E tests vs Prod* :warning:") } },
-                { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
-                { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
-                { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
-              ]
+              text: (if $mention == "" then $headline else ($headline + " " + $mention) end),
+              link_names: true,
+              blocks: (
+                [
+                  { type: "section", text: { type: "mrkdwn", text: $headline } },
+                  { type: "section", text: { type: "mrkdwn", text: "Check the workflow run for details: download the drift report JSON artifact and review the report." } },
+                  { type: "section", text: { type: "mrkdwn", text: "You can run command `yarn feature-flags:sync:update` locally to update the registry." } },
+                  { type: "section", text: { type: "mrkdwn", text: ("<" + $workflow_url + "|View workflow run>") } }
+                ] + (if $mention == "" then [] else [{ type: "section", text: { type: "mrkdwn", text: $mention } }] end)
+              )
             }')
         fi
         {

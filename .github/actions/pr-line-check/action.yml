@@ -1,15 +1,11 @@
 name: Check PR Lines Changed
-description: 'Checks the number of lines changed in a PR and manages size labels accordingly.'
+description: 'Counts the lines changed in a PR, applies a size label, and fails when the change exceeds the allowed maximum.'
 
 inputs:
   max-lines:
     description: 'Maximum allowed total lines changed'
     required: false
     default: '1000'
-  base-ref:
-    description: 'Default base branch to compare against (if not running on a PR)'
-    required: false
-    default: 'main'
   ignore-patterns:
     description: 'Regex pattern for files to ignore when calculating changes'
     required: false
@@ -34,67 +30,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Calculate changed lines
-      id: line-count
-      env:
-        BASE_BRANCH: ${{ github.event.pull_request.base.ref || inputs.base-ref }}
-        IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
-      shell: bash
-      run: |
-        set -e
-
-        echo "Using base branch: $BASE_BRANCH"
-
-        # Instead of a full fetch, perform incremental fetches at increasing depth
-        # until the merge-base between origin/<BASE_BRANCH> and HEAD is present.
-        fetch_with_depth() {
-          local depth=$1
-          echo "Attempting to fetch with depth $depth..."
-          git fetch --depth="$depth" origin "$BASE_BRANCH"
-        }
-
-        depths=(1 10 100)
-        merge_base_found=false
-
-        for d in "${depths[@]}"; do
-          fetch_with_depth "$d"
-          if git merge-base "origin/$BASE_BRANCH" HEAD > /dev/null 2>&1; then
-            echo "Merge base found with depth $d."
-            merge_base_found=true
-            break
-          else
-            echo "Merge base not found with depth $d, increasing depth..."
-          fi
-        done
-
-        # If we haven't found the merge base with shallow fetches, unshallow the repo.
-        if [ "$merge_base_found" = false ]; then
-          echo "Could not find merge base with shallow fetches, fetching full history..."
-          git fetch --unshallow origin "$BASE_BRANCH" || git fetch origin "$BASE_BRANCH"
-        fi
-
-        # Calculate additions and deletions across all changes between the base and HEAD,
-        # filtering out files matching the ignore pattern.
-        additions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$IGNORE_PATTERNS" | awk '{add += $1} END {print add+0}')
-        deletions=$(git diff "origin/$BASE_BRANCH"...HEAD --numstat | grep -Ev "$IGNORE_PATTERNS" | awk '{del += $2} END {print del+0}')
-        total=$((additions + deletions))
-
-        echo "Additions: $additions, Deletions: $deletions, Total: $total"
-        {
-          echo "lines-changed=$total"
-          echo "additions=$additions"
-          echo "deletions=$deletions"
-        } >> "$GITHUB_OUTPUT"
-
-    - name: Check line count limit
+    # The API computes the file list against the PR's current base, so no
+    # checkout, base-branch resolution or history fetching is needed, and a
+    # webhook payload that lags a base retarget cannot skew the count.
+    - name: Count changed lines and apply size label
       uses: actions/github-script@v9
       env:
-        LINES_CHANGED: ${{ steps.line-count.outputs.lines-changed }}
-        ADDITIONS: ${{ steps.line-count.outputs.additions }}
-        DELETIONS: ${{ steps.line-count.outputs.deletions }}
+        IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
         MAX_LINES: ${{ inputs.max-lines }}
         XS_MAX_SIZE: ${{ inputs.xs-max-size }}
         S_MAX_SIZE: ${{ inputs.s-max-size }}
@@ -103,9 +45,7 @@ runs:
       with:
         script: |
           const {
-            LINES_CHANGED,
-            ADDITIONS,
-            DELETIONS,
+            IGNORE_PATTERNS,
             MAX_LINES,
             XS_MAX_SIZE,
             S_MAX_SIZE,
@@ -113,91 +53,104 @@ runs:
             L_MAX_SIZE,
           } = process.env;
 
-          const total = parseInt(LINES_CHANGED, 10) || 0;
-          const additions = parseInt(ADDITIONS, 10) || 0;
-          const deletions = parseInt(DELETIONS, 10) || 0;
-
-          // Thresholds from inputs with fallback to defaults
-          const maxLines = parseInt(MAX_LINES, 10) || 1000;
-          const xsMaxSize = parseInt(XS_MAX_SIZE, 10) || 10;
-          const sMaxSize = parseInt(S_MAX_SIZE, 10) || 100;
-          const mMaxSize = parseInt(M_MAX_SIZE, 10) || 500;
-          const lMaxSize = parseInt(L_MAX_SIZE, 10) || 1000;
-
-          // Print summary
-          console.log('Summary:');
-          console.log(`  - Additions: ${additions}`);
-          console.log(`  - Deletions: ${deletions}`);
-          console.log(`  - Total: ${total}`);
-          console.log(`  - Limit: ${maxLines}`);
-
-          // Determine size label based on configured criteria
-          let sizeLabel = '';
-          if (total <= xsMaxSize) {
-            sizeLabel = 'size-XS';
-          } else if (total <= sMaxSize) {
-            sizeLabel = 'size-S';
-          } else if (total <= mMaxSize) {
-            sizeLabel = 'size-M';
-          } else if (total <= lMaxSize) {
-            sizeLabel = 'size-L';
-          } else {
-            sizeLabel = 'size-XL';
+          if (!context.payload.pull_request) {
+            core.setFailed('This action must run on a pull_request event.');
+            return;
           }
 
+          const { owner, repo } = context.repo;
+          const pullNumber = context.payload.pull_request.number;
+
+          const { data: pr } = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+          });
+
+          const files = await github.paginate(github.rest.pulls.listFiles, {
+            owner,
+            repo,
+            pull_number: pullNumber,
+            per_page: 100,
+          });
+
+          // The API lists at most 3000 files. A PR touching more than that is
+          // past any configured limit, so it goes straight to size-XL rather
+          // than being counted from a truncated file list.
+          const isCountable = files.length >= pr.changed_files;
+
+          const ignored = new RegExp(IGNORE_PATTERNS);
+          const counted = files.filter((file) => !ignored.test(file.filename));
+          const additions = counted.reduce((sum, file) => sum + file.additions, 0);
+          const deletions = counted.reduce((sum, file) => sum + file.deletions, 0);
+          const total = additions + deletions;
+
+          const maxLines = parseInt(MAX_LINES, 10) || 1000;
+
+          const sizeThresholds = [
+            ['size-XS', parseInt(XS_MAX_SIZE, 10) || 10],
+            ['size-S', parseInt(S_MAX_SIZE, 10) || 100],
+            ['size-M', parseInt(M_MAX_SIZE, 10) || 500],
+            ['size-L', parseInt(L_MAX_SIZE, 10) || 1000],
+          ];
+          const sizeLabel = isCountable
+            ? (sizeThresholds.find(([, threshold]) => total <= threshold)?.[0] ?? 'size-XL')
+            : 'size-XL';
+
+          console.log('Summary:');
+          console.log(`  - Base branch: ${pr.base.ref}`);
+          if (isCountable) {
+            console.log(`  - Additions: ${additions}`);
+            console.log(`  - Deletions: ${deletions}`);
+            console.log(`  - Total: ${total}`);
+          } else {
+            console.log(`  - Changed files: ${pr.changed_files}, more than the API lists`);
+          }
+          console.log(`  - Limit: ${maxLines}`);
           console.log(`  - Size category: ${sizeLabel}`);
 
-          // Manage PR labels
-          const owner = context.repo.owner;
-          const repo = context.repo.repo;
-          const issue_number = context.payload.pull_request.number;
+          const allSizeLabels = ['size-XS', 'size-S', 'size-M', 'size-L', 'size-XL'];
 
           try {
-            const existingSizeLabels = ['size-XS', 'size-S', 'size-M', 'size-L', 'size-XL'];
-
-            // Get current labels
-            const currentLabels = await github.rest.issues.listLabelsOnIssue({
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
               owner,
               repo,
-              issue_number
+              issue_number: pullNumber,
             });
 
-            const currentLabelNames = currentLabels.data.map(l => l.name);
+            const currentNames = labels.map((label) => label.name);
+            const currentSizeLabels = currentNames.filter((name) =>
+              allSizeLabels.includes(name),
+            );
 
-            // Build new label set: keep non-size labels and add the new size label
-            const newLabels = currentLabelNames
-              .filter(name => !existingSizeLabels.includes(name))  // Remove all size labels
-              .concat(sizeLabel);  // Add the correct size label
-
-            // Check if labels need updating
-            const currentSizeLabel = currentLabelNames.find(name => existingSizeLabels.includes(name));
-            if (currentSizeLabel === sizeLabel && currentLabelNames.length === newLabels.length) {
+            if (currentSizeLabels.length === 1 && currentSizeLabels[0] === sizeLabel) {
               console.log(`✅ Correct label '${sizeLabel}' already present, no changes needed`);
             } else {
-              // Update all labels in a single API call
               await github.rest.issues.setLabels({
                 owner,
                 repo,
-                issue_number,
-                labels: newLabels
+                issue_number: pullNumber,
+                labels: currentNames
+                  .filter((name) => !allSizeLabels.includes(name))
+                  .concat(sizeLabel),
               });
 
-              if (currentSizeLabel && currentSizeLabel !== sizeLabel) {
-                console.log(`  - Replaced '${currentSizeLabel}' with '${sizeLabel}'`);
-              } else if (!currentSizeLabel) {
-                console.log(`✅ Added '${sizeLabel}' label to PR #${issue_number}`);
-              } else {
-                console.log(`✅ Updated labels for PR #${issue_number}`);
-              }
+              console.log(`✅ Set '${sizeLabel}' on PR #${pullNumber}`);
             }
           } catch (error) {
-            console.log(`⚠️  Could not manage labels: ${error.message}`);
+            console.log(`⚠️  Could not update labels: ${error.message}`);
           }
 
-          // Check if exceeds limit
-          if (total > maxLines) {
-            console.log(`❌ Error: Total changed lines (${total}) exceed the limit of ${maxLines}.`);
-            process.exit(1);
-          } else {
-            console.log(`✅ Success: Total changed lines (${total}) are within the limit of ${maxLines}.`);
+          if (!isCountable) {
+            core.setFailed(
+              `PR touches ${pr.changed_files} files, too many to count lines for, so it is over the limit of ${maxLines}.`,
+            );
+            return;
           }
+
+          if (total > maxLines) {
+            core.setFailed(`Total changed lines (${total}) exceed the limit of ${maxLines}.`);
+            return;
+          }
+
+          console.log(`✅ Success: Total changed lines (${total}) are within the limit of ${maxLines}.`);
