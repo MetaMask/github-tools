@@ -1,0 +1,381 @@
+name: Draft Segment schema PR
+description: >
+  Detects analytics event/property changes on a Mobile or Extension pull request,
+  comments a proposal, and opens a draft Consensys/segment-schema PR after the
+  author agrees. Helper, not a merge gate.
+
+inputs:
+  platform:
+    description: 'mobile or extension'
+    required: true
+  mode:
+    description: 'propose (pull_request), create (issue_comment), or close (pull_request closed)'
+    required: true
+  github-token:
+    description: 'Token used to read the client PR and post comments on it'
+    required: false
+    default: ${{ github.token }}
+  segment-schema-token:
+    description: 'GitHub App token with contents:write and pull_requests:write on the schema repo'
+    required: true
+  segment-schema-repository:
+    description: 'Schema repository to write (owner/name)'
+    required: false
+    default: Consensys/segment-schema
+  segment-schema-base:
+    description: 'Schema branch to generate from and target with the draft PR'
+    required: false
+    default: main
+  default-library:
+    description: 'Override the unsorted events library id (platform default is used when empty)'
+    required: false
+    default: ''
+  github-tools-repository:
+    description: 'Repository containing this action. Defaults to the action repository.'
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: 'Ref of github-tools to check out. Defaults to the current action ref.'
+    required: false
+    default: ${{ github.action_ref }}
+  dry-run:
+    description: 'Generate and print a summary; skip git push and GitHub writes'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Gate
+      id: gate
+      uses: actions/github-script@v9
+      env:
+        MODE: ${{ inputs.mode }}
+        PLATFORM: ${{ inputs.platform }}
+        SEGMENT_SCHEMA_TOKEN: ${{ inputs.segment-schema-token }}
+        SEGMENT_SCHEMA_REPOSITORY: ${{ inputs.segment-schema-repository }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_EVENT_ACTION: ${{ github.event.action }}
+        COMMENT_BODY: ${{ github.event.comment.body }}
+        COMMENT_USER: ${{ github.event.comment.user.login }}
+        PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        CLIENT_REPOSITORY: ${{ github.repository }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const path = require('path');
+          const {
+            decideGate,
+            eventSkipReason,
+            collectTsDiff,
+            hasAnalyticsDiff,
+            botBranchName,
+            CATALOG_FILES,
+            OPT_OUT_LABEL,
+            PROPOSAL_MARKER,
+          } = await import(path.join(process.env.GITHUB_ACTION_PATH, 'gate.mjs'));
+
+          const mode = process.env.MODE;
+          const platform = process.env.PLATFORM;
+          const eventName = process.env.GITHUB_EVENT_NAME ?? '';
+          const eventAction = process.env.GITHUB_EVENT_ACTION ?? '';
+          const prNumber = Number(process.env.PR_NUMBER ?? '0');
+
+          const writeOutputs = (decision, pr, schemaPrExists) => {
+            core.setOutput('skip', decision.skip ? 'true' : 'false');
+            core.setOutput('skip_reason', decision.skipReason);
+            core.setOutput('pr_number', String(pr?.number ?? prNumber));
+            core.setOutput('base_sha', pr?.baseSha ?? '');
+            core.setOutput('head_sha', pr?.headSha ?? '');
+            core.setOutput('merged', pr?.merged ? 'true' : 'false');
+            core.setOutput('branch', decision.branch);
+            core.setOutput('schema_pr_exists', schemaPrExists ? 'true' : 'false');
+            core.setOutput('should_push', decision.shouldPush ? 'true' : 'false');
+            core.setOutput('has_analytics_diff', decision.hasAnalyticsDiff ? 'true' : 'false');
+            core.setOutput('too_many_files', decision.tooManyFiles ? 'true' : 'false');
+          };
+
+          const eventSkip = eventSkipReason(mode, eventName, eventAction);
+          if (eventSkip) {
+            writeOutputs(
+              {
+                skip: true,
+                skipReason: eventSkip,
+                shouldPush: false,
+                hasAnalyticsDiff: false,
+                tooManyFiles: false,
+                branch: botBranchName(platform, prNumber),
+              },
+              null,
+              false,
+            );
+            return;
+          }
+
+          const [clientOwner, clientRepo] = process.env.CLIENT_REPOSITORY.split('/');
+          const { data } = await github.rest.pulls.get({
+            owner: clientOwner,
+            repo: clientRepo,
+            pull_number: prNumber,
+          });
+          const labels = data.labels.map((label) =>
+            typeof label === 'string' ? label : (label.name ?? ''),
+          );
+          const headRepoFullName = data.head.repo?.full_name ?? '';
+          const pr = {
+            number: data.number,
+            baseSha: data.base.sha,
+            headSha: data.head.sha,
+            authorLogin: data.user?.login ?? '',
+            isOpen: data.state === 'open',
+            merged: Boolean(data.merged),
+            isFork: headRepoFullName !== process.env.CLIENT_REPOSITORY,
+            hasOptOutLabel: labels.includes(OPT_OUT_LABEL),
+          };
+
+          const [schemaOwner, schemaRepo] = process.env.SEGMENT_SCHEMA_REPOSITORY.split('/');
+          const branch = botBranchName(platform, pr.number);
+          const schemaPulls = await github.request('GET /repos/{owner}/{repo}/pulls', {
+            owner: schemaOwner,
+            repo: schemaRepo,
+            head: `${schemaOwner}:${branch}`,
+            state: 'open',
+            per_page: 5,
+            headers: { authorization: `token ${process.env.SEGMENT_SCHEMA_TOKEN}` },
+          });
+          const schemaPrExists = Boolean(schemaPulls.data[0]);
+
+          let pullFiles = [];
+          let hasProposalComment = false;
+          if (mode !== 'close') {
+            pullFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner: clientOwner,
+              repo: clientRepo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const diff = collectTsDiff(pullFiles);
+            const analyticsDiff = hasAnalyticsDiff(diff, platform);
+            if (!analyticsDiff && !schemaPrExists) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: clientOwner,
+                repo: clientRepo,
+                issue_number: pr.number,
+                per_page: 100,
+              });
+              hasProposalComment = comments.some((comment) =>
+                comment.body?.includes(PROPOSAL_MARKER),
+              );
+            }
+          }
+
+          const decision = decideGate({
+            mode,
+            eventName,
+            eventAction,
+            pr,
+            commentBody: process.env.COMMENT_BODY ?? '',
+            commenterLogin: process.env.COMMENT_USER ?? '',
+            schemaPrExists,
+            hasProposalComment,
+            pullFiles,
+            platform,
+          });
+          writeOutputs(decision, pr, schemaPrExists);
+
+    - name: Checkout GitHub tools
+      if: ${{ steps.gate.outputs.skip != 'true' }}
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./.github-tools
+
+    - name: Enable Corepack
+      if: ${{ steps.gate.outputs.skip != 'true' }}
+      run: corepack enable
+      shell: bash
+      working-directory: ./.github-tools
+
+    - name: Set up Node.js
+      if: ${{ steps.gate.outputs.skip != 'true' }}
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ./.github-tools/.nvmrc
+        cache-dependency-path: ./.github-tools/yarn.lock
+        cache: yarn
+
+    - name: Install dependencies
+      if: ${{ steps.gate.outputs.skip != 'true' }}
+      run: yarn --immutable
+      shell: bash
+      working-directory: ./.github-tools
+
+    - name: Publish close
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode == 'close' }}
+      shell: bash
+      working-directory: ./.github-tools
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SEGMENT_SCHEMA_TOKEN: ${{ inputs.segment-schema-token }}
+        PR_NUMBER: ${{ steps.gate.outputs.pr_number }}
+      run: |
+        extra=()
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          extra+=(--dry-run)
+        fi
+        yarn run segment-schema:draft-pr \
+          --phase publish \
+          --mode close \
+          --platform "${{ inputs.platform }}" \
+          --pr-number "$PR_NUMBER" \
+          --client-repository "${{ github.repository }}" \
+          --segment-schema-repository "${{ inputs.segment-schema-repository }}" \
+          --segment-schema-base "${{ inputs.segment-schema-base }}" \
+          "${extra[@]}"
+
+    - name: Checkout segment-schema
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' && steps.gate.outputs.has_analytics_diff == 'true' && steps.gate.outputs.too_many_files != 'true' }}
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.segment-schema-repository }}
+        ref: ${{ inputs.segment-schema-base }}
+        path: ./segment-schema
+        fetch-depth: 1
+        token: ${{ inputs.segment-schema-token }}
+        persist-credentials: true
+
+    - name: Probe previous bot branch
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' && steps.gate.outputs.has_analytics_diff == 'true' && steps.gate.outputs.too_many_files != 'true' }}
+      id: previous-ref
+      uses: actions/github-script@v9
+      env:
+        SCHEMA_REPOSITORY: ${{ inputs.segment-schema-repository }}
+        BOT_BRANCH: ${{ steps.gate.outputs.branch }}
+      with:
+        github-token: ${{ inputs.segment-schema-token }}
+        script: |
+          const repository = process.env.SCHEMA_REPOSITORY;
+          const branch = process.env.BOT_BRANCH;
+          if (!repository || !branch) {
+            core.setOutput('exists', 'false');
+            return;
+          }
+          const [owner, repo] = repository.split('/');
+          try {
+            await github.rest.git.getRef({
+              owner,
+              repo,
+              ref: `heads/${branch}`,
+            });
+            core.setOutput('exists', 'true');
+          } catch (error) {
+            if (error.status === 404) {
+              core.setOutput('exists', 'false');
+              return;
+            }
+            throw error;
+          }
+
+    - name: Checkout previous bot branch
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' && steps.gate.outputs.has_analytics_diff == 'true' && steps.gate.outputs.too_many_files != 'true' && steps.previous-ref.outputs.exists == 'true' }}
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.segment-schema-repository }}
+        ref: ${{ steps.gate.outputs.branch }}
+        path: ./segment-schema-previous
+        token: ${{ inputs.segment-schema-token }}
+        persist-credentials: false
+
+    - name: Generate schema YAML
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' && steps.gate.outputs.has_analytics_diff == 'true' && steps.gate.outputs.too_many_files != 'true' }}
+      id: generate
+      shell: bash
+      working-directory: ./.github-tools
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SEGMENT_SCHEMA_TOKEN: ${{ inputs.segment-schema-token }}
+        PR_NUMBER: ${{ steps.gate.outputs.pr_number }}
+      run: |
+        extra=()
+        if [ -d ../segment-schema-previous ]; then
+          extra+=(--previous-dir ../segment-schema-previous)
+        fi
+        if [ -n "${{ inputs.default-library }}" ]; then
+          extra+=(--default-library "${{ inputs.default-library }}")
+        fi
+        yarn run segment-schema:draft-pr \
+          --phase generate \
+          --mode "${{ inputs.mode }}" \
+          --platform "${{ inputs.platform }}" \
+          --schema ../segment-schema \
+          --base-sha "${{ steps.gate.outputs.base_sha }}" \
+          --head-sha "${{ steps.gate.outputs.head_sha }}" \
+          --pr-number "$PR_NUMBER" \
+          --client-repository "${{ github.repository }}" \
+          --segment-schema-repository "${{ inputs.segment-schema-repository }}" \
+          "${extra[@]}"
+
+    - name: Push schema branch
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' && inputs.dry-run != 'true' && steps.gate.outputs.should_push == 'true' && steps.generate.outputs.has_writable_changes == 'true' }}
+      id: push
+      shell: bash
+      working-directory: ./segment-schema
+      env:
+        BRANCH: ${{ steps.gate.outputs.branch }}
+        PLATFORM: ${{ inputs.platform }}
+        PR_NUMBER: ${{ steps.gate.outputs.pr_number }}
+        SCHEMA_PR_EXISTS: ${{ steps.gate.outputs.schema_pr_exists }}
+      run: |
+        mkdir -p .git/info
+        echo '.segment-schema-draft-pr-summary.json' >> .git/info/exclude
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git checkout -B "$BRANCH"
+        git fetch origin "$BRANCH" || true
+        git add -A
+        git reset -- .segment-schema-draft-pr-summary.json || true
+        compare_ref=HEAD
+        if [ "$SCHEMA_PR_EXISTS" = "true" ] && git rev-parse --verify --quiet "refs/remotes/origin/$BRANCH"; then
+          compare_ref="refs/remotes/origin/$BRANCH"
+        fi
+        if git diff --cached --quiet "$compare_ref"; then
+          echo "pushed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        git commit -m "Draft schema for ${PLATFORM} PR #${PR_NUMBER}"
+        git push --force-with-lease origin "HEAD:${BRANCH}"
+        echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+    - name: Publish comments and schema PR
+      if: ${{ steps.gate.outputs.skip != 'true' && inputs.mode != 'close' }}
+      shell: bash
+      working-directory: ./.github-tools
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SEGMENT_SCHEMA_TOKEN: ${{ inputs.segment-schema-token }}
+        PR_NUMBER: ${{ steps.gate.outputs.pr_number }}
+      run: |
+        extra=()
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          extra+=(--dry-run)
+        fi
+        if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+          extra+=(--pushed)
+        fi
+        if [ "${{ steps.gate.outputs.too_many_files }}" = "true" ]; then
+          extra+=(--too-many-files)
+        fi
+        if [ "${{ steps.gate.outputs.has_analytics_diff }}" != "true" ]; then
+          extra+=(--no-analytics-diff)
+        fi
+        yarn run segment-schema:draft-pr \
+          --phase publish \
+          --mode "${{ inputs.mode }}" \
+          --platform "${{ inputs.platform }}" \
+          --schema ../segment-schema \
+          --pr-number "$PR_NUMBER" \
+          --client-repository "${{ github.repository }}" \
+          --segment-schema-repository "${{ inputs.segment-schema-repository }}" \
+          --segment-schema-base "${{ inputs.segment-schema-base }}" \
+          "${extra[@]}"

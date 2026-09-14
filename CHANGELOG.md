@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `draft-segment-schema-pr` composite action that proposes Segment schema YAML from Mobile or Extension analytics diffs (read through the GitHub API so the diff matches the pull request file list) and opens a draft schema PR after the author comments `I agree to open a draft Segment schema PR`
+
 ## [1.18.2]
 
 ### Fixed
