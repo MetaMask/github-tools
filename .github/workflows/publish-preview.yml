@@ -189,7 +189,6 @@ jobs:
             ./package.json
             ./packages/*/
             !./packages/*/node_modules/
-            !./packages/*/src/
             !./packages/*/tests/
             !./packages/**/*.test.*
 
