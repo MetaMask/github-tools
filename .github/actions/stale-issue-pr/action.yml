@@ -62,7 +62,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/stale@v10
+    - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0
       with:
         stale-issue-message: ${{ inputs.stale-issue-message }}
         close-issue-message: ${{ inputs.close-issue-message }}
