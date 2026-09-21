@@ -33,7 +33,7 @@ runs:
   steps:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
     - name: Checkout invoking repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         fetch-depth: 0
         ref: ${{ inputs.release-branch }}
@@ -41,7 +41,7 @@ runs:
 
     # Step 2: Checkout github-tools repository
     - name: Checkout GitHub tools repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         repository: ${{ inputs.github-tools-repository }}
         ref: ${{ inputs.github-tools-ref }}
@@ -49,7 +49,7 @@ runs:
 
     # Step 3: Setup environment
     - name: Checkout and setup environment
-      uses: MetaMask/action-checkout-and-setup@v3
+      uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
       with:
         is-high-risk-environment: true
 

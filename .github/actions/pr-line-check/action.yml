@@ -34,7 +34,7 @@ runs:
     # checkout, base-branch resolution or history fetching is needed, and a
     # webhook payload that lags a base retarget cannot skew the count.
     - name: Count changed lines and apply size label
-      uses: actions/github-script@v9
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
         MAX_LINES: ${{ inputs.max-lines }}
