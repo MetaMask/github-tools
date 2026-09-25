@@ -2,9 +2,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  getChangelogPushArguments,
   getChangelogPrPresentation,
   validateGeneratedReleaseSection,
 } from '../update-release-changelog.mts';
+
+test('protects first changelog branch creation with an empty lease', () => {
+  assert.deepEqual(
+    getChangelogPushArguments({
+      changelogBranch: 'release-changelog/13.51.0',
+      expectedRemoteSha: undefined,
+    }),
+    [
+      'push',
+      '--force-with-lease=refs/heads/release-changelog/13.51.0:',
+      '--set-upstream',
+      'origin',
+      'HEAD:refs/heads/release-changelog/13.51.0',
+    ],
+  );
+});
 
 test('marks an unproofread changelog PR when AI proofreading fails', () => {
   assert.deepEqual(

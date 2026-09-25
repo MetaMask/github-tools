@@ -32,20 +32,41 @@ const PROMPT_PATH = resolve(
   '../prompts/auto-changelog-clean-room.md',
 );
 
+// All Git, Yarn, and generator children use this environment. The cleaner is
+// the sole process allowed to receive the raw LiteLLM key.
+const deterministicEnvironment = { ...process.env };
+delete deterministicEnvironment.LITELLM_API_KEY;
+delete deterministicEnvironment.LITELLM_API_KEY_FILE;
+
 function capture(command: string, args: string[]): string {
-  return execFileSync(command, args, { encoding: 'utf8' }).trim();
+  return execFileSync(command, args, {
+    encoding: 'utf8',
+    env: deterministicEnvironment,
+  }).trim();
 }
 
 function captureRaw(command: string, args: string[]): string {
-  return execFileSync(command, args, { encoding: 'utf8' });
+  return execFileSync(command, args, {
+    encoding: 'utf8',
+    env: deterministicEnvironment,
+  });
 }
 
-function execute(command: string, args: string[]): void {
-  execFileSync(command, args, { stdio: 'inherit' });
+function execute(
+  command: string,
+  args: string[],
+  environment = deterministicEnvironment,
+): void {
+  execFileSync(command, args, { env: environment, stdio: 'inherit' });
 }
 
 function succeeds(command: string, args: string[]): boolean {
-  return spawnSync(command, args, { stdio: 'ignore' }).status === 0;
+  return (
+    spawnSync(command, args, {
+      env: deterministicEnvironment,
+      stdio: 'ignore',
+    }).status === 0
+  );
 }
 
 function getRemoteBranchSha(branch: string): string | undefined {
@@ -298,6 +319,15 @@ function writeFailedProofreadingReport(
   );
 }
 
+function getLiteLlmApiKey(): string | undefined {
+  const credentialPath = process.env.LITELLM_API_KEY_FILE;
+  if (credentialPath) {
+    const apiKey = readFileSync(credentialPath, 'utf8').trim();
+    return apiKey || undefined;
+  }
+  return process.env.LITELLM_API_KEY;
+}
+
 function getProofreadingFailureStage(reportPath: string): string {
   try {
     const report = JSON.parse(readFileSync(reportPath, 'utf8')) as {
@@ -317,20 +347,33 @@ function runCleanRoomProofread({
   version: string;
 }): ProofreadingResult {
   const reportPath = `.tmp/release-changelog-ai/${version}.json`;
-  try {
-    execute('node', [
-      CLEANER_PATH,
-      '--changelog',
-      'CHANGELOG.md',
-      '--version',
-      version,
-      '--repository',
-      repositoryUrl,
-      '--prompt',
-      PROMPT_PATH,
-      '--report',
+  const apiKey = getLiteLlmApiKey();
+  if (!apiKey) {
+    writeFailedProofreadingReport(
       reportPath,
-    ]);
+      'LiteLLM credential is unavailable',
+    );
+    return { status: 'failed', stage: 'authentication' };
+  }
+
+  try {
+    execute(
+      'node',
+      [
+        CLEANER_PATH,
+        '--changelog',
+        'CHANGELOG.md',
+        '--version',
+        version,
+        '--repository',
+        repositoryUrl,
+        '--prompt',
+        PROMPT_PATH,
+        '--report',
+        reportPath,
+      ],
+      { ...deterministicEnvironment, LITELLM_API_KEY: apiKey },
+    );
     return { status: 'succeeded' };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -389,6 +432,26 @@ export function getChangelogPrPresentation({
   return { title, body };
 }
 
+export function getChangelogPushArguments({
+  changelogBranch,
+  expectedRemoteSha,
+}: {
+  changelogBranch: string;
+  expectedRemoteSha: string | undefined;
+}): string[] {
+  const lease = expectedRemoteSha
+    ? `--force-with-lease=refs/heads/${changelogBranch}:${expectedRemoteSha}`
+    : `--force-with-lease=refs/heads/${changelogBranch}:`;
+
+  return [
+    'push',
+    lease,
+    '--set-upstream',
+    'origin',
+    `HEAD:refs/heads/${changelogBranch}`,
+  ];
+}
+
 function pushChangelogBranch({
   changelogBranch,
   expectedRemoteSha,
@@ -400,15 +463,17 @@ function pushChangelogBranch({
     if (expectedRemoteSha) {
       // The changelog branch is rebuilt from the target on every rerun, so its
       // history may change. The lease preserves any concurrent human or bot edit.
-      execute('git', [
-        'push',
-        `--force-with-lease=refs/heads/${changelogBranch}:${expectedRemoteSha}`,
-        '--set-upstream',
-        'origin',
-        `HEAD:refs/heads/${changelogBranch}`,
-      ]);
+      execute(
+        'git',
+        getChangelogPushArguments({ changelogBranch, expectedRemoteSha }),
+      );
     } else {
-      execute('git', ['push', '--set-upstream', 'origin', changelogBranch]);
+      // Creation must fail if another actor won the race. Updating a PR after
+      // a rejected creation push could associate unverified branch content.
+      execute(
+        'git',
+        getChangelogPushArguments({ changelogBranch, expectedRemoteSha }),
+      );
     }
   } catch (error) {
     if (expectedRemoteSha) {
@@ -417,10 +482,10 @@ function pushChangelogBranch({
         { cause: error },
       );
     }
-    if (!getRemoteBranchSha(changelogBranch)) {
-      throw error;
-    }
-    console.warn(`No changes pushed to existing branch ${changelogBranch}.`);
+    throw new Error(
+      `Failed to create ${changelogBranch}; it may have been created concurrently`,
+      { cause: error },
+    );
   }
 }
 

@@ -30,6 +30,7 @@ set -o pipefail
 
 # Sourcing helper functions
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+GITHUB_TOOLS_DIR="${GITHUB_TOOLS_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 # shellcheck source=.github/scripts/utils.sh
 source "${SCRIPT_DIR}/utils.sh"
 
@@ -145,7 +146,6 @@ create_release_pr() {
     local new_version="$2"
     local new_version_number="$3"
     local release_branch_name="$4"
-    local changelog_branch_name="$5"
 
     echo "Checking out the release branch: ${release_branch_name}"
     checkout_or_create_branch "${release_branch_name}" "${BASE_BRANCH}"
@@ -156,7 +156,7 @@ create_release_pr() {
 
     # Version Updates
     echo "Running version update scripts.."
-    ./github-tools/.github/scripts/set-semvar-version.sh "${new_version}" "${platform}"
+    "${GITHUB_TOOLS_DIR}/.github/scripts/set-semvar-version.sh" "${new_version}" "${platform}"
 
     # Commit Changes
     local changed_files
@@ -251,13 +251,12 @@ Many thanks in advance
     create_pr_if_not_exists "${release_branch_name}" "release: ${new_version}" "${release_body}" "${BASE_BRANCH}" "" "head"
 }
 
-# Create changelog branch and generate changelog
-create_changelog_pr() {
+# Generate the release test plan. The release-branch push workflow publishes
+# the changelog separately so this script never races it for the same branch.
+generate_release_test_plan() {
     local platform="$1"
-    local new_version="$2"
-    local previous_version_ref="$3"
-    local release_branch_name="$4"
-    local changelog_branch_name="$5"
+    local previous_version_ref="$2"
+    local release_branch_name="$3"
 
     # Skip commits.csv for hotfix releases (previous_version_ref is literal "null")
     # - When we create a new major/minor release, we fetch all commits included in the release, by fetching the diff between HEAD and previous version reference.
@@ -265,7 +264,7 @@ create_changelog_pr() {
     if [[ "${previous_version_ref,,}" == "null" ]]; then
       echo "Hotfix release detected (previous-version-ref is 'null'); skipping commits.csv generation."
     else
-      # Need to run from .github-tools context to inherit it's dependencies/environment
+    # Generate the CSV with GitHub Tools' own dependencies, not the consumer's.
       echo "Current Directory: $(pwd)"
       PROJECT_GIT_DIR=$(pwd)
 
@@ -290,37 +289,18 @@ create_changelog_pr() {
         echo "Previous version is not a recognized release branch pattern. Treating as tag or SHA: ${previous_version_ref}"
       fi
 
-      # Switch to github-tools directory
-      cd ./github-tools/
+            # Switch to the immutable action source directory.
+            cd "${GITHUB_TOOLS_DIR}"
       ls -ltra
       corepack prepare yarn@4.14.1 --activate
       # This can't be done from the actions context layer due to the upstream repository having it's own context set with yarn
-      yarn --cwd install
+            yarn install
 
       echo "Generating test plan csv.."
       yarn run gen:commits "${platform}" "${DIFF_BASE}" "${release_branch_name}" "${PROJECT_GIT_DIR}"
-      # Return to project root after generating commits.csv
-      cd ../
+            # The action checkout is not nested under the consumer repository.
+            cd "${PROJECT_GIT_DIR}"
     fi
-
-    # Delegate changelog update and PR creation to the shared TypeScript CLI.
-    echo "Updating changelog and creating PR.."
-
-    # Export git identity for the shared script
-    export GIT_AUTHOR_NAME="${GIT_USER_NAME}"
-    export GIT_AUTHOR_EMAIL="${GIT_USER_EMAIL}"
-
-    # Call the shared script
-    # The script is located in the same directory as this one
-    node "${SCRIPT_DIR}/update-release-changelog.mts" \
-        "${release_branch_name}" \
-        "${platform}" \
-        "${GITHUB_REPOSITORY_URL}" \
-        "${previous_version_ref}" \
-        "${changelog_branch_name}" \
-        "${new_version}"
-
-    echo "Changelog PR Ready"
 }
 
 # Create version bump PR for main branch
@@ -339,7 +319,7 @@ create_version_bump_pr() {
 
     # Update version files on main branch
     echo "Running version update scripts for ${main_branch} branch.."
-    ./github-tools/.github/scripts/set-semvar-version.sh "${next_version}" "${platform}"
+    "${GITHUB_TOOLS_DIR}/.github/scripts/set-semvar-version.sh" "${next_version}" "${platform}"
 
     # Commit version bump changes
     echo "Committing version bump changes.."
@@ -436,20 +416,20 @@ main() {
     next_version=$(get_next_version "$NEW_VERSION")
 
     # Initialize branch names
-    local release_branch_name changelog_branch_name version_bump_branch_name
+    local release_branch_name version_bump_branch_name
     release_branch_name=$(get_release_branch_name "$NEW_VERSION")
-    changelog_branch_name="release-changelog/${NEW_VERSION}"
     version_bump_branch_name=$(get_version_bump_branch_name "$next_version")    # Execute main workflow
     configure_git "${GIT_USER_NAME}" "${GIT_USER_EMAIL}"
 
     # Step 1: Create release branch and PR
-    create_release_pr "$PLATFORM" "$NEW_VERSION" "$NEW_VERSION_NUMBER" "$release_branch_name" "$changelog_branch_name"
+    create_release_pr "$PLATFORM" "$NEW_VERSION" "$NEW_VERSION_NUMBER" "$release_branch_name"
 
-    # Step 2: Create changelog PR (skip in test mode)
+    # Step 2: The release-branch push workflow owns changelog publication.
+    # Test-plan generation is still needed by release creation in production.
     if [ "$TEST_ONLY" == "true" ]; then
-        echo "Skipping changelog generation in test mode"
+        echo "Skipping test plan generation in test mode"
     else
-        create_changelog_pr "$PLATFORM" "$NEW_VERSION" "$PREVIOUS_VERSION_REF" "$release_branch_name" "$changelog_branch_name"
+        generate_release_test_plan "$PLATFORM" "$PREVIOUS_VERSION_REF" "$release_branch_name"
     fi
 
     # Step 3: Create version bump PR for main branch (skip for hotfix releases)
@@ -467,7 +447,7 @@ main() {
     echo "Created PRs:"
     echo "1. Release PR: release: ${NEW_VERSION}"
     if [ "$TEST_ONLY" != "true" ]; then
-        echo "2. Changelog PR: release: ${changelog_branch_name}"
+        echo "2. Changelog PR: generated by the release-branch workflow"
         if [[ "${PREVIOUS_VERSION_REF,,}" == "null" ]]; then
             echo "(Hotfix) Skipped version bump PR"
         else

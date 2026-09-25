@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  assertPrEvidenceAvailable,
   extractReleaseSection,
+  getEvidenceEnvironment,
   getPrNumbers,
   replaceReleaseSection,
   validateReplacement,
@@ -14,6 +16,17 @@ const generatedSection = `## [13.51.0]
 
 - Added a new flow (#101)
 - Fixed an issue (#102)`;
+
+test('removes LiteLLM credentials from evidence subprocesses', () => {
+  assert.deepEqual(
+    getEvidenceEnvironment({
+      GH_TOKEN: 'github-token',
+      LITELLM_API_KEY: 'litellm-key',
+      LITELLM_API_KEY_FILE: '/protected/key-file',
+    }),
+    { GH_TOKEN: 'github-token' },
+  );
+});
 
 test('extracts exactly one release section', () => {
   const changelog = `# Changelog
@@ -151,4 +164,12 @@ Here is the cleaned section:
       ),
     /unexpected Markdown/u,
   );
+});
+
+test('rejects a proofread when any source PR lacks evidence', () => {
+  assert.throws(
+    () => assertPrEvidenceAvailable(['101', '102']),
+    /PR evidence unavailable for #101, #102/u,
+  );
+  assert.doesNotThrow(() => assertPrEvidenceAvailable([]));
 });
