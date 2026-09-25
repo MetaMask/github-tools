@@ -452,6 +452,18 @@ export function getChangelogPushArguments({
   ];
 }
 
+export function parseUpdateChangelogArguments(argumentsList: string[]): {
+  dryRun: boolean;
+  positionalArguments: string[];
+} {
+  return {
+    dryRun: argumentsList.includes('--dry-run'),
+    positionalArguments: argumentsList.filter(
+      (argument) => argument !== '--dry-run',
+    ),
+  };
+}
+
 function pushChangelogBranch({
   changelogBranch,
   expectedRemoteSha,
@@ -599,6 +611,9 @@ function commitAndPushChangelog({
 }
 
 function main(): void {
+  const { dryRun, positionalArguments } = parseUpdateChangelogArguments(
+    process.argv.slice(2),
+  );
   const [
     releaseBranch,
     platform = 'extension',
@@ -606,10 +621,10 @@ function main(): void {
     previousVersionRef = 'null',
     changelogBranchInput = '',
     versionInput = '',
-  ] = process.argv.slice(2);
+  ] = positionalArguments;
   if (!releaseBranch || !repositoryUrl) {
     throw new Error(
-      'Usage: update-release-changelog.mts <release-branch> [platform] <repository-url> [previous-version-ref] [changelog-branch] [version]',
+      'Usage: update-release-changelog.mts [--dry-run] <release-branch> [platform] <repository-url> [previous-version-ref] [changelog-branch] [version]',
     );
   }
 
@@ -685,6 +700,24 @@ function main(): void {
     version,
   );
   runChangelogValidation();
+  if (dryRun) {
+    // Preflight the same source snapshots used for publication, but leave all
+    // commits, remote branches, and pull requests unchanged.
+    assertRemoteRefUnchanged({
+      ref: `origin/${releaseBranch}`,
+      expectedSha: targetReleaseSha,
+      description: 'Target release branch',
+    });
+    assertRemoteRefUnchanged({
+      ref: baseline.ref,
+      expectedSha: baselineSha,
+      description: 'Selected baseline',
+    });
+    console.log(
+      `Dry run passed for ${releaseBranch}; no commit, push, or PR update was performed.`,
+    );
+    return;
+  }
   commitAndPushChangelog({
     version,
     previousVersionRef,
