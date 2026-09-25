@@ -56,6 +56,14 @@ inputs:
     description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
     required: false
     default: ${{ github.action_ref }}
+  auto-changelog-repository:
+    description: 'Temporary source repository for auto-changelog while unreleased behavior is required.'
+    required: false
+    default: 'MetaMask/auto-changelog'
+  auto-changelog-ref:
+    description: 'Immutable auto-changelog commit SHA used by the temporary source CLI.'
+    required: false
+    default: '7bbff6b64971d5a12137949b4ac2363b5cd071ef'
 
 runs:
   using: composite
@@ -76,11 +84,23 @@ runs:
         ref: ${{ inputs.github-tools-ref }}
         path: github-tools
 
+    - name: Checkout auto-changelog source
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.auto-changelog-repository }}
+        ref: ${{ inputs.auto-changelog-ref }}
+        path: auto-changelog
+
     # Step 3: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: true
+
+    - name: Set up Node 24 for release changelog automation
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
 
     # Step 4: Print Input Values
     - name: Print Input Values
@@ -137,8 +157,13 @@ runs:
         MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
       working-directory: ${{ github.workspace }}
       run: |
+        corepack enable
+        corepack yarn --cwd ./auto-changelog install --immutable
+        corepack yarn --cwd ./auto-changelog build
+
         # Execute the script from github-tools
         ./github-tools/.github/scripts/create-platform-release-pr.sh \
           "$PLATFORM" \
@@ -147,6 +172,14 @@ runs:
           "$MOBILE_BUILD_VERSION" \
           "$GIT_USER_NAME" \
           "$GIT_USER_EMAIL"
+
+    - name: Upload clean-room proofread report
+      if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-changelog-ai-report
+        path: .tmp/release-changelog-ai/*.json
+        if-no-files-found: ignore
 
     # Step 6: Upload commits.csv as artifact (if generated)
     - name: Upload commits.csv artifact

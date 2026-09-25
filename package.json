@@ -17,17 +17,19 @@
     "lint:changelog": "auto-changelog validate --prettier",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:eslint": "eslint . --cache --ext js,ts,mts && eslint --no-ignore --cache --ext mjs .github/actions/draft-segment-schema-pr",
+    "lint:release-changelog": "eslint --no-ignore --cache .github/scripts/**/*.mts && tsc --project tsconfig.release-changelog.json",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' '!.cursor/**' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "lint:tsc": "tsc",
     "segment-schema:draft-pr": "ts-node src/segment-schema-draft-pr/cli.ts",
     "slack:release-testing": "node .github/scripts/slack-release-testing.mjs",
     "test": "jest && node --test .github/actions/draft-segment-schema-pr/gate.test.mjs && jest-it-up",
+    "test:release-changelog": "node --test .github/scripts/tests/*.test.mts",
     "test:watch": "jest --watch",
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
-    "@metamask/auto-changelog": "^6.2.0",
+    "@metamask/auto-changelog": "^7.0.1",
     "@metamask/utils": "^7.1.0",
     "@octokit/graphql": "^7.0.1",
     "@octokit/request": "^8.1.1",
@@ -78,10 +80,10 @@
     "ts-jest": "^28.0.7",
     "ts-node": "^10.9.1"
   },
-  "packageManager": "yarn@4.14.1",
   "engines": {
     "node": ">=20.0.0"
   },
+  "packageManager": "yarn@4.14.1",
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,

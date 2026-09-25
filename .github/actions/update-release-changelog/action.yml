@@ -19,6 +19,14 @@ inputs:
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+  auto-changelog-repository:
+    required: false
+    description: 'Temporary source repository for auto-changelog while unreleased behavior is required.'
+    default: 'MetaMask/auto-changelog'
+  auto-changelog-ref:
+    required: false
+    description: 'Immutable auto-changelog commit SHA used by the temporary source CLI.'
+    default: '7bbff6b64971d5a12137949b4ac2363b5cd071ef'
   github-tools-repository:
     description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
     required: false
@@ -47,11 +55,25 @@ runs:
         ref: ${{ inputs.github-tools-ref }}
         path: ./github-tools
 
+    # Temporary source checkout until the required auto-changelog behavior is
+    # released and both consumers update their packaged dependency.
+    - name: Checkout auto-changelog source
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.auto-changelog-repository }}
+        ref: ${{ inputs.auto-changelog-ref }}
+        path: ./auto-changelog
+
     # Step 3: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: true
+
+    - name: Set up Node 24 for release changelog automation
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
 
     # Step 4: Update changelog using shared helper script
     - name: Update changelog branch
@@ -64,14 +86,24 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
       run: |
         set -euo pipefail
 
         corepack enable
-        yarn install --immutable
+        corepack yarn --cwd ./auto-changelog install --immutable
+        corepack yarn --cwd ./auto-changelog build
 
-        ./github-tools/.github/scripts/update-release-changelog.sh \
+        node ./github-tools/.github/scripts/update-release-changelog.mts \
           "$RELEASE_BRANCH" \
           "$PLATFORM" \
           "$REPOSITORY_URL" \
           "$PREVIOUS_VERSION_REF"
+
+    - name: Upload clean-room proofread report
+      if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-changelog-ai-report
+        path: .tmp/release-changelog-ai/*.json
+        if-no-files-found: ignore
