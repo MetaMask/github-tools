@@ -6,7 +6,9 @@ import {
   extractReleaseSection,
   getEvidenceEnvironment,
   getPrNumbers,
+  mergeCleanRoomSections,
   replaceReleaseSection,
+  splitReleaseSectionIntoChunks,
   validateReplacement,
 } from '../clean-release-changelog.mts';
 
@@ -25,6 +27,61 @@ test('removes LiteLLM credentials from evidence subprocesses', () => {
       LITELLM_API_KEY_FILE: '/protected/key-file',
     }),
     { GH_TOKEN: 'github-token' },
+  );
+});
+
+test('cleans large release sections in reference-preserving chunks', () => {
+  const section = `## [13.51.0]
+
+### Uncategorized
+
+- Added a new flow (#101)
+- Fixed an issue (#102)
+
+### Fixed
+
+- Improved a flow (#103)`;
+  assert.deepEqual(splitReleaseSectionIntoChunks(section, '13.51.0', 2), [
+    {
+      section: `## [13.51.0]
+
+### Uncategorized
+
+- Added a new flow (#101)
+
+- Fixed an issue (#102)`,
+      prNumbers: ['101', '102'],
+    },
+    {
+      section: `## [13.51.0]
+
+### Uncategorized
+
+- Improved a flow (#103)`,
+      prNumbers: ['103'],
+    },
+  ]);
+  const merged = mergeCleanRoomSections(
+    [
+      `## [13.51.0]
+
+### Added
+
+- Added a new flow (#101)
+
+### Fixed
+
+- Fixed an issue (#102)`,
+      `## [13.51.0]
+
+### Fixed
+
+- Improved a flow (#103)`,
+    ],
+    '13.51.0',
+  );
+  assert.doesNotThrow(() =>
+    validateReplacement(merged, '13.51.0', ['101', '102', '103']),
   );
 });
 
