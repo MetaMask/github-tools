@@ -9,6 +9,15 @@ const DEFAULT_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 2;
 const MAX_PR_BODY_LENGTH = 4_000;
 const MAX_PR_FILES = 40;
+const MAX_ENTRIES_PER_CLEAN_ROOM_REQUEST = 20;
+const VALID_CATEGORY_NAMES = [
+  'Added',
+  'Changed',
+  'Deprecated',
+  'Removed',
+  'Fixed',
+  'Security',
+];
 
 export function getEvidenceEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
@@ -85,6 +94,162 @@ export function getPrNumbers(section: string): string[] {
     const prNumber = match[1];
     return prNumber ? [prNumber] : [];
   });
+}
+
+type CleanRoomChunk = {
+  section: string;
+  prNumbers: string[];
+};
+
+export function splitReleaseSectionIntoChunks(
+  section: string,
+  version: string,
+  maxEntries = MAX_ENTRIES_PER_CLEAN_ROOM_REQUEST,
+): CleanRoomChunk[] {
+  if (!Number.isInteger(maxEntries) || maxEntries < 1) {
+    throw new Error('maxEntries must be a positive integer');
+  }
+
+  const lines = section.trimEnd().split(/\r?\n/u);
+  const heading = `## [${version}]`;
+  if (lines[0] !== heading) {
+    throw new Error(`Expected section to start with ${heading}`);
+  }
+
+  const entries: string[] = [];
+  let currentEntry: string[] = [];
+  for (const line of lines.slice(1)) {
+    if (line.startsWith('- ')) {
+      if (currentEntry.length > 0) {
+        entries.push(currentEntry.join('\n').trimEnd());
+      }
+      currentEntry = [line];
+    } else if (line.startsWith('### ')) {
+      if (currentEntry.length > 0) {
+        entries.push(currentEntry.join('\n').trimEnd());
+        currentEntry = [];
+      }
+    } else if (currentEntry.length > 0) {
+      currentEntry.push(line);
+    } else if (line.trim() !== '') {
+      throw new Error(`Unexpected release-section content: ${line}`);
+    }
+  }
+  if (currentEntry.length > 0) {
+    entries.push(currentEntry.join('\n').trimEnd());
+  }
+
+  const chunks: CleanRoomChunk[] = [];
+  const seenPrNumbers = new Set<string>();
+  let chunkEntries: string[] = [];
+  let chunkPrNumbers: string[] = [];
+  const addChunk = () => {
+    if (chunkEntries.length === 0) {
+      return;
+    }
+    chunks.push({
+      section: `${heading}\n\n### Uncategorized\n\n${chunkEntries.join('\n\n')}`,
+      prNumbers: chunkPrNumbers,
+    });
+    chunkEntries = [];
+    chunkPrNumbers = [];
+  };
+
+  for (const entry of entries) {
+    const entryPrNumbers = getPrNumbers(entry);
+    if (entryPrNumbers.length === 0) {
+      throw new Error(
+        `Generated changelog entry has no PR reference: ${entry}`,
+      );
+    }
+    const uniqueEntryPrNumbers = [...new Set(entryPrNumbers)];
+    const alreadySeen = uniqueEntryPrNumbers.filter((prNumber) =>
+      seenPrNumbers.has(prNumber),
+    );
+    if (alreadySeen.length === uniqueEntryPrNumbers.length) {
+      continue;
+    }
+    if (alreadySeen.length > 0) {
+      throw new Error(
+        `Generated changelog entry overlaps an earlier PR reference: ${alreadySeen.join(', ')}`,
+      );
+    }
+    if (chunkEntries.length === maxEntries) {
+      addChunk();
+    }
+    chunkEntries.push(entry);
+    chunkPrNumbers.push(...uniqueEntryPrNumbers);
+    uniqueEntryPrNumbers.forEach((prNumber) => seenPrNumbers.add(prNumber));
+  }
+  addChunk();
+
+  if (chunks.length === 0) {
+    throw new Error(`Generated ## [${version}] section contains no entries`);
+  }
+  return chunks;
+}
+
+function getCategorizedBlocks(
+  section: string,
+  version: string,
+): Map<string, string[]> {
+  const lines = section.trimEnd().split(/\r?\n/u);
+  const heading = `## [${version}]`;
+  if (lines[0] !== heading) {
+    throw new Error(`Expected section to start with ${heading}`);
+  }
+
+  const blocks = new Map<string, string[]>();
+  let category: string | undefined;
+  let categoryLines: string[] = [];
+  const addCategory = () => {
+    if (!category) {
+      return;
+    }
+    const content = categoryLines.join('\n').trim();
+    if (content) {
+      blocks.set(category, [...(blocks.get(category) ?? []), content]);
+    }
+  };
+
+  for (const line of lines.slice(1)) {
+    const categoryMatch = /^### (.+)$/u.exec(line);
+    if (categoryMatch) {
+      addCategory();
+      category = categoryMatch[1];
+      categoryLines = [];
+    } else if (category) {
+      categoryLines.push(line);
+    } else if (line.trim() !== '') {
+      throw new Error(`Unexpected release-section content: ${line}`);
+    }
+  }
+  addCategory();
+  return blocks;
+}
+
+export function mergeCleanRoomSections(
+  sections: readonly string[],
+  version: string,
+): string {
+  const blocksByCategory = new Map<string, string[]>();
+  for (const section of sections) {
+    const categorizedBlocks = getCategorizedBlocks(section, version);
+    for (const [category, blocks] of categorizedBlocks) {
+      blocksByCategory.set(category, [
+        ...(blocksByCategory.get(category) ?? []),
+        ...blocks,
+      ]);
+    }
+  }
+
+  const categories = VALID_CATEGORY_NAMES.flatMap((category) => {
+    const blocks = blocksByCategory.get(category) ?? [];
+    return blocks.length > 0
+      ? [`### ${category}\n\n${blocks.join('\n\n')}`]
+      : [];
+  });
+  return `## [${version}]\n\n${categories.join('\n\n')}`;
 }
 
 export function validateReplacement(
@@ -341,12 +506,31 @@ async function main(): Promise<void> {
     const sourcePrNumbers = getPrNumbers(section);
     const prEvidence = getPrEvidence(repository, sourcePrNumbers);
     assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
-    const replacement = await requestCleanRoomRewrite({
-      prompt,
-      section,
-      prEvidence: prEvidence.evidence,
-      apiKey,
-    });
+    const evidenceByPrNumber = new Map(
+      prEvidence.evidence.flatMap((evidence) => {
+        const match = /^#(\d+):/u.exec(evidence);
+        return match?.[1] ? [[match[1], evidence]] : [];
+      }),
+    );
+    const cleanRoomSections: string[] = [];
+    for (const chunk of splitReleaseSectionIntoChunks(section, version)) {
+      const chunkEvidence = chunk.prNumbers.map((prNumber) => {
+        const evidence = evidenceByPrNumber.get(prNumber);
+        if (!evidence) {
+          throw new Error(`PR evidence is unavailable for #${prNumber}`);
+        }
+        return evidence;
+      });
+      const cleanRoomSection = await requestCleanRoomRewrite({
+        prompt,
+        section: chunk.section,
+        prEvidence: chunkEvidence,
+        apiKey,
+      });
+      validateReplacement(cleanRoomSection, version, chunk.prNumbers);
+      cleanRoomSections.push(cleanRoomSection);
+    }
+    const replacement = mergeCleanRoomSections(cleanRoomSections, version);
     validateReplacement(replacement, version, sourcePrNumbers);
 
     writeFileSync(

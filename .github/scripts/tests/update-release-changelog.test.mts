@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   getChangelogPushArguments,
   getChangelogPrPresentation,
+  getYarnInvocation,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
 } from '../update-release-changelog.mts';
@@ -27,6 +28,19 @@ test('parses dry-run without changing positional arguments', () => {
       ],
     },
   );
+});
+
+test('runs Yarn through the command shim on Windows', () => {
+  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'win32'), {
+    command: 'yarn.cmd',
+    args: ['run', 'lint:changelog:rc'],
+    shell: true,
+  });
+  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'linux'), {
+    command: 'yarn',
+    args: ['run', 'lint:changelog:rc'],
+    shell: false,
+  });
 });
 
 test('protects first changelog branch creation with an empty lease', () => {

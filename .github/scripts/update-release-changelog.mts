@@ -45,19 +45,41 @@ function capture(command: string, args: string[]): string {
   }).trim();
 }
 
-function captureRaw(command: string, args: string[]): string {
-  return execFileSync(command, args, {
-    encoding: 'utf8',
-    env: deterministicEnvironment,
-  });
-}
-
 function execute(
   command: string,
   args: string[],
   environment = deterministicEnvironment,
 ): void {
   execFileSync(command, args, { env: environment, stdio: 'inherit' });
+}
+
+export function getYarnInvocation(
+  args: string[],
+  platform = process.platform,
+): { command: string; args: string[]; shell: boolean } {
+  return platform === 'win32'
+    ? { command: 'yarn.cmd', args, shell: true }
+    : { command: 'yarn', args, shell: false };
+}
+
+function executeYarn(args: string[]): void {
+  const invocation = getYarnInvocation(args);
+  execFileSync(invocation.command, invocation.args, {
+    env: deterministicEnvironment,
+    shell: invocation.shell,
+    stdio: 'inherit',
+  });
+}
+
+function yarnSucceeds(args: string[]): boolean {
+  const invocation = getYarnInvocation(args);
+  return (
+    spawnSync(invocation.command, invocation.args, {
+      env: deterministicEnvironment,
+      shell: invocation.shell,
+      stdio: 'ignore',
+    }).status === 0
+  );
 }
 
 function succeeds(command: string, args: string[]): boolean {
@@ -206,12 +228,11 @@ function rebuildChangelogBranch({
     'CHANGELOG.md',
   ]);
 
-  const expectedChangelog = captureRaw('git', [
-    'show',
-    `${baseline.ref}:CHANGELOG.md`,
-  ]);
-  const restoredChangelog = readFileSync('CHANGELOG.md', 'utf8');
-  if (restoredChangelog !== expectedChangelog) {
+  // Compare through Git so text attributes and core.autocrlf do not turn an
+  // exact restore into a false mismatch on Windows worktrees.
+  if (
+    !succeeds('git', ['diff', '--quiet', baseline.ref, '--', 'CHANGELOG.md'])
+  ) {
     throw new Error(`Restored CHANGELOG.md does not match ${baseline.ref}`);
   }
 }
@@ -246,8 +267,8 @@ function generateChangelog({
     return;
   }
 
-  if (succeeds('yarn', ['run', '--silent', 'update-changelog', '--help'])) {
-    execute('yarn', [
+  if (yarnSucceeds(['run', '--silent', 'update-changelog', '--help'])) {
+    executeYarn([
       'update-changelog',
       '--repo',
       repositoryUrl,
@@ -260,7 +281,7 @@ function generateChangelog({
   console.warn(
     'No update-changelog script found; using legacy auto-changelog invocation.',
   );
-  execute('yarn', ['auto-changelog', ...commonArguments]);
+  executeYarn(['auto-changelog', ...commonArguments]);
 }
 
 export function validateGeneratedReleaseSection(
@@ -291,12 +312,10 @@ export function validateGeneratedReleaseSection(
 }
 
 function runChangelogValidation(): void {
-  if (succeeds('yarn', ['run', '--silent', 'lint:changelog:rc', '--help'])) {
-    execute('yarn', ['lint:changelog:rc']);
-  } else if (
-    succeeds('yarn', ['run', '--silent', 'lint:changelog', '--help'])
-  ) {
-    execute('yarn', ['lint:changelog', '--rc']);
+  if (yarnSucceeds(['run', '--silent', 'lint:changelog:rc', '--help'])) {
+    executeYarn(['lint:changelog:rc']);
+  } else if (yarnSucceeds(['run', '--silent', 'lint:changelog', '--help'])) {
+    executeYarn(['lint:changelog', '--rc']);
   } else {
     throw new Error('No changelog validation script is available');
   }
