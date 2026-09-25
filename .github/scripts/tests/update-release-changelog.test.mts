@@ -4,8 +4,30 @@ import test from 'node:test';
 import {
   getChangelogPushArguments,
   getChangelogPrPresentation,
+  parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
 } from '../update-release-changelog.mts';
+
+test('parses dry-run without changing positional arguments', () => {
+  assert.deepEqual(
+    parseUpdateChangelogArguments([
+      '--dry-run',
+      'release/13.51.0',
+      'extension',
+      'https://github.com/MetaMask/metamask-extension',
+      'null',
+    ]),
+    {
+      dryRun: true,
+      positionalArguments: [
+        'release/13.51.0',
+        'extension',
+        'https://github.com/MetaMask/metamask-extension',
+        'null',
+      ],
+    },
+  );
+});
 
 test('protects first changelog branch creation with an empty lease', () => {
   assert.deepEqual(
