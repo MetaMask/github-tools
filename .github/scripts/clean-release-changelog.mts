@@ -1,0 +1,340 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const MODEL = 'gpt-5.6-terra';
+const DEFAULT_BASE_URL = 'https://litellm.consensys.info';
+const DEFAULT_TIMEOUT_MS = 90_000;
+const MAX_ATTEMPTS = 2;
+const MAX_PR_BODY_LENGTH = 4_000;
+const MAX_PR_FILES = 40;
+
+type ReleaseSection = {
+  section: string;
+  start: number;
+  end: number;
+};
+
+type LiteLlmResponse = {
+  choices?: { message?: { content?: unknown } }[];
+};
+
+function getArgument(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
+
+function writeReport(reportPath: string, report: Record<string, string>): void {
+  mkdirSync(dirname(reportPath), { recursive: true });
+  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+}
+
+function fail(reportPath: string, stage: string, error: string): void {
+  writeReport(reportPath, { status: 'failed', stage, error });
+  console.error(`Clean-room proofread failed during ${stage}: ${error}`);
+  process.exitCode = 1;
+}
+
+export function extractReleaseSection(
+  content: string,
+  version: string,
+): ReleaseSection {
+  const heading = `## [${version}]`;
+  const headingMatches = content.match(
+    new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\]$`, 'gmu'),
+  );
+  if (headingMatches?.length !== 1) {
+    throw new Error(`Expected exactly one release heading for ${version}`);
+  }
+
+  const start = content.indexOf(heading);
+  const nextHeading = content.indexOf('\n## [', start + heading.length);
+  const rawEnd = nextHeading === -1 ? content.length : nextHeading + 1;
+  const section = content.slice(start, rawEnd).trimEnd();
+
+  return {
+    section,
+    start,
+    end: start + section.length,
+  };
+}
+
+export function replaceReleaseSection(
+  content: string,
+  version: string,
+  replacement: string,
+): string {
+  const { start, end } = extractReleaseSection(content, version);
+  return `${content.slice(0, start)}${replacement}${content.slice(end)}`;
+}
+
+export function getPrNumbers(section: string): string[] {
+  return [...section.matchAll(/#(\d+)/gu)].flatMap((match) => {
+    const prNumber = match[1];
+    return prNumber ? [prNumber] : [];
+  });
+}
+
+export function validateReplacement(
+  section: string,
+  version: string,
+  expectedPrNumbers: readonly string[],
+): void {
+  if (!section.startsWith(`## [${version}]\n`)) {
+    throw new Error(`Response must start with ## [${version}]`);
+  }
+  if (/^## \[/mu.test(section.slice(`## [${version}]`.length))) {
+    throw new Error('Response must contain only one release section');
+  }
+  if (/^### Uncategorized$/mu.test(section)) {
+    throw new Error('Response must not contain Uncategorized');
+  }
+
+  const categoryPattern =
+    /^### (Added|Changed|Deprecated|Removed|Fixed|Security)$/gmu;
+  const categories = [...section.matchAll(categoryPattern)];
+  if (categories.length === 0) {
+    throw new Error('Response must contain at least one valid category');
+  }
+
+  const categoryNames = new Set<string>();
+  for (const category of categories) {
+    const categoryName = category[1] ?? 'unknown';
+    if (categoryNames.has(categoryName)) {
+      throw new Error(`Response contains duplicate ${categoryName} categories`);
+    }
+    categoryNames.add(categoryName);
+
+    const categoryStart = (category.index ?? 0) + category[0].length;
+    const nextCategory = section.indexOf('\n### ', categoryStart);
+    const categoryBody = section.slice(
+      categoryStart,
+      nextCategory === -1 ? undefined : nextCategory,
+    );
+    if (!/^\s*\n- /mu.test(categoryBody)) {
+      throw new Error(`Category ${categoryName} must not be empty`);
+    }
+  }
+
+  const releaseBody = section.slice(`## [${version}]`.length);
+  for (const line of releaseBody.split(/\r?\n/u)) {
+    if (
+      line === '' ||
+      categoryPattern.test(line) ||
+      line.startsWith('- ') ||
+      /^\s+/u.test(line)
+    ) {
+      categoryPattern.lastIndex = 0;
+      continue;
+    }
+    throw new Error(`Response contains unexpected Markdown: ${line}`);
+  }
+  if (/\[[^\]]+\]\([^)]/u.test(releaseBody)) {
+    throw new Error(
+      'Response must not contain Markdown links in entry descriptions',
+    );
+  }
+
+  const actualPrNumbers = getPrNumbers(section);
+  const expected = new Set(expectedPrNumbers);
+  const actual = new Set(actualPrNumbers);
+  if (
+    expected.size !== actual.size ||
+    [...expected].some((prNumber) => !actual.has(prNumber))
+  ) {
+    throw new Error(
+      'Response PR references do not match the generated section',
+    );
+  }
+  if (actualPrNumbers.length !== actual.size) {
+    throw new Error('Response contains duplicate PR references');
+  }
+}
+
+type PullRequestMetadata = {
+  title?: unknown;
+  body?: unknown;
+};
+
+function getPrEvidence(
+  repository: string,
+  prNumbers: readonly string[],
+): string[] {
+  const match = /github\.com[/:]([^/]+)\/([^/]+)$/u.exec(
+    repository.replace(/\.git$/u, ''),
+  );
+  if (!match) {
+    throw new Error(`Cannot parse GitHub repository URL: ${repository}`);
+  }
+
+  const owner = match[1];
+  const repo = match[2];
+  if (!owner || !repo) {
+    throw new Error(`Cannot parse GitHub repository URL: ${repository}`);
+  }
+  return [...new Set(prNumbers)].map((prNumber) => {
+    try {
+      const pullRequest = JSON.parse(
+        execFileSync(
+          'gh',
+          ['api', `repos/${owner}/${repo}/pulls/${prNumber}`],
+          { encoding: 'utf8' },
+        ),
+      ) as PullRequestMetadata;
+      const title =
+        typeof pullRequest.title === 'string'
+          ? pullRequest.title
+          : '<title unavailable>';
+      const body =
+        typeof pullRequest.body === 'string'
+          ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
+          : '<body unavailable>';
+      const files = execFileSync(
+        'gh',
+        [
+          'api',
+          `repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${MAX_PR_FILES}`,
+          '--jq',
+          '.[].filename',
+        ],
+        { encoding: 'utf8' },
+      )
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .slice(0, MAX_PR_FILES);
+      return `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`;
+    } catch {
+      return `#${prNumber}: <evidence unavailable>`;
+    }
+  });
+}
+
+async function requestCleanRoomRewrite({
+  prompt,
+  section,
+  prEvidence,
+  apiKey,
+}: {
+  prompt: string;
+  section: string;
+  prEvidence: readonly string[];
+  apiKey: string;
+}): Promise<string> {
+  const baseUrl = (process.env.LITELLM_BASE_URL ?? DEFAULT_BASE_URL).replace(
+    /\/$/u,
+    '',
+  );
+  const maxCompletionTokensField = 'max_completion_tokens';
+  const requestBody: Record<string, unknown> = {
+    model: MODEL,
+    temperature: 0,
+    [maxCompletionTokensField]: 16_000,
+    messages: [
+      {
+        role: 'system',
+        content: 'Return only the requested Markdown release section.',
+      },
+      {
+        role: 'user',
+        content: `${prompt}\n\n## Input\n\n<release_section>\n${section}\n</release_section>\n\n<pr_evidence>\n${prEvidence.join('\n\n')}\n</pr_evidence>`,
+      },
+    ],
+  };
+
+  let lastError: string | undefined;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      Number(process.env.CHANGELOG_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
+    );
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`LiteLLM returned HTTP ${String(response.status)}`);
+      }
+
+      const payload = (await response.json()) as LiteLlmResponse;
+      const content = payload.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || content.trim() === '') {
+        throw new Error('LiteLLM returned no message content');
+      }
+      return content.trim();
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 1_000));
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw new Error(lastError ?? 'LiteLLM request failed');
+}
+
+async function main(): Promise<void> {
+  const changelogPath = getArgument('--changelog');
+  const version = getArgument('--version');
+  const repository = getArgument('--repository');
+  const promptPath = getArgument('--prompt');
+  const reportPath =
+    getArgument('--report') ?? '.tmp/release-changelog-ai/report.json';
+
+  if (!changelogPath || !version || !repository || !promptPath) {
+    fail(
+      reportPath,
+      'arguments',
+      'Required arguments: --changelog, --version, --repository, --prompt',
+    );
+    return;
+  }
+
+  const apiKey = process.env.LITELLM_API_KEY;
+  if (!apiKey) {
+    fail(reportPath, 'authentication', 'LITELLM_API_KEY is not set');
+    return;
+  }
+
+  try {
+    const absoluteChangelogPath = resolve(changelogPath);
+    const changelogContent = readFileSync(absoluteChangelogPath, 'utf8');
+    const { section } = extractReleaseSection(changelogContent, version);
+    const prompt = readFileSync(promptPath, 'utf8');
+    const sourcePrNumbers = getPrNumbers(section);
+    const replacement = await requestCleanRoomRewrite({
+      prompt,
+      section,
+      prEvidence: getPrEvidence(repository, sourcePrNumbers),
+      apiKey,
+    });
+    validateReplacement(replacement, version, sourcePrNumbers);
+
+    writeFileSync(
+      absoluteChangelogPath,
+      replaceReleaseSection(changelogContent, version, replacement),
+    );
+    writeReport(reportPath, { status: 'succeeded', model: MODEL });
+  } catch (error) {
+    fail(
+      reportPath,
+      'cleaning',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  await main();
+}

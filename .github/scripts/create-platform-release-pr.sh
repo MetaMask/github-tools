@@ -303,7 +303,7 @@ create_changelog_pr() {
       cd ../
     fi
 
-    # Delegate changelog update and PR creation to the shared update-release-changelog.sh script
+    # Delegate changelog update and PR creation to the shared TypeScript CLI.
     echo "Updating changelog and creating PR.."
 
     # Export git identity for the shared script
@@ -312,7 +312,7 @@ create_changelog_pr() {
 
     # Call the shared script
     # The script is located in the same directory as this one
-    "${SCRIPT_DIR}/update-release-changelog.sh" \
+    node "${SCRIPT_DIR}/update-release-changelog.mts" \
         "${release_branch_name}" \
         "${platform}" \
         "${GITHUB_REPOSITORY_URL}" \

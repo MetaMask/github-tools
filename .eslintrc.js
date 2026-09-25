@@ -5,12 +5,12 @@ module.exports = {
 
   overrides: [
     {
-      files: ['*.ts'],
+      files: ['*.ts', '*.mts'],
       extends: ['@metamask/eslint-config-typescript'],
     },
 
     {
-      files: ['*.js', '*.ts'],
+      files: ['*.js', '*.ts', '*.mts'],
       parserOptions: {
         sourceType: 'script',
       },
@@ -18,8 +18,28 @@ module.exports = {
     },
 
     {
-      files: ['*.test.ts', '*.test.js'],
+      files: ['*.test.ts', '*.test.mts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
+    },
+
+    {
+      files: ['.github/scripts/**/*.mts'],
+      parserOptions: {
+        project: './tsconfig.release-changelog.json',
+        sourceType: 'module',
+      },
+      rules: {
+        'jsdoc/require-jsdoc': 'off',
+        'n/no-process-env': 'off',
+      },
+    },
+
+    {
+      files: ['.github/scripts/**/*.test.mts'],
+      rules: {
+        '@typescript-eslint/no-floating-promises': 'off',
+        '@typescript-eslint/no-shadow': 'off',
+      },
     },
   ],
 
