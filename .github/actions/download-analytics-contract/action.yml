@@ -1,0 +1,168 @@
+name: Download analytics contract
+description: >
+  Resolve and download a deployed analytics contract release using a short-lived OIDC token.
+  The calling workflow must grant id-token: write.
+
+inputs:
+  token-exchange-url:
+    description: URL used to exchange the GitHub OIDC token.
+    required: true
+  target-repository:
+    description: Private repository containing the analytics contract releases.
+    required: true
+  asset-name:
+    description: Platform contract asset to download.
+    required: true
+  release-tag:
+    description: Exact analytics contract release tag. Empty selects the newest published release.
+    required: false
+    default: ''
+  output-directory:
+    description: Directory where manifest.json and the platform contract are written.
+    required: true
+
+outputs:
+  release-tag:
+    description: Selected analytics contract release tag.
+    value: ${{ steps.resolve-release.outputs.release-tag }}
+  release-url:
+    description: Selected analytics contract release URL.
+    value: ${{ steps.resolve-release.outputs.release-url }}
+  asset-digest:
+    description: SHA-256 digest advertised for the downloaded asset.
+    value: ${{ steps.resolve-release.outputs.asset-digest }}
+  manifest-path:
+    description: Absolute path to the downloaded manifest.
+    value: ${{ steps.download-release.outputs.manifest-path }}
+  asset-path:
+    description: Absolute path to the downloaded platform asset.
+    value: ${{ steps.download-release.outputs.asset-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Get read token
+      id: contract-token
+      uses: MetaMask/github-tools/.github/actions/get-token@v1
+      with:
+        token-exchange-url: ${{ inputs.token-exchange-url }}
+        target-repository: ${{ inputs.target-repository }}
+        permissions: |
+          contents: read
+
+    - name: Resolve release
+      id: resolve-release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.contract-token.outputs.token }}
+        TARGET_REPOSITORY: ${{ inputs.target-repository }}
+        REQUESTED_TAG: ${{ inputs.release-tag }}
+        ASSET_NAME: ${{ inputs.asset-name }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "${REQUESTED_TAG}" ]; then
+          RELEASE="$(
+            gh api \
+              "repos/${TARGET_REPOSITORY}/releases/tags/${REQUESTED_TAG}"
+          )"
+        else
+          RELEASE_PAGES="$(
+            gh api \
+              --paginate \
+              --slurp \
+              "repos/${TARGET_REPOSITORY}/releases?per_page=100"
+          )"
+          RELEASE="$(
+            jq '
+                [
+                  .[][]
+                  | select(.draft == false)
+                  | select(.prerelease == false)
+                  | select(.tag_name | startswith("analytics-contracts-"))
+                ]
+                | sort_by(.published_at)
+                | last
+              ' <<< "${RELEASE_PAGES}"
+          )"
+        fi
+
+        TAG="$(jq -r '.tag_name // empty' <<< "${RELEASE}")"
+        RELEASE_URL="$(jq -r '.html_url // empty' <<< "${RELEASE}")"
+        DRAFT="$(jq -r '.draft // true' <<< "${RELEASE}")"
+        PRERELEASE="$(jq -r '.prerelease // true' <<< "${RELEASE}")"
+        ASSET_DIGEST="$(
+          jq -r --arg asset "${ASSET_NAME}" '
+            .assets[]
+            | select(.name == $asset)
+            | .digest // empty
+          ' <<< "${RELEASE}"
+        )"
+
+        if [ -z "${TAG}" ] || [[ "${TAG}" != analytics-contracts-* ]]; then
+          echo "No matching analytics contract release was found." >&2
+          exit 1
+        fi
+
+        if [ "${DRAFT}" = "true" ] || [ "${PRERELEASE}" = "true" ]; then
+          echo "Release ${TAG} is not published." >&2
+          exit 1
+        fi
+
+        if ! [[ "${ASSET_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Release ${TAG} has no valid ${ASSET_NAME} SHA-256 digest." >&2
+          exit 1
+        fi
+
+        {
+          echo "release-tag=${TAG}"
+          echo "release-url=${RELEASE_URL}"
+          echo "asset-digest=${ASSET_DIGEST}"
+        } >> "${GITHUB_OUTPUT}"
+
+    - name: Download release
+      id: download-release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.contract-token.outputs.token }}
+        TARGET_REPOSITORY: ${{ inputs.target-repository }}
+        RELEASE_TAG: ${{ steps.resolve-release.outputs.release-tag }}
+        ASSET_NAME: ${{ inputs.asset-name }}
+        OUTPUT_DIRECTORY: ${{ inputs.output-directory }}
+        EXPECTED_DIGEST: ${{ steps.resolve-release.outputs.asset-digest }}
+      run: |
+        set -euo pipefail
+        if [[ "${OUTPUT_DIRECTORY}" != /* ]]; then
+          OUTPUT_DIRECTORY="${GITHUB_WORKSPACE}/${OUTPUT_DIRECTORY}"
+        fi
+        mkdir -p "${OUTPUT_DIRECTORY}"
+        OUTPUT_DIRECTORY="$(cd "${OUTPUT_DIRECTORY}" && pwd)"
+
+        gh release download "${RELEASE_TAG}" \
+          --repo "${TARGET_REPOSITORY}" \
+          --pattern manifest.json \
+          --pattern "${ASSET_NAME}" \
+          --dir "${OUTPUT_DIRECTORY}" \
+          --clobber
+
+        MANIFEST_PATH="${OUTPUT_DIRECTORY}/manifest.json"
+        ASSET_PATH="${OUTPUT_DIRECTORY}/${ASSET_NAME}"
+
+        if [ ! -f "${MANIFEST_PATH}" ] || [ ! -f "${ASSET_PATH}" ]; then
+          echo "Release did not contain manifest.json and ${ASSET_NAME}." >&2
+          exit 1
+        fi
+
+        ACTUAL_DIGEST="$(
+          sha256sum "${ASSET_PATH}" | awk '{ print "sha256:" $1 }'
+        )"
+
+        if [ "${ACTUAL_DIGEST}" != "${EXPECTED_DIGEST}" ]; then
+          echo "Downloaded ${ASSET_NAME} digest does not match the release digest." >&2
+          exit 1
+        fi
+
+        {
+          echo "manifest-path=${MANIFEST_PATH}"
+          echo "asset-path=${ASSET_PATH}"
+        } >> "${GITHUB_OUTPUT}"
