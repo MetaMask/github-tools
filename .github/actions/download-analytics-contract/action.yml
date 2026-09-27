@@ -89,8 +89,8 @@ runs:
 
         TAG="$(jq -r '.tag_name // empty' <<< "${RELEASE}")"
         RELEASE_URL="$(jq -r '.html_url // empty' <<< "${RELEASE}")"
-        DRAFT="$(jq -r '.draft // true' <<< "${RELEASE}")"
-        PRERELEASE="$(jq -r '.prerelease // true' <<< "${RELEASE}")"
+        DRAFT="$(jq -r '(.draft == true)' <<< "${RELEASE}")"
+        PRERELEASE="$(jq -r '(.prerelease == true)' <<< "${RELEASE}")"
         ASSET_DIGEST="$(
           jq -r --arg asset "${ASSET_NAME}" '
             .assets[]
@@ -138,15 +138,16 @@ runs:
         mkdir -p "${OUTPUT_DIRECTORY}"
         OUTPUT_DIRECTORY="$(cd "${OUTPUT_DIRECTORY}" && pwd)"
 
+        MANIFEST_PATH="${OUTPUT_DIRECTORY}/manifest.json"
+        ASSET_PATH="${OUTPUT_DIRECTORY}/${ASSET_NAME}"
+        rm -f -- "${MANIFEST_PATH}" "${ASSET_PATH}"
+
         gh release download "${RELEASE_TAG}" \
           --repo "${TARGET_REPOSITORY}" \
           --pattern manifest.json \
           --pattern "${ASSET_NAME}" \
           --dir "${OUTPUT_DIRECTORY}" \
           --clobber
-
-        MANIFEST_PATH="${OUTPUT_DIRECTORY}/manifest.json"
-        ASSET_PATH="${OUTPUT_DIRECTORY}/${ASSET_NAME}"
 
         if [ ! -f "${MANIFEST_PATH}" ] || [ ! -f "${ASSET_PATH}" ]; then
           echo "Release did not contain manifest.json and ${ASSET_NAME}." >&2
