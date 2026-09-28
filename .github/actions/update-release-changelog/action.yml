@@ -19,6 +19,9 @@ inputs:
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+  ai-analyzer-litellm-key:
+    required: false
+    description: 'LiteLLM API key used only for clean-room changelog proofreading.'
   auto-changelog-repository:
     required: false
     description: 'Temporary source repository for auto-changelog while unreleased behavior is required.'
@@ -33,8 +36,6 @@ runs:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
     - name: Checkout invoking repository
       uses: actions/checkout@v6
-      env:
-        LITELLM_API_KEY: ''
       with:
         fetch-depth: 0
         ref: ${{ inputs.release-branch }}
@@ -44,8 +45,6 @@ runs:
     # released and both consumers update their packaged dependency.
     - name: Checkout auto-changelog source
       uses: actions/checkout@v6
-      env:
-        LITELLM_API_KEY: ''
       with:
         repository: ${{ inputs.auto-changelog-repository }}
         ref: ${{ inputs.auto-changelog-ref }}
@@ -54,22 +53,16 @@ runs:
     # Step 3: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
-      env:
-        LITELLM_API_KEY: ''
       with:
         is-high-risk-environment: true
 
     - name: Set up Node 24 for release changelog automation
       uses: actions/setup-node@v6
-      env:
-        LITELLM_API_KEY: ''
       with:
         node-version: '24'
 
     - name: Build auto-changelog source
       shell: bash
-      env:
-        LITELLM_API_KEY: ''
       run: |
         set -euo pipefail
         corepack enable
@@ -77,15 +70,17 @@ runs:
         corepack yarn --cwd ./auto-changelog build
 
     - name: Prepare clean-room credential
-      if: ${{ env.LITELLM_API_KEY != '' }}
+      if: ${{ inputs.ai-analyzer-litellm-key != '' }}
       shell: bash
+      env:
+        AI_ANALYZER_LITELLM_KEY: ${{ inputs.ai-analyzer-litellm-key }}
       run: |
         # Only the Node runner can read this file; it removes the path before
         # spawning deterministic tooling and passes the value only to the cleaner.
         umask 077
         credential_file="$RUNNER_TEMP/release-changelog-litellm-key"
-        printf '%s' "$LITELLM_API_KEY" > "$credential_file"
-        echo "LITELLM_API_KEY_FILE=$credential_file" >> "$GITHUB_ENV"
+        printf '%s' "$AI_ANALYZER_LITELLM_KEY" > "$credential_file"
+        echo "AI_ANALYZER_LITELLM_KEY_FILE=$credential_file" >> "$GITHUB_ENV"
 
     - name: Update changelog branch
       shell: bash
@@ -98,7 +93,6 @@ runs:
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
         AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
-        LITELLM_API_KEY: ''
       run: |
         set -euo pipefail
 
@@ -112,18 +106,14 @@ runs:
     - name: Remove clean-room credential
       if: ${{ always() }}
       shell: bash
-      env:
-        LITELLM_API_KEY: ''
       run: |
-        if [[ -n "${LITELLM_API_KEY_FILE:-}" ]]; then
-          rm -f "$LITELLM_API_KEY_FILE"
+        if [[ -n "${AI_ANALYZER_LITELLM_KEY_FILE:-}" ]]; then
+          rm -f "$AI_ANALYZER_LITELLM_KEY_FILE"
         fi
 
     - name: Upload clean-room proofread report
       if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}
       uses: actions/upload-artifact@v7
-      env:
-        LITELLM_API_KEY: ''
       with:
         name: release-changelog-ai-report
         path: .tmp/release-changelog-ai/*.json
