@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   extractReleaseSection,
   getPrNumbers,
+  replaceReleaseSection,
 } from './clean-release-changelog.mts';
 import { parseReleaseBranch } from './release-version-utils.mts';
 import {
@@ -196,6 +197,63 @@ function determineChangelogBranch(version: string): string {
 
   const fallbackBranch = `${preferredBranch}-fallback`;
   return getRemoteBranchSha(fallbackBranch) ? fallbackBranch : preferredBranch;
+}
+
+function getReviewedCurrentReleaseSection({
+  changelogBranch,
+  changelogBranchSha,
+  releaseBranch,
+  version,
+}: {
+  changelogBranch: string;
+  changelogBranchSha: string | undefined;
+  releaseBranch: string;
+  version: string;
+}): string | undefined {
+  if (!changelogBranchSha) {
+    return undefined;
+  }
+
+  if (!getOpenChangelogPrNumber(changelogBranch, releaseBranch)) {
+    throw new Error(
+      `${changelogBranch} exists without an open PR to ${releaseBranch}; refusing to overwrite it`,
+    );
+  }
+
+  try {
+    return extractReleaseSection(
+      capture('git', ['show', `origin/${changelogBranch}:CHANGELOG.md`]),
+      version,
+    ).section;
+  } catch {
+    throw new Error(
+      `Open changelog branch ${changelogBranch} lacks ${version}; refusing to overwrite it`,
+    );
+  }
+}
+
+export function mergeCurrentReleaseSection({
+  changelog,
+  currentReleaseSection,
+  version,
+}: {
+  changelog: string;
+  currentReleaseSection: string;
+  version: string;
+}): string {
+  const heading = `## [${version}]`;
+  if (changelog.includes(heading)) {
+    return replaceReleaseSection(changelog, version, currentReleaseSection);
+  }
+
+  const changelogHeader = /^# Changelog\r?\n+/u.exec(changelog);
+  if (!changelogHeader) {
+    throw new Error('CHANGELOG.md must begin with a Changelog heading');
+  }
+
+  const lineEnding = changelog.includes('\r\n') ? '\r\n' : '\n';
+  const normalizedSection = currentReleaseSection.replaceAll('\n', lineEnding);
+  return `${changelogHeader[0]}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(changelogHeader[0].length)}`;
 }
 
 function rebuildChangelogBranch({
@@ -683,11 +741,8 @@ function main(): void {
   const baseline = selectChangelogBaseline({
     version,
     releaseBranch,
-    changelogBranch,
-    changelogBranchSha,
     dependencies: {
       hasReleaseHeading,
-      getOpenChangelogPrNumber,
       getStableVersions,
       getReleaseBranches,
     },
@@ -701,7 +756,27 @@ function main(): void {
     throw new Error('Unable to resolve the selected target or baseline SHA');
   }
 
+  const reviewedCurrentReleaseSection =
+    baseline.kind === 'target'
+      ? undefined
+      : getReviewedCurrentReleaseSection({
+          changelogBranch,
+          changelogBranchSha,
+          releaseBranch,
+          version,
+        });
+
   rebuildChangelogBranch({ changelogBranch, releaseBranch, baseline });
+  if (reviewedCurrentReleaseSection) {
+    writeFileSync(
+      'CHANGELOG.md',
+      mergeCurrentReleaseSection({
+        changelog: readFileSync('CHANGELOG.md', 'utf8'),
+        currentReleaseSection: reviewedCurrentReleaseSection,
+        version,
+      }),
+    );
+  }
   console.log(`Generating changelog for ${platform} ${version}.`);
   generateChangelog({ repositoryUrl, version });
   // A generator duplicate is repairable by the clean-room step, but a missing
@@ -732,6 +807,13 @@ function main(): void {
       expectedSha: baselineSha,
       description: 'Selected baseline',
     });
+    if (reviewedCurrentReleaseSection && changelogBranchSha) {
+      assertRemoteRefUnchanged({
+        ref: `origin/${changelogBranch}`,
+        expectedSha: changelogBranchSha,
+        description: 'Reviewed changelog branch',
+      });
+    }
     console.log(
       `Dry run passed for ${releaseBranch}; no commit, push, or PR update was performed.`,
     );
@@ -755,6 +837,13 @@ function main(): void {
         expectedSha: baselineSha,
         description: 'Selected baseline',
       });
+      if (reviewedCurrentReleaseSection && changelogBranchSha) {
+        assertRemoteRefUnchanged({
+          ref: `origin/${changelogBranch}`,
+          expectedSha: changelogBranchSha,
+          description: 'Reviewed changelog branch',
+        });
+      }
     },
   });
 }

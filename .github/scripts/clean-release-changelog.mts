@@ -201,14 +201,16 @@ function getCategorizedBlocks(
 
   const blocks = new Map<string, string[]>();
   let category: string | undefined;
-  let categoryLines: string[] = [];
+  let categoryEntries: string[] = [];
   const addCategory = () => {
     if (!category) {
       return;
     }
-    const content = categoryLines.join('\n').trim();
-    if (content) {
-      blocks.set(category, [...(blocks.get(category) ?? []), content]);
+    if (categoryEntries.length > 0) {
+      blocks.set(category, [
+        ...(blocks.get(category) ?? []),
+        ...categoryEntries,
+      ]);
     }
   };
 
@@ -217,9 +219,16 @@ function getCategorizedBlocks(
     if (categoryMatch) {
       addCategory();
       category = categoryMatch[1];
-      categoryLines = [];
+      categoryEntries = [];
+    } else if (line === '') {
+      continue;
+    } else if (category && line.startsWith('- ')) {
+      if (/\)\s*\+?-\s/u.test(line)) {
+        throw new Error(`Response contains adjacent list items: ${line}`);
+      }
+      categoryEntries.push(line);
     } else if (category) {
-      categoryLines.push(line);
+      throw new Error(`Response contains unexpected Markdown: ${line}`);
     } else if (line.trim() !== '') {
       throw new Error(`Unexpected release-section content: ${line}`);
     }
@@ -245,9 +254,7 @@ export function mergeCleanRoomSections(
 
   const categories = VALID_CATEGORY_NAMES.flatMap((category) => {
     const blocks = blocksByCategory.get(category) ?? [];
-    return blocks.length > 0
-      ? [`### ${category}\n\n${blocks.join('\n\n')}`]
-      : [];
+    return blocks.length > 0 ? [`### ${category}\n\n${blocks.join('\n')}`] : [];
   });
   return `## [${version}]\n\n${categories.join('\n\n')}`;
 }
@@ -288,8 +295,19 @@ export function validateReplacement(
       categoryStart,
       nextCategory === -1 ? undefined : nextCategory,
     );
-    if (!/^\s*\n- /mu.test(categoryBody)) {
+    const categoryEntries = categoryBody
+      .split(/\r?\n/u)
+      .filter((line) => line !== '');
+    if (categoryEntries.length === 0) {
       throw new Error(`Category ${categoryName} must not be empty`);
+    }
+    for (const entry of categoryEntries) {
+      if (!entry.startsWith('- ')) {
+        throw new Error(`Response contains unexpected Markdown: ${entry}`);
+      }
+      if (/\)\s*\+?-\s/u.test(entry)) {
+        throw new Error(`Response contains adjacent list items: ${entry}`);
+      }
     }
   }
 
