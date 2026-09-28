@@ -1,12 +1,15 @@
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 const MODEL = 'gpt-5.6-terra';
 const DEFAULT_BASE_URL = 'https://litellm.consensys.info';
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 2;
+const GH_API_MAX_ATTEMPTS = 3;
+const GH_API_RETRY_DELAY_MS = 1_000;
 const MAX_PR_BODY_LENGTH = 4_000;
 const MAX_PR_FILES = 40;
 const MAX_ENTRIES_PER_CLEAN_ROOM_REQUEST = 20;
@@ -29,6 +32,10 @@ export function getEvidenceEnvironment(
 }
 
 const evidenceEnvironment = getEvidenceEnvironment();
+const execFileAsync = promisify(execFile);
+
+type GhApiRequest = (argumentsList: string[]) => Promise<string>;
+type Wait = (milliseconds: number) => Promise<void>;
 
 type ReleaseSection = {
   section: string;
@@ -363,10 +370,58 @@ export function assertPrEvidenceAvailable(
   }
 }
 
-function getPrEvidence(
+function getErrorDetails(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+  const extendedError = error as Error & { stderr?: unknown; stdout?: unknown };
+  return [error.message, extendedError.stderr, extendedError.stdout]
+    .filter((value): value is string => typeof value === 'string')
+    .join('\n');
+}
+
+export function isRetryableGhApiFailure(error: unknown): boolean {
+  return /\b(?:429|500|502|503|504)\b|rate limit|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENETUNREACH|ETIMEDOUT|socket hang up/iu.test(
+    getErrorDetails(error),
+  );
+}
+
+async function executeGhApi(argumentsList: string[]): Promise<string> {
+  const { stdout } = await execFileAsync('gh', ['api', ...argumentsList], {
+    encoding: 'utf8',
+    env: evidenceEnvironment,
+  });
+  return stdout;
+}
+
+async function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+}
+
+export async function requestGhApiWithRetry(
+  argumentsList: string[],
+  request: GhApiRequest = executeGhApi,
+  waitFor: Wait = wait,
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= GH_API_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await request(argumentsList);
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableGhApiFailure(error) || attempt === GH_API_MAX_ATTEMPTS) {
+        throw error;
+      }
+      await waitFor(GH_API_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastError;
+}
+
+async function getPrEvidence(
   repository: string,
   prNumbers: readonly string[],
-): { evidence: string[]; unavailablePrNumbers: string[] } {
+): Promise<{ evidence: string[]; unavailablePrNumbers: string[] }> {
   const match = /github\.com[/:]([^/]+)\/([^/]+)$/u.exec(
     repository.replace(/\.git$/u, ''),
   );
@@ -384,11 +439,9 @@ function getPrEvidence(
   for (const prNumber of new Set(prNumbers)) {
     try {
       const pullRequest = JSON.parse(
-        execFileSync(
-          'gh',
-          ['api', `repos/${owner}/${repo}/pulls/${prNumber}`],
-          { encoding: 'utf8', env: evidenceEnvironment },
-        ),
+        await requestGhApiWithRetry([
+          `repos/${owner}/${repo}/pulls/${prNumber}`,
+        ]),
       ) as PullRequestMetadata;
       const title =
         typeof pullRequest.title === 'string' ? pullRequest.title : undefined;
@@ -399,15 +452,12 @@ function getPrEvidence(
         typeof pullRequest.body === 'string'
           ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
           : '<body unavailable>';
-      const files = execFileSync(
-        'gh',
-        [
-          'api',
+      const files = (
+        await requestGhApiWithRetry([
           `repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${MAX_PR_FILES}`,
           '--jq',
           '.[].filename',
-        ],
-        { encoding: 'utf8', env: evidenceEnvironment },
+        ])
       )
         .split(/\r?\n/u)
         .filter(Boolean)
@@ -522,7 +572,7 @@ async function main(): Promise<void> {
     const { section } = extractReleaseSection(changelogContent, version);
     const prompt = readFileSync(promptPath, 'utf8');
     const sourcePrNumbers = getPrNumbers(section);
-    const prEvidence = getPrEvidence(repository, sourcePrNumbers);
+    const prEvidence = await getPrEvidence(repository, sourcePrNumbers);
     assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
     const evidenceByPrNumber = new Map(
       prEvidence.evidence.flatMap((evidence) => {

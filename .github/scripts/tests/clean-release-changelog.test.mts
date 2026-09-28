@@ -6,7 +6,9 @@ import {
   extractReleaseSection,
   getEvidenceEnvironment,
   getPrNumbers,
+  isRetryableGhApiFailure,
   mergeCleanRoomSections,
+  requestGhApiWithRetry,
   replaceReleaseSection,
   splitReleaseSectionIntoChunks,
   validateReplacement,
@@ -27,6 +29,51 @@ test('removes LiteLLM credentials from evidence subprocesses', () => {
       LITELLM_API_KEY_FILE: '/protected/key-file',
     }),
     { GH_TOKEN: 'github-token' },
+  );
+});
+
+test('retries transient GitHub API failures before returning evidence', async () => {
+  let attempts = 0;
+  const retryDelays: number[] = [];
+  const response = await requestGhApiWithRetry(
+    ['repos/MetaMask/metamask-extension/pulls/1'],
+    async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        throw new Error('HTTP 502: Bad Gateway');
+      }
+      return '{"title":"Recovered"}';
+    },
+    async (milliseconds) => {
+      retryDelays.push(milliseconds);
+    },
+  );
+
+  assert.equal(response, '{"title":"Recovered"}');
+  assert.equal(attempts, 3);
+  assert.deepEqual(retryDelays, [1_000, 2_000]);
+});
+
+test('does not retry permanent GitHub API failures', async () => {
+  let attempts = 0;
+  await assert.rejects(
+    async () =>
+      requestGhApiWithRetry(
+        ['repos/MetaMask/metamask-extension/pulls/1'],
+        async () => {
+          attempts += 1;
+          throw new Error('HTTP 404: Not Found');
+        },
+        async () => {
+          throw new Error('Unexpected retry');
+        },
+      ),
+    /HTTP 404/u,
+  );
+  assert.equal(attempts, 1);
+  assert.equal(
+    isRetryableGhApiFailure(new Error('HTTP 404: Not Found')),
+    false,
   );
 });
 

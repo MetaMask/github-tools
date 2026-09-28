@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
-import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
+  getAutoChangelogCli,
   getChangelogValidationArguments,
   getChangelogPushArguments,
   getChangelogPrPresentation,
-  getYarnInvocation,
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
@@ -33,30 +32,26 @@ test('parses dry-run without changing positional arguments', () => {
   );
 });
 
-test('runs Yarn through Corepack directly', () => {
-  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc']), {
-    command: process.execPath,
-    args: [
-      join(
-        dirname(process.execPath),
-        'node_modules',
-        'corepack',
-        'dist',
-        'yarn.js',
-      ),
-      'run',
-      'lint:changelog:rc',
-    ],
-    shell: false,
-  });
+test('requires a pinned auto-changelog source CLI', () => {
+  assert.equal(
+    getAutoChangelogCli({ AUTO_CHANGELOG_CLI: '/tmp/auto-changelog.mjs' }),
+    '/tmp/auto-changelog.mjs',
+  );
+  assert.throws(
+    () => getAutoChangelogCli({}),
+    /AUTO_CHANGELOG_CLI must point/u,
+  );
 });
 
 test('uses the standard validator when clean-room proofreading fails', () => {
   assert.deepEqual(getChangelogValidationArguments('failed'), [
-    'lint:changelog',
+    'validate',
+    '--prettier',
   ]);
   assert.deepEqual(getChangelogValidationArguments('succeeded'), [
-    'lint:changelog:rc',
+    'validate',
+    '--prettier',
+    '--rc',
   ]);
 });
 
