@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,9 +41,8 @@ const PROMPT_PATH = resolve(
   SCRIPT_DIRECTORY,
   '../prompts/auto-changelog-clean-room.md',
 );
-const CAPTURE_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 
-// All Git, Yarn, and generator children use this environment. The cleaner is
+// All Git and generator children use this environment. The cleaner is
 // the sole process allowed to receive the raw LiteLLM key.
 const deterministicEnvironment = { ...process.env };
 delete deterministicEnvironment.LITELLM_API_KEY;
@@ -44,8 +52,30 @@ function capture(command: string, args: string[]): string {
   return execFileSync(command, args, {
     encoding: 'utf8',
     env: deterministicEnvironment,
-    maxBuffer: CAPTURE_MAX_BUFFER_BYTES,
   }).trim();
+}
+
+function readChangelogAtRef(ref: string): string {
+  mkdirSync('.tmp', { recursive: true });
+  const temporaryDirectory = mkdtempSync(
+    join('.tmp', 'release-changelog-read-'),
+  );
+  const temporaryChangelogPath = join(temporaryDirectory, 'CHANGELOG.md');
+  const descriptor = openSync(temporaryChangelogPath, 'w');
+
+  try {
+    try {
+      execFileSync('git', ['show', `${ref}:CHANGELOG.md`], {
+        env: deterministicEnvironment,
+        stdio: ['ignore', descriptor, 'inherit'],
+      });
+    } finally {
+      closeSync(descriptor);
+    }
+    return readFileSync(temporaryChangelogPath, 'utf8').trim();
+  } finally {
+    rmSync(temporaryDirectory, { force: true, recursive: true });
+  }
 }
 
 function execute(
@@ -56,45 +86,20 @@ function execute(
   execFileSync(command, args, { env: environment, stdio: 'inherit' });
 }
 
-export function getYarnInvocation(args: string[]): {
-  command: string;
-  args: string[];
-  shell: boolean;
-} {
-  return {
-    command: process.execPath,
-    args: [
-      join(
-        dirname(process.execPath),
-        'node_modules',
-        'corepack',
-        'dist',
-        'yarn.js',
-      ),
-      ...args,
-    ],
-    shell: false,
-  };
+export function getAutoChangelogCli(
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const sourceCli = environment.AUTO_CHANGELOG_CLI;
+  if (!sourceCli) {
+    throw new Error(
+      'AUTO_CHANGELOG_CLI must point to the pinned auto-changelog source CLI',
+    );
+  }
+  return sourceCli;
 }
 
-function executeYarn(args: string[]): void {
-  const invocation = getYarnInvocation(args);
-  execFileSync(invocation.command, invocation.args, {
-    env: deterministicEnvironment,
-    shell: invocation.shell,
-    stdio: 'inherit',
-  });
-}
-
-function yarnSucceeds(args: string[]): boolean {
-  const invocation = getYarnInvocation(args);
-  return (
-    spawnSync(invocation.command, invocation.args, {
-      env: deterministicEnvironment,
-      shell: invocation.shell,
-      stdio: 'ignore',
-    }).status === 0
-  );
+function executeAutoChangelog(args: string[]): void {
+  execute('node', [getAutoChangelogCli(), ...args]);
 }
 
 function succeeds(command: string, args: string[]): boolean {
@@ -136,7 +141,7 @@ function assertRemoteRefUnchanged({
 
 function hasReleaseHeading(ref: string, version: string): boolean {
   try {
-    const changelog = capture('git', ['show', `${ref}:CHANGELOG.md`]);
+    const changelog = readChangelogAtRef(ref);
     return (
       changelog.match(
         new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\]$`, 'gmu'),
@@ -148,7 +153,7 @@ function hasReleaseHeading(ref: string, version: string): boolean {
 }
 
 function getStableVersions(): string[] {
-  const changelog = capture('git', ['show', 'origin/stable:CHANGELOG.md']);
+  const changelog = readChangelogAtRef('origin/stable');
   return [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\]$/gmu)].flatMap(
     (match) => {
       const version = match[1];
@@ -236,7 +241,7 @@ function getReviewedCurrentReleaseSection({
 
   try {
     return extractReleaseSection(
-      capture('git', ['show', `origin/${changelogBranch}:CHANGELOG.md`]),
+      readChangelogAtRef(`origin/${changelogBranch}`),
       version,
     ).section;
   } catch {
@@ -316,7 +321,6 @@ function generateChangelog({
   repositoryUrl: string;
   version: string;
 }): void {
-  const sourceCli = process.env.AUTO_CHANGELOG_CLI;
   const commonArguments = [
     'update',
     '--rc',
@@ -334,26 +338,7 @@ function generateChangelog({
     '--verbose',
   ];
 
-  if (sourceCli) {
-    execute('node', [sourceCli, ...commonArguments]);
-    return;
-  }
-
-  if (yarnSucceeds(['run', '--silent', 'update-changelog', '--help'])) {
-    executeYarn([
-      'update-changelog',
-      '--repo',
-      repositoryUrl,
-      '--currentVersion',
-      version,
-    ]);
-    return;
-  }
-
-  console.warn(
-    'No update-changelog script found; using legacy auto-changelog invocation.',
-  );
-  executeYarn(['auto-changelog', ...commonArguments]);
+  executeAutoChangelog(commonArguments);
 }
 
 export function validateGeneratedReleaseSection(
@@ -386,27 +371,18 @@ export function validateGeneratedReleaseSection(
 export function getChangelogValidationArguments(
   proofreadingStatus: ProofreadingStatus,
 ): string[] {
-  return proofreadingStatus === 'succeeded'
-    ? ['lint:changelog:rc']
-    : ['lint:changelog'];
+  return [
+    'validate',
+    '--prettier',
+    ...(proofreadingStatus === 'succeeded' ? ['--rc'] : []),
+  ];
 }
 
 function runChangelogValidation(proofreading: ProofreadingResult): void {
   const validationArguments = getChangelogValidationArguments(
     proofreading.status,
   );
-  if (
-    !yarnSucceeds(['run', '--silent', validationArguments[0] ?? '', '--help'])
-  ) {
-    throw new Error(
-      `No ${validationArguments[0] ?? 'changelog'} validation script is available`,
-    );
-  }
-
-  // The RC validator requires model categorization. On the approved AI-failure
-  // path, validate the deterministic fallback with the consumer's standard
-  // changelog validator and the separate PR-reference and whitespace audits.
-  executeYarn(validationArguments);
+  executeAutoChangelog(validationArguments);
 
   execute('git', ['diff', '--check']);
 }
