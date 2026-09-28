@@ -32,6 +32,7 @@ const PROMPT_PATH = resolve(
   SCRIPT_DIRECTORY,
   '../prompts/auto-changelog-clean-room.md',
 );
+const CAPTURE_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 
 // All Git, Yarn, and generator children use this environment. The cleaner is
 // the sole process allowed to receive the raw LiteLLM key.
@@ -43,6 +44,7 @@ function capture(command: string, args: string[]): string {
   return execFileSync(command, args, {
     encoding: 'utf8',
     env: deterministicEnvironment,
+    maxBuffer: CAPTURE_MAX_BUFFER_BYTES,
   }).trim();
 }
 
