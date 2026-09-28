@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0]
+
+### Uncategorized
+
+- feat(MMQA-1951): add new action to download segment analytics contracts ([#296](https://github.com/MetaMask/github-tools/pull/296))
+
 ## [1.19.0]
 
 ### Changed
@@ -270,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/MetaMask/github-tools/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/MetaMask/github-tools/compare/v1.18.2...v1.19.0
 [1.18.2]: https://github.com/MetaMask/github-tools/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/MetaMask/github-tools/compare/v1.18.0...v1.18.1
