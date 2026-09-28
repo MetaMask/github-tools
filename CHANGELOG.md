@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.20.0]
 
-### Uncategorized
+### Added
 
 - feat(MMQA-1951): add new action to download segment analytics contracts ([#296](https://github.com/MetaMask/github-tools/pull/296))
 
