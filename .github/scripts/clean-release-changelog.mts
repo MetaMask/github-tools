@@ -28,8 +28,8 @@ export function getEvidenceEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
   const scrubbedEnvironment = { ...environment };
-  delete scrubbedEnvironment.LITELLM_API_KEY;
-  delete scrubbedEnvironment.LITELLM_API_KEY_FILE;
+  delete scrubbedEnvironment.AI_ANALYZER_LITELLM_KEY;
+  delete scrubbedEnvironment.AI_ANALYZER_LITELLM_KEY_FILE;
   return scrubbedEnvironment;
 }
 
@@ -565,9 +565,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const apiKey = process.env.LITELLM_API_KEY;
+  const apiKey = process.env.AI_ANALYZER_LITELLM_KEY;
   if (!apiKey) {
-    fail(reportPath, 'authentication', 'LITELLM_API_KEY is not set');
+    fail(reportPath, 'authentication', 'AI_ANALYZER_LITELLM_KEY is not set');
     return;
   }
 

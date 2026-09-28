@@ -45,8 +45,8 @@ const PROMPT_PATH = resolve(
 // All Git and generator children use this environment. The cleaner is
 // the sole process allowed to receive the raw LiteLLM key.
 const deterministicEnvironment = { ...process.env };
-delete deterministicEnvironment.LITELLM_API_KEY;
-delete deterministicEnvironment.LITELLM_API_KEY_FILE;
+delete deterministicEnvironment.AI_ANALYZER_LITELLM_KEY;
+delete deterministicEnvironment.AI_ANALYZER_LITELLM_KEY_FILE;
 
 function capture(command: string, args: string[]): string {
   return execFileSync(command, args, {
@@ -402,13 +402,13 @@ function writeFailedProofreadingReport(
   );
 }
 
-function getLiteLlmApiKey(): string | undefined {
-  const credentialPath = process.env.LITELLM_API_KEY_FILE;
+function getAiAnalyzerLiteLlmKey(): string | undefined {
+  const credentialPath = process.env.AI_ANALYZER_LITELLM_KEY_FILE;
   if (credentialPath) {
     const apiKey = readFileSync(credentialPath, 'utf8').trim();
     return apiKey || undefined;
   }
-  return process.env.LITELLM_API_KEY;
+  return process.env.AI_ANALYZER_LITELLM_KEY;
 }
 
 function getProofreadingFailureStage(reportPath: string): string {
@@ -430,7 +430,7 @@ function runCleanRoomProofread({
   version: string;
 }): ProofreadingResult {
   const reportPath = `.tmp/release-changelog-ai/${version}.json`;
-  const apiKey = getLiteLlmApiKey();
+  const apiKey = getAiAnalyzerLiteLlmKey();
   if (!apiKey) {
     writeFailedProofreadingReport(
       reportPath,
@@ -455,7 +455,7 @@ function runCleanRoomProofread({
         '--report',
         reportPath,
       ],
-      { ...deterministicEnvironment, LITELLM_API_KEY: apiKey },
+      { ...deterministicEnvironment, AI_ANALYZER_LITELLM_KEY: apiKey },
     );
     return { status: 'succeeded' };
   } catch (error) {

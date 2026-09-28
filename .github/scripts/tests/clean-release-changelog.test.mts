@@ -25,8 +25,8 @@ test('removes LiteLLM credentials from evidence subprocesses', () => {
   assert.deepEqual(
     getEvidenceEnvironment({
       GH_TOKEN: 'github-token',
-      LITELLM_API_KEY: 'litellm-key',
-      LITELLM_API_KEY_FILE: '/protected/key-file',
+      AI_ANALYZER_LITELLM_KEY: 'litellm-key',
+      AI_ANALYZER_LITELLM_KEY_FILE: '/protected/key-file',
     }),
     { GH_TOKEN: 'github-token' },
   );
