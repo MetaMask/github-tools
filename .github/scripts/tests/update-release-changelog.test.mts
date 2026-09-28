@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  getChangelogValidationArguments,
   getChangelogPushArguments,
   getChangelogPrPresentation,
   getYarnInvocation,
@@ -42,6 +43,15 @@ test('runs Yarn through the command shim on Windows', () => {
     args: ['run', 'lint:changelog:rc'],
     shell: false,
   });
+});
+
+test('uses the standard validator when clean-room proofreading fails', () => {
+  assert.deepEqual(getChangelogValidationArguments('failed'), [
+    'lint:changelog',
+  ]);
+  assert.deepEqual(getChangelogValidationArguments('succeeded'), [
+    'lint:changelog:rc',
+  ]);
 });
 
 test('preserves the reviewed release section above historical predecessor history', () => {
