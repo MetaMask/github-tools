@@ -54,8 +54,6 @@ runs:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension )
     - name: Checkout invoking repository
       uses: actions/checkout@v6
-      env:
-        LITELLM_API_KEY: ''
       with:
         fetch-depth: 0
         ref: ${{ inputs.checkout-base-branch }}
@@ -64,15 +62,12 @@ runs:
     # Step 3: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
-      env:
-        LITELLM_API_KEY: ''
       with:
         is-high-risk-environment: true
 
     # Step 4: Print Input Values
     - name: Print Input Values
       env:
-        LITELLM_API_KEY: ''
         PLATFORM: ${{ inputs.platform }}
         CHECKOUT_BASE_BRANCH: ${{ inputs.checkout-base-branch }}
         RELEASE_PR_BASE_BRANCH: ${{ inputs.release-pr-base-branch }}
@@ -126,7 +121,6 @@ runs:
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
         GITHUB_TOOLS_DIR: ${{ github.action_path }}/../../..
-        LITELLM_API_KEY: ''
       working-directory: ${{ github.workspace }}
       run: |
         # Use the action revision GitHub resolved for this run.
