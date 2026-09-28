@@ -26,7 +26,6 @@ test('removes LiteLLM credentials from evidence subprocesses', () => {
     getEvidenceEnvironment({
       GH_TOKEN: 'github-token',
       AI_ANALYZER_LITELLM_KEY: 'litellm-key',
-      AI_ANALYZER_LITELLM_KEY_FILE: '/protected/key-file',
     }),
     { GH_TOKEN: 'github-token' },
   );

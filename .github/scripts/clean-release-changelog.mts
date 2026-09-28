@@ -29,7 +29,6 @@ export function getEvidenceEnvironment(
 ): NodeJS.ProcessEnv {
   const scrubbedEnvironment = { ...environment };
   delete scrubbedEnvironment.AI_ANALYZER_LITELLM_KEY;
-  delete scrubbedEnvironment.AI_ANALYZER_LITELLM_KEY_FILE;
   return scrubbedEnvironment;
 }
 
