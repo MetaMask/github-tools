@@ -4,17 +4,13 @@ import {
 } from './release-version-utils.mts';
 
 export type ChangelogBaseline = {
-  kind: 'target' | 'changelog' | 'stable' | 'release';
+  kind: 'target' | 'stable' | 'release';
   ref: string;
   version: string;
 };
 
 export type ChangelogBaselineDependencies = {
   hasReleaseHeading: (ref: string, version: string) => boolean;
-  getOpenChangelogPrNumber: (
-    changelogBranch: string,
-    releaseBranch: string,
-  ) => string | undefined;
   getStableVersions: () => readonly string[];
   getReleaseBranches: () => readonly ReleaseBranch[];
 };
@@ -22,38 +18,14 @@ export type ChangelogBaselineDependencies = {
 export function selectChangelogBaseline({
   version,
   releaseBranch,
-  changelogBranch,
-  changelogBranchSha,
   dependencies,
 }: {
   version: string;
   releaseBranch: string;
-  changelogBranch: string;
-  changelogBranchSha: string | undefined;
   dependencies: ChangelogBaselineDependencies;
 }): ChangelogBaseline {
   if (dependencies.hasReleaseHeading(`origin/${releaseBranch}`, version)) {
     return { kind: 'target', ref: `origin/${releaseBranch}`, version };
-  }
-
-  if (changelogBranchSha) {
-    const openPrNumber = dependencies.getOpenChangelogPrNumber(
-      changelogBranch,
-      releaseBranch,
-    );
-    if (!openPrNumber) {
-      throw new Error(
-        `${changelogBranch} exists without an open PR to ${releaseBranch}; refusing to overwrite it`,
-      );
-    }
-
-    if (dependencies.hasReleaseHeading(`origin/${changelogBranch}`, version)) {
-      return { kind: 'changelog', ref: `origin/${changelogBranch}`, version };
-    }
-
-    throw new Error(
-      `Open changelog branch ${changelogBranch} lacks ${version}; refusing to overwrite it`,
-    );
   }
 
   const releaseBranches = dependencies.getReleaseBranches();

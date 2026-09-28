@@ -10,30 +10,22 @@ function createDependencies({
   headings = new Set<string>(),
   stableVersions = [],
   releaseBranches = [],
-  openPrNumber,
 }: {
   headings?: Set<string>;
   stableVersions?: string[];
   releaseBranches?: { version: string; kind: 'native' | 'ota'; name: string }[];
-  openPrNumber?: string;
 }): ChangelogBaselineDependencies {
   return {
     hasReleaseHeading: (ref, version) => headings.has(`${ref}:${version}`),
-    getOpenChangelogPrNumber: () => openPrNumber,
     getStableVersions: () => stableVersions,
     getReleaseBranches: () => releaseBranches,
   };
 }
 
-function selectBaseline(
-  dependencies: ChangelogBaselineDependencies,
-  changelogBranchSha?: string,
-) {
+function selectBaseline(dependencies: ChangelogBaselineDependencies) {
   return selectChangelogBaseline({
     version: '13.51.0',
     releaseBranch: 'release/13.51.0',
-    changelogBranch: 'release-changelog/13.51.0',
-    changelogBranchSha,
     dependencies,
   });
 }
@@ -53,19 +45,18 @@ test('uses the target release changelog after the changelog PR is merged', () =>
   );
 });
 
-test('uses an open changelog PR branch for a pre-merge rerun', () => {
+test('uses stable history even when an open changelog PR is reviewed', () => {
   assert.deepEqual(
     selectBaseline(
       createDependencies({
-        headings: new Set(['origin/release-changelog/13.51.0:13.51.0']),
-        openPrNumber: '12345',
+        headings: new Set(['origin/stable:13.50.0']),
+        stableVersions: ['13.50.0'],
       }),
-      'abc123',
     ),
     {
-      kind: 'changelog',
-      ref: 'origin/release-changelog/13.51.0',
-      version: '13.51.0',
+      kind: 'stable',
+      ref: 'origin/stable',
+      version: '13.50.0',
     },
   );
 });

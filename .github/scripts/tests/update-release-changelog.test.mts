@@ -5,6 +5,7 @@ import {
   getChangelogPushArguments,
   getChangelogPrPresentation,
   getYarnInvocation,
+  mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
 } from '../update-release-changelog.mts';
@@ -41,6 +42,41 @@ test('runs Yarn through the command shim on Windows', () => {
     args: ['run', 'lint:changelog:rc'],
     shell: false,
   });
+});
+
+test('preserves the reviewed release section above historical predecessor history', () => {
+  assert.equal(
+    mergeCurrentReleaseSection({
+      changelog: `# Changelog
+
+## [13.50.0]
+
+### Fixed
+
+- Fixed an earlier issue (#100)
+`,
+      currentReleaseSection: `## [13.51.0]
+
+### Added
+
+- Added a current release feature (#101)`,
+      version: '13.51.0',
+    }),
+    `# Changelog
+
+## [13.51.0]
+
+### Added
+
+- Added a current release feature (#101)
+
+## [13.50.0]
+
+### Fixed
+
+- Fixed an earlier issue (#100)
+`,
+  );
 });
 
 test('protects first changelog branch creation with an empty lease', () => {

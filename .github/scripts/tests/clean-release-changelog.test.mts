@@ -83,6 +83,7 @@ test('cleans large release sections in reference-preserving chunks', () => {
   assert.doesNotThrow(() =>
     validateReplacement(merged, '13.51.0', ['101', '102', '103']),
   );
+  assert.doesNotMatch(merged, /\)\n\n- /u);
 });
 
 test('extracts exactly one release section', () => {
@@ -220,6 +221,19 @@ Here is the cleaned section:
         ['101', '102'],
       ),
     /unexpected Markdown/u,
+  );
+  assert.throws(
+    () =>
+      validateReplacement(
+        `## [13.51.0]
+
+### Fixed
+
+- Fixed an issue (#101)- Fixed another issue (#102)`,
+        '13.51.0',
+        ['101', '102'],
+      ),
+    /adjacent list items/u,
   );
 });
 
