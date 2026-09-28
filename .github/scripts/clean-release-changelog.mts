@@ -403,6 +403,11 @@ export async function requestGhApiWithRetry(
   return await retry(async () => request(argumentsList), {
     delayMilliseconds: GH_API_RETRY_DELAY_MS,
     maxAttempts: GH_API_MAX_ATTEMPTS,
+    onRetry: ({ attempt, delayMilliseconds }) => {
+      console.warn(
+        `Retrying GitHub evidence request after transient failure (attempt ${attempt + 1}/${GH_API_MAX_ATTEMPTS} in ${delayMilliseconds}ms).`,
+      );
+    },
     shouldRetry: isRetryableGhApiFailure,
     ...(sleep ? { sleep } : {}),
   });
@@ -426,8 +431,15 @@ async function getPrEvidence(
   }
   const evidence: string[] = [];
   const unavailablePrNumbers: string[] = [];
-  for (const prNumber of new Set(prNumbers)) {
+  const uniquePrNumbers = [...new Set(prNumbers)];
+  console.log(
+    `Collecting GitHub evidence for ${uniquePrNumbers.length} changelog PRs.`,
+  );
+  for (const [index, prNumber] of uniquePrNumbers.entries()) {
     try {
+      console.log(
+        `Collecting evidence for PR ${index + 1}/${uniquePrNumbers.length}.`,
+      );
       const pullRequest = JSON.parse(
         await requestGhApiWithRetry([
           `repos/${owner}/${repo}/pulls/${prNumber}`,
@@ -524,6 +536,9 @@ async function requestCleanRoomRewrite({
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
       if (attempt < MAX_ATTEMPTS) {
+        console.warn(
+          `Retrying clean-room model request (attempt ${attempt + 1}/${MAX_ATTEMPTS} in 1000ms).`,
+        );
         await new Promise((resolveDelay) => setTimeout(resolveDelay, 1_000));
       }
     } finally {
@@ -564,14 +579,18 @@ async function main(): Promise<void> {
     const sourcePrNumbers = getPrNumbers(section);
     const prEvidence = await getPrEvidence(repository, sourcePrNumbers);
     assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
+    console.log(
+      `Collected evidence for ${prEvidence.evidence.length} changelog PRs.`,
+    );
     const evidenceByPrNumber = new Map(
       prEvidence.evidence.flatMap((evidence) => {
         const match = /^#(\d+):/u.exec(evidence);
         return match?.[1] ? [[match[1], evidence]] : [];
       }),
     );
+    const chunks = splitReleaseSectionIntoChunks(section, version);
     const cleanRoomSections: string[] = [];
-    for (const chunk of splitReleaseSectionIntoChunks(section, version)) {
+    for (const [index, chunk] of chunks.entries()) {
       const chunkEvidence = chunk.prNumbers.map((prNumber) => {
         const evidence = evidenceByPrNumber.get(prNumber);
         if (!evidence) {
@@ -579,6 +598,9 @@ async function main(): Promise<void> {
         }
         return evidence;
       });
+      console.log(
+        `Requesting clean-room rewrite for chunk ${index + 1}/${chunks.length} (${chunk.prNumbers.length} PRs).`,
+      );
       const cleanRoomSection = await requestCleanRoomRewrite({
         prompt,
         section: chunk.section,
@@ -587,15 +609,18 @@ async function main(): Promise<void> {
       });
       validateReplacement(cleanRoomSection, version, chunk.prNumbers);
       cleanRoomSections.push(cleanRoomSection);
+      console.log(`Validated clean-room chunk ${index + 1}/${chunks.length}.`);
     }
     const replacement = mergeCleanRoomSections(cleanRoomSections, version);
     validateReplacement(replacement, version, sourcePrNumbers);
+    console.log('Validated merged clean-room release section.');
 
     writeFileSync(
       absoluteChangelogPath,
       replaceReleaseSection(changelogContent, version, replacement),
     );
     writeReport(reportPath, { status: 'succeeded', model: MODEL });
+    console.log(`Clean-room proofreading completed with ${MODEL}.`);
   } catch (error) {
     fail(
       reportPath,

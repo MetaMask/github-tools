@@ -43,3 +43,25 @@ test('does not retry a rejected error category', async () => {
 
   assert.equal(attempts, 1);
 });
+
+test('reports retry details before delaying', async () => {
+  const retries: { attempt: number; delayMilliseconds: number }[] = [];
+  await assert.rejects(
+    async () =>
+      retry(
+        async () => {
+          throw new Error('Transient failure');
+        },
+        {
+          maxAttempts: 2,
+          onRetry: ({ attempt, delayMilliseconds }) => {
+            retries.push({ attempt, delayMilliseconds });
+          },
+          sleep: async () => undefined,
+        },
+      ),
+    /Transient failure/u,
+  );
+
+  assert.deepEqual(retries, [{ attempt: 1, delayMilliseconds: 1_000 }]);
+});

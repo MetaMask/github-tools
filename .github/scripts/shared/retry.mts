@@ -1,6 +1,11 @@
 export type RetryOptions = {
   delayMilliseconds?: number;
   maxAttempts?: number;
+  onRetry?: (details: {
+    attempt: number;
+    delayMilliseconds: number;
+    error: unknown;
+  }) => void;
   shouldRetry?: (error: unknown) => boolean;
   sleep?: (milliseconds: number) => Promise<void>;
 };
@@ -14,6 +19,7 @@ export async function retry<Result>(
   {
     delayMilliseconds = 1_000,
     maxAttempts = 3,
+    onRetry,
     shouldRetry = () => true,
     sleep = defaultSleep,
   }: RetryOptions = {},
@@ -32,7 +38,13 @@ export async function retry<Result>(
       if (attempt === maxAttempts || !shouldRetry(error)) {
         throw error;
       }
-      await sleep(delayMilliseconds * attempt);
+      const retryDelayMilliseconds = delayMilliseconds * attempt;
+      onRetry?.({
+        attempt,
+        delayMilliseconds: retryDelayMilliseconds,
+        error,
+      });
+      await sleep(retryDelayMilliseconds);
     }
   }
 
