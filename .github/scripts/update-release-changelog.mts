@@ -369,14 +369,30 @@ export function validateGeneratedReleaseSection(
   }
 }
 
-function runChangelogValidation(): void {
-  if (yarnSucceeds(['run', '--silent', 'lint:changelog:rc', '--help'])) {
-    executeYarn(['lint:changelog:rc']);
-  } else if (yarnSucceeds(['run', '--silent', 'lint:changelog', '--help'])) {
-    executeYarn(['lint:changelog', '--rc']);
-  } else {
-    throw new Error('No changelog validation script is available');
+export function getChangelogValidationArguments(
+  proofreadingStatus: ProofreadingStatus,
+): string[] {
+  return proofreadingStatus === 'succeeded'
+    ? ['lint:changelog:rc']
+    : ['lint:changelog'];
+}
+
+function runChangelogValidation(proofreading: ProofreadingResult): void {
+  const validationArguments = getChangelogValidationArguments(
+    proofreading.status,
+  );
+  if (
+    !yarnSucceeds(['run', '--silent', validationArguments[0] ?? '', '--help'])
+  ) {
+    throw new Error(
+      `No ${validationArguments[0] ?? 'changelog'} validation script is available`,
+    );
   }
+
+  // The RC validator requires model categorization. On the approved AI-failure
+  // path, validate the deterministic fallback with the consumer's standard
+  // changelog validator and the separate PR-reference and whitespace audits.
+  executeYarn(validationArguments);
 
   execute('git', ['diff', '--check']);
 }
@@ -793,7 +809,7 @@ function main(): void {
     readFileSync('CHANGELOG.md', 'utf8'),
     version,
   );
-  runChangelogValidation();
+  runChangelogValidation(proofreading);
   if (dryRun) {
     // Preflight the same source snapshots used for publication, but leave all
     // commits, remote branches, and pull requests unchanged.
