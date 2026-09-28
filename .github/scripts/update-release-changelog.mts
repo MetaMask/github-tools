@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -54,17 +54,25 @@ function execute(
   execFileSync(command, args, { env: environment, stdio: 'inherit' });
 }
 
-export function getYarnInvocation(
-  args: string[],
-  platform = process.platform,
-): { command: string; args: string[]; shell: boolean } {
-  return platform === 'win32'
-    ? {
-        command: 'cmd.exe',
-        args: ['/d', '/s', '/c', 'yarn.cmd', ...args],
-        shell: false,
-      }
-    : { command: 'yarn', args, shell: false };
+export function getYarnInvocation(args: string[]): {
+  command: string;
+  args: string[];
+  shell: boolean;
+} {
+  return {
+    command: process.execPath,
+    args: [
+      join(
+        dirname(process.execPath),
+        'node_modules',
+        'corepack',
+        'dist',
+        'yarn.js',
+      ),
+      ...args,
+    ],
+    shell: false,
+  };
 }
 
 function executeYarn(args: string[]): void {

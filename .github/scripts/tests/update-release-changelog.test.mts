@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -32,15 +33,20 @@ test('parses dry-run without changing positional arguments', () => {
   );
 });
 
-test('runs Yarn through the command shim on Windows', () => {
-  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'win32'), {
-    command: 'cmd.exe',
-    args: ['/d', '/s', '/c', 'yarn.cmd', 'run', 'lint:changelog:rc'],
-    shell: false,
-  });
-  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'linux'), {
-    command: 'yarn',
-    args: ['run', 'lint:changelog:rc'],
+test('runs Yarn through Corepack directly', () => {
+  assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc']), {
+    command: process.execPath,
+    args: [
+      join(
+        dirname(process.execPath),
+        'node_modules',
+        'corepack',
+        'dist',
+        'yarn.js',
+      ),
+      'run',
+      'lint:changelog:rc',
+    ],
     shell: false,
   });
 });
