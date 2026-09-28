@@ -59,7 +59,11 @@ export function getYarnInvocation(
   platform = process.platform,
 ): { command: string; args: string[]; shell: boolean } {
   return platform === 'win32'
-    ? { command: 'yarn.cmd', args, shell: true }
+    ? {
+        command: 'cmd.exe',
+        args: ['/d', '/s', '/c', 'yarn.cmd', ...args],
+        shell: false,
+      }
     : { command: 'yarn', args, shell: false };
 }
 

@@ -34,9 +34,9 @@ test('parses dry-run without changing positional arguments', () => {
 
 test('runs Yarn through the command shim on Windows', () => {
   assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'win32'), {
-    command: 'yarn.cmd',
-    args: ['run', 'lint:changelog:rc'],
-    shell: true,
+    command: 'cmd.exe',
+    args: ['/d', '/s', '/c', 'yarn.cmd', 'run', 'lint:changelog:rc'],
+    shell: false,
   });
   assert.deepEqual(getYarnInvocation(['run', 'lint:changelog:rc'], 'linux'), {
     command: 'yarn',
