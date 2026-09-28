@@ -76,17 +76,6 @@ runs:
         corepack yarn --cwd ./auto-changelog install --immutable
         corepack yarn --cwd ./auto-changelog build
 
-    - name: Prepare clean-room credential
-      if: ${{ env.AI_ANALYZER_LITELLM_KEY != '' }}
-      shell: bash
-      run: |
-        # Only the Node runner can read this file; it removes the path before
-        # spawning deterministic tooling and passes the value only to the cleaner.
-        umask 077
-        credential_file="$RUNNER_TEMP/release-changelog-litellm-key"
-        printf '%s' "$AI_ANALYZER_LITELLM_KEY" > "$credential_file"
-        echo "AI_ANALYZER_LITELLM_KEY_FILE=$credential_file" >> "$GITHUB_ENV"
-
     - name: Update changelog branch
       shell: bash
       env:
@@ -98,26 +87,14 @@ runs:
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
         AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
-        AI_ANALYZER_LITELLM_KEY: ''
       run: |
         set -euo pipefail
 
-        # This is the first step that can read the credential file.
         node "$GITHUB_ACTION_PATH/../../scripts/update-release-changelog.mts" \
           "$RELEASE_BRANCH" \
           "$PLATFORM" \
           "$REPOSITORY_URL" \
           "$PREVIOUS_VERSION_REF"
-
-    - name: Remove clean-room credential
-      if: ${{ always() }}
-      shell: bash
-      env:
-        AI_ANALYZER_LITELLM_KEY: ''
-      run: |
-        if [[ -n "${AI_ANALYZER_LITELLM_KEY_FILE:-}" ]]; then
-          rm -f "$AI_ANALYZER_LITELLM_KEY_FILE"
-        fi
 
     - name: Upload clean-room proofread report
       if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}

@@ -46,7 +46,6 @@ const PROMPT_PATH = resolve(
 // the sole process allowed to receive the raw LiteLLM key.
 const deterministicEnvironment = { ...process.env };
 delete deterministicEnvironment.AI_ANALYZER_LITELLM_KEY;
-delete deterministicEnvironment.AI_ANALYZER_LITELLM_KEY_FILE;
 
 function capture(command: string, args: string[]): string {
   return execFileSync(command, args, {
@@ -403,11 +402,6 @@ function writeFailedProofreadingReport(
 }
 
 function getAiAnalyzerLiteLlmKey(): string | undefined {
-  const credentialPath = process.env.AI_ANALYZER_LITELLM_KEY_FILE;
-  if (credentialPath) {
-    const apiKey = readFileSync(credentialPath, 'utf8').trim();
-    return apiKey || undefined;
-  }
   return process.env.AI_ANALYZER_LITELLM_KEY;
 }
 
