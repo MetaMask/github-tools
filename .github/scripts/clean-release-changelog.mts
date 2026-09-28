@@ -577,6 +577,7 @@ async function main(): Promise<void> {
     const { section } = extractReleaseSection(changelogContent, version);
     const prompt = readFileSync(promptPath, 'utf8');
     const sourcePrNumbers = getPrNumbers(section);
+    console.log(`Clean-room proofreading started with ${MODEL}.`);
     const prEvidence = await getPrEvidence(repository, sourcePrNumbers);
     assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
     console.log(
