@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { retry } from './shared/retry.mts';
+
 const MODEL = 'gpt-5.6-terra';
 const DEFAULT_BASE_URL = 'https://litellm.consensys.info';
 const DEFAULT_TIMEOUT_MS = 90_000;
@@ -35,7 +37,6 @@ const evidenceEnvironment = getEvidenceEnvironment();
 const execFileAsync = promisify(execFile);
 
 type GhApiRequest = (argumentsList: string[]) => Promise<string>;
-type Wait = (milliseconds: number) => Promise<void>;
 
 type ReleaseSection = {
   section: string;
@@ -394,28 +395,17 @@ async function executeGhApi(argumentsList: string[]): Promise<string> {
   return stdout;
 }
 
-async function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
-}
-
 export async function requestGhApiWithRetry(
   argumentsList: string[],
   request: GhApiRequest = executeGhApi,
-  waitFor: Wait = wait,
+  sleep?: (milliseconds: number) => Promise<void>,
 ): Promise<string> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= GH_API_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      return await request(argumentsList);
-    } catch (error) {
-      lastError = error;
-      if (!isRetryableGhApiFailure(error) || attempt === GH_API_MAX_ATTEMPTS) {
-        throw error;
-      }
-      await waitFor(GH_API_RETRY_DELAY_MS * attempt);
-    }
-  }
-  throw lastError;
+  return await retry(async () => request(argumentsList), {
+    delayMilliseconds: GH_API_RETRY_DELAY_MS,
+    maxAttempts: GH_API_MAX_ATTEMPTS,
+    shouldRetry: isRetryableGhApiFailure,
+    ...(sleep ? { sleep } : {}),
+  });
 }
 
 async function getPrEvidence(
