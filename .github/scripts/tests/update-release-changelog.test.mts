@@ -90,6 +90,49 @@ test('preserves the reviewed release section above historical predecessor histor
   );
 });
 
+test('inserts the reviewed release section after the preamble and Unreleased heading', () => {
+  assert.equal(
+    mergeCurrentReleaseSection({
+      changelog: `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+## [13.50.0]
+
+### Fixed
+
+- Fixed an earlier issue (#100)
+`,
+      currentReleaseSection: `## [13.51.0]
+
+### Added
+
+- Added a current release feature (#101)`,
+      version: '13.51.0',
+    }),
+    `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+## [13.51.0]
+
+### Added
+
+- Added a current release feature (#101)
+
+## [13.50.0]
+
+### Fixed
+
+- Fixed an earlier issue (#100)
+`,
+  );
+});
+
 test('protects first changelog branch creation with an empty lease', () => {
   assert.deepEqual(
     getChangelogPushArguments({

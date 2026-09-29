@@ -111,7 +111,12 @@ function succeeds(command: string, args: string[]): boolean {
 }
 
 function getRemoteBranchSha(branch: string): string | undefined {
-  const output = capture('git', ['ls-remote', '--heads', 'origin', branch]);
+  const output = capture('git', [
+    'ls-remote',
+    '--heads',
+    'origin',
+    `refs/heads/${branch}`,
+  ]);
   const [sha] = output.split(/\s+/u);
   return sha === '' ? undefined : sha;
 }
@@ -264,14 +269,18 @@ export function mergeCurrentReleaseSection({
     return replaceReleaseSection(changelog, version, currentReleaseSection);
   }
 
-  const changelogHeader = /^# Changelog\r?\n+/u.exec(changelog);
-  if (!changelogHeader) {
+  if (!/^# Changelog\r?\n/u.test(changelog)) {
     throw new Error('CHANGELOG.md must begin with a Changelog heading');
   }
 
+  // Releases follow the preamble and `## [Unreleased]`, newest first.
+  const firstRelease = /^## \[(?!Unreleased\])/mu.exec(changelog);
   const lineEnding = changelog.includes('\r\n') ? '\r\n' : '\n';
   const normalizedSection = currentReleaseSection.replaceAll('\n', lineEnding);
-  return `${changelogHeader[0]}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(changelogHeader[0].length)}`;
+  if (!firstRelease) {
+    return `${changelog.trimEnd()}${lineEnding}${lineEnding}${normalizedSection}${lineEnding}`;
+  }
+  return `${changelog.slice(0, firstRelease.index)}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(firstRelease.index)}`;
 }
 
 function rebuildChangelogBranch({
