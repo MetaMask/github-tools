@@ -166,6 +166,23 @@ test('marks an unproofread changelog PR when AI proofreading fails', () => {
   );
 });
 
+test('preserves authentication failures for the unproofread PR warning', () => {
+  const authenticationFailure = {
+    status: 'failed' as const,
+    stage: 'authentication',
+  };
+  assert.deepEqual(
+    getChangelogPrPresentation({
+      version: '13.51.0',
+      changelogBranch: 'release-changelog/13.51.0',
+      previousVersionRef: 'null',
+      proofreadingStatus: authenticationFailure.status,
+      proofreadingStage: authenticationFailure.stage,
+    }).title,
+    'release: release-changelog/13.51.0 (AI automation failed, not proofread)',
+  );
+});
+
 test('clears the AI failure presentation after a successful proofread', () => {
   assert.deepEqual(
     getChangelogPrPresentation({
