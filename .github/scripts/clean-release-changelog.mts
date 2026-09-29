@@ -47,6 +47,19 @@ type LiteLlmResponse = {
   choices?: { message?: { content?: unknown } }[];
 };
 
+export class LiteLlmAuthenticationError extends Error {
+  constructor(status: number) {
+    super(`LiteLLM rejected the credential with HTTP ${String(status)}`);
+    this.name = 'LiteLlmAuthenticationError';
+  }
+}
+
+export function isLiteLlmAuthenticationError(
+  error: unknown,
+): error is LiteLlmAuthenticationError {
+  return error instanceof LiteLlmAuthenticationError;
+}
+
 function getArgument(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
@@ -523,6 +536,9 @@ async function requestCleanRoomRewrite({
         signal: controller.signal,
       });
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new LiteLlmAuthenticationError(response.status);
+        }
         throw new Error(`LiteLLM returned HTTP ${String(response.status)}`);
       }
 
@@ -534,6 +550,9 @@ async function requestCleanRoomRewrite({
       return content.trim();
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
+      if (isLiteLlmAuthenticationError(error)) {
+        throw error;
+      }
       if (attempt < MAX_ATTEMPTS) {
         console.warn(
           `Retrying clean-room model request (attempt ${attempt + 1}/${MAX_ATTEMPTS} in 1000ms).`,
@@ -622,9 +641,12 @@ async function main(): Promise<void> {
     writeReport(reportPath, { status: 'succeeded', model: MODEL });
     console.log(`Clean-room proofreading completed with ${MODEL}.`);
   } catch (error) {
+    const stage = isLiteLlmAuthenticationError(error)
+      ? 'authentication'
+      : 'cleaning';
     fail(
       reportPath,
-      'cleaning',
+      stage,
       error instanceof Error ? error.message : String(error),
     );
   }

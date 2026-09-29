@@ -7,6 +7,8 @@ import {
   getEvidenceEnvironment,
   getPrNumbers,
   isRetryableGhApiFailure,
+  LiteLlmAuthenticationError,
+  isLiteLlmAuthenticationError,
   mergeCleanRoomSections,
   requestGhApiWithRetry,
   replaceReleaseSection,
@@ -74,6 +76,14 @@ test('does not retry permanent GitHub API failures', async () => {
     isRetryableGhApiFailure(new Error('HTTP 404: Not Found')),
     false,
   );
+});
+
+test('identifies LiteLLM credential rejections', () => {
+  const error = new LiteLlmAuthenticationError(401);
+  assert.equal(error.name, 'LiteLlmAuthenticationError');
+  assert.match(error.message, /HTTP 401/u);
+  assert.equal(isLiteLlmAuthenticationError(error), true);
+  assert.equal(isLiteLlmAuthenticationError(new Error('HTTP 401')), false);
 });
 
 test('cleans large release sections in reference-preserving chunks', () => {

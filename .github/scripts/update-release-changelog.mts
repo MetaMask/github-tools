@@ -466,12 +466,13 @@ function runCleanRoomProofread({
     if (!existsSync(reportPath)) {
       writeFailedProofreadingReport(reportPath, message);
     }
+    const stage = getProofreadingFailureStage(reportPath);
     console.warn(
       'AI changelog proofread failed; keeping deterministic generated section.',
     );
     return {
       status: 'failed',
-      stage: getProofreadingFailureStage(reportPath),
+      stage,
     };
   }
 }
