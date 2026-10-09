@@ -66,15 +66,18 @@ runs:
       with:
         node-version: '24'
 
+    # Corepack resolves Yarn from the working directory, not from `--cwd`, so
+    # the build must run inside the checkout to use its own pinned Yarn.
     - name: Build auto-changelog source
       shell: bash
+      working-directory: ./auto-changelog
       env:
         AI_ANALYZER_LITELLM_KEY: ''
       run: |
         set -euo pipefail
         corepack enable
-        corepack yarn --cwd ./auto-changelog install --immutable
-        corepack yarn --cwd ./auto-changelog build
+        corepack yarn install --immutable
+        corepack yarn build
 
     - name: Update changelog branch
       shell: bash
