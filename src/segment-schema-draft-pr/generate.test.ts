@@ -123,7 +123,7 @@ describe('generateSchemaDraft', () => {
       ),
       'utf8',
     );
-    expect(yaml).toContain('name: New Event');
+    expect(yaml).toContain('name: "New Event"');
     expect(yaml).toContain('source:');
 
     await fs.rm(schemaDir, { recursive: true, force: true });

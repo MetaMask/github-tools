@@ -78,6 +78,20 @@ describe('loadPullRequestTsDiff', () => {
 
     expect(diff.mentionsAnalytics).toBe(false);
   });
+
+  it('treats addSensitiveProperties as an analytics hit', async () => {
+    const paginate = jest.fn().mockResolvedValue([
+      {
+        filename: 'app/Home.ts',
+        patch: '+.addSensitiveProperties({ secret: true })',
+      },
+    ]);
+    const octokit = { paginate } as unknown as Octokit;
+
+    const diff = await loadPullRequestTsDiff(octokit, REPO, 12);
+
+    expect(diff.mentionsAnalytics).toBe(true);
+  });
 });
 
 describe('hasAnalyticsDiff', () => {

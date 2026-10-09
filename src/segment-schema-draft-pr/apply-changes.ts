@@ -42,6 +42,7 @@ export async function applyChanges(
   );
 
   let wroteLibraryToPlan = false;
+  const claimedPaths = new Map<string, string>();
 
   for (const event of changeset.eventsAdded) {
     const existing = index.eventsByName.get(event.eventName);
@@ -49,12 +50,18 @@ export async function applyChanges(
       continue;
     }
 
-    const relative = path.join(
-      'libraries',
-      'events',
-      config.defaultLibrary,
-      `${toKebabSlug(event.eventName)}.yaml`,
-    );
+    const relative = unsortedEventPath(config, event.eventName);
+    if (
+      slugOwnedByOtherEvent(
+        index,
+        schemaDir,
+        relative,
+        claimedPaths,
+        event.eventName,
+      )
+    ) {
+      continue;
+    }
     const properties = changeset.propertiesAdded.filter(
       (item) => item.eventName === event.eventName,
     );
@@ -62,6 +69,7 @@ export async function applyChanges(
     await fs.mkdir(path.dirname(absolute), { recursive: true });
     const doc = buildNewEventDocument(event.eventName, config, properties);
     await preserveAndWrite(absolute, previousDir, relative, doc);
+    claimedPaths.set(relative, event.eventName);
     intendedFiles.push({
       path: relative,
       kind: 'create',
@@ -78,16 +86,23 @@ export async function applyChanges(
 
     const indexed = index.eventsByName.get(eventName);
     if (!indexed) {
-      const relative = path.join(
-        'libraries',
-        'events',
-        config.defaultLibrary,
-        `${toKebabSlug(eventName)}.yaml`,
-      );
+      const relative = unsortedEventPath(config, eventName);
+      if (
+        slugOwnedByOtherEvent(
+          index,
+          schemaDir,
+          relative,
+          claimedPaths,
+          eventName,
+        )
+      ) {
+        continue;
+      }
       const absolute = path.join(schemaDir, relative);
       await fs.mkdir(path.dirname(absolute), { recursive: true });
       const doc = buildNewEventDocument(eventName, config, properties);
       await preserveAndWrite(absolute, previousDir, relative, doc);
+      claimedPaths.set(relative, eventName);
       intendedFiles.push({ path: relative, kind: 'create', eventName });
       wroteLibraryToPlan = true;
       continue;
@@ -118,6 +133,57 @@ export async function applyChanges(
 }
 
 /**
+ * Path of a new event in the platform unsorted library.
+ *
+ * @param config - Platform config.
+ * @param eventName - Display name.
+ * @returns Path relative to the schema root.
+ */
+function unsortedEventPath(config: PlatformConfig, eventName: string): string {
+  return path.join(
+    'libraries',
+    'events',
+    config.defaultLibrary,
+    `${toKebabSlug(eventName)}.yaml`,
+  );
+}
+
+/**
+ * True when another event already owns this kebab path.
+ *
+ * Why: `Foo Bar` and `Foo-Bar` share `foo-bar.yaml`. Writing the second
+ * would replace the first event's file.
+ *
+ * @param index - Current schema index.
+ * @param schemaDir - Schema checkout.
+ * @param relative - Candidate YAML path.
+ * @param claimedPaths - Paths written earlier in this run.
+ * @param eventName - Event about to be written.
+ * @returns Whether the path belongs to a different event.
+ */
+function slugOwnedByOtherEvent(
+  index: SchemaIndex,
+  schemaDir: string,
+  relative: string,
+  claimedPaths: Map<string, string>,
+  eventName: string,
+): boolean {
+  const claimed = claimedPaths.get(relative);
+  if (claimed !== undefined) {
+    return claimed !== eventName;
+  }
+
+  for (const event of index.eventsByName.values()) {
+    if (path.relative(schemaDir, event.filePath) !== relative) {
+      continue;
+    }
+    return event.name !== eventName;
+  }
+
+  return false;
+}
+
+/**
  * Builds a new unsorted-library event document.
  *
  * @param eventName - Display name.
@@ -132,7 +198,7 @@ function buildNewEventDocument(
 ): Document {
   const doc = parseDocument(
     [
-      `name: ${eventName}`,
+      'name: ""',
       `description: ${JSON.stringify(TODO_DESCRIPTION)}`,
       'type: TRACK',
       'version: 1',
@@ -143,6 +209,7 @@ function buildNewEventDocument(
       'properties: {}',
     ].join('\n'),
   );
+  doc.set('name', quotedScalar(eventName));
   appendProperties(doc, properties);
   return doc;
 }

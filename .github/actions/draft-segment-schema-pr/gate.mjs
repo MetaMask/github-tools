@@ -13,7 +13,7 @@ export const OPT_OUT_LABEL = 'no-schema-pr';
 export const PROPOSAL_MARKER = '<!-- segment-schema-draft-pr:proposal -->';
 
 export const DIFF_PREFILTER =
-  /EVENT_NAME|MetaMetricsEventName|trackEvent|addProperties|createEventBuilder/u;
+  /EVENT_NAME|MetaMetricsEventName|trackEvent|addProperties|addSensitiveProperties|createEventBuilder/u;
 
 export const MAX_CHANGED_TS_FILES = 150;
 
@@ -99,6 +99,7 @@ export function isAgreementComment(body, commenterLogin, prAuthorLogin) {
  */
 export function collectTsDiff(files) {
   const tsFiles = new Set();
+  let recordCount = 0;
   let mentionsAnalytics = false;
 
   for (const item of files) {
@@ -111,6 +112,9 @@ export function collectTsDiff(files) {
     if (tsPaths.length === 0) {
       continue;
     }
+
+    // A rename lists two paths on one PR file. The cap counts the record.
+    recordCount += 1;
 
     for (const filePath of tsPaths) {
       tsFiles.add(filePath);
@@ -125,7 +129,7 @@ export function collectTsDiff(files) {
     }
   }
 
-  return { files: [...tsFiles], mentionsAnalytics };
+  return { files: [...tsFiles], recordCount, mentionsAnalytics };
 }
 
 /**
@@ -236,7 +240,7 @@ export function decideGate(input) {
   let tooManyFiles = false;
   if (input.mode !== 'close') {
     const diff = collectTsDiff(input.pullFiles ?? []);
-    tooManyFiles = diff.files.length > MAX_CHANGED_TS_FILES;
+    tooManyFiles = diff.recordCount > MAX_CHANGED_TS_FILES;
     analyticsDiff = hasAnalyticsDiff(diff, input.platform);
 
     if (

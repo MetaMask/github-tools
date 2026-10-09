@@ -110,13 +110,22 @@ describe('github-api', () => {
   });
 
   it('edits the existing proposal comment instead of posting a second one', async () => {
-    const paginate = jest
-      .fn()
-      .mockResolvedValue([{ id: 77, body: `${PROPOSAL_MARKER}\nold` }]);
+    const paginate = jest.fn().mockResolvedValue([
+      {
+        id: 77,
+        body: `${PROPOSAL_MARKER}\nold`,
+        user: { login: 'github-actions[bot]' },
+      },
+    ]);
     const updateComment = jest.fn().mockResolvedValue({});
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
+      users: {
+        getAuthenticated: jest
+          .fn()
+          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
+      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -136,13 +145,22 @@ describe('github-api', () => {
   });
 
   it('updates an existing proposal comment and skips create', async () => {
-    const paginate = jest
-      .fn()
-      .mockResolvedValue([{ id: 77, body: `${PROPOSAL_MARKER}\nold` }]);
+    const paginate = jest.fn().mockResolvedValue([
+      {
+        id: 77,
+        body: `${PROPOSAL_MARKER}\nold`,
+        user: { login: 'github-actions[bot]' },
+      },
+    ]);
     const updateComment = jest.fn().mockResolvedValue({});
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
+      users: {
+        getAuthenticated: jest
+          .fn()
+          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
+      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -168,6 +186,11 @@ describe('github-api', () => {
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
+      users: {
+        getAuthenticated: jest
+          .fn()
+          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
+      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -180,5 +203,35 @@ describe('github-api', () => {
     expect(updated).toBe(false);
     expect(updateComment).not.toHaveBeenCalled();
     expect(createComment).not.toHaveBeenCalled();
+  });
+
+  it('ignores a proposal marker posted by someone else', async () => {
+    const paginate = jest.fn().mockResolvedValue([
+      {
+        id: 88,
+        body: `${PROPOSAL_MARKER}\nplanted`,
+        user: { login: 'alice' },
+      },
+    ]);
+    const updateComment = jest.fn().mockResolvedValue({});
+    const createComment = jest.fn().mockResolvedValue({});
+    const octokit = {
+      paginate,
+      users: {
+        getAuthenticated: jest
+          .fn()
+          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
+      },
+      issues: { updateComment, createComment },
+    } as unknown as Octokit;
+
+    await upsertProposalComment(
+      octokit,
+      { owner: 'MetaMask', repo: 'metamask-mobile' },
+      12,
+      `${PROPOSAL_MARKER}\nnew`,
+    );
+    expect(updateComment).not.toHaveBeenCalled();
+    expect(createComment).toHaveBeenCalled();
   });
 });

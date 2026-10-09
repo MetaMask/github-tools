@@ -11,7 +11,7 @@ export const BODY_START_MARKER = '<!-- segment-schema-draft-pr:start -->';
 export const BODY_END_MARKER = '<!-- segment-schema-draft-pr:end -->';
 
 export const DIFF_PREFILTER =
-  /EVENT_NAME|MetaMetricsEventName|trackEvent|addProperties|createEventBuilder/u;
+  /EVENT_NAME|MetaMetricsEventName|trackEvent|addProperties|addSensitiveProperties|createEventBuilder/u;
 
 export const MAX_CHANGED_TS_FILES = 150;
 

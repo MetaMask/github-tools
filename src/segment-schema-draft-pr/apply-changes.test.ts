@@ -131,7 +131,7 @@ describe('schema-index and apply-changes', () => {
       ),
       'utf8',
     );
-    expect(created).toContain('name: New Event');
+    expect(created).toContain('name: "New Event"');
     expect(created).toContain('source:');
     expect(created).not.toContain('helper:');
 
@@ -187,5 +187,65 @@ properties:
     expect(written).toContain('Where the event came from');
     expect(written).toContain('extra:');
     await fs.rm(previousDir, { recursive: true, force: true });
+  });
+
+  it('does not overwrite a file when two event names share a slug', async () => {
+    await writeTree(schemaDir, {
+      'libraries/events/metamask-mobile-unsorted/foo-bar.yaml':
+        EXISTING_EVENT.replace('name: App Opened', 'name: Foo Bar').replace(
+          'library: metamask-mobile-perps',
+          'library: metamask-mobile-unsorted',
+        ),
+    });
+    const index = await buildSchemaIndex(schemaDir);
+    const changeset: AnalyticsChangeSet = {
+      eventsAdded: [{ enumKey: 'FOO_BAR', eventName: 'Foo-Bar' }],
+      eventsRemoved: [],
+      eventsRenamed: [],
+      propertiesAdded: [],
+      propertiesRemoved: [],
+      typeChanges: [],
+      unresolved: [],
+    };
+
+    const result = await applyChanges(
+      schemaDir,
+      undefined,
+      MOBILE,
+      changeset,
+      index,
+    );
+    expect(result.intendedFiles).toStrictEqual([]);
+    const written = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/foo-bar.yaml',
+      ),
+      'utf8',
+    );
+    expect(written).toContain('name: Foo Bar');
+  });
+
+  it('quotes event names that are not plain YAML scalars', async () => {
+    const index = await buildSchemaIndex(schemaDir);
+    const changeset: AnalyticsChangeSet = {
+      eventsAdded: [{ enumKey: 'NOTE', eventName: 'Note: #1' }],
+      eventsRemoved: [],
+      eventsRenamed: [],
+      propertiesAdded: [],
+      propertiesRemoved: [],
+      typeChanges: [],
+      unresolved: [],
+    };
+
+    await applyChanges(schemaDir, undefined, MOBILE, changeset, index);
+    const written = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/note-1.yaml',
+      ),
+      'utf8',
+    );
+    expect(written).toContain('name: "Note: #1"');
   });
 });

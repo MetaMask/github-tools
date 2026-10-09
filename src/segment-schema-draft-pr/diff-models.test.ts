@@ -96,6 +96,39 @@ describe('diffModels', () => {
     expect(changeset.unresolved).toHaveLength(1);
   });
 
+  it('omits unresolved entries that already exist on the base model', () => {
+    const shared = {
+      eventName: 'App Opened',
+      key: 'helper',
+      file: 'a.ts',
+    };
+    const changeset = diffModels(
+      model({
+        events: new Map([
+          ['App Opened', { properties: new Map(), unresolved: [shared] }],
+        ]),
+      }),
+      model({
+        events: new Map([
+          [
+            'App Opened',
+            {
+              properties: new Map(),
+              unresolved: [
+                shared,
+                { eventName: 'App Opened', key: 'other', file: 'b.ts' },
+              ],
+            },
+          ],
+        ]),
+      }),
+    );
+
+    expect(changeset.unresolved).toStrictEqual([
+      { eventName: 'App Opened', key: 'other', file: 'b.ts' },
+    ]);
+  });
+
   it('treats listed-only changes as content but not writable', () => {
     const listedOnly = {
       eventsAdded: [],

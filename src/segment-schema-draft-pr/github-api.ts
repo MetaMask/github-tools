@@ -273,6 +273,7 @@ async function findProposalComment(
   repoId: RepoId,
   prNumber: number,
 ): Promise<{ id: number } | undefined> {
+  const { data: viewer } = await octokit.users.getAuthenticated();
   const comments = await octokit.paginate(
     'GET /repos/{owner}/{repo}/issues/{issue_number}/comments',
     {
@@ -283,7 +284,13 @@ async function findProposalComment(
     },
   );
 
-  return comments.find((comment) => comment.body?.includes(PROPOSAL_MARKER));
+  // A planted marker on someone else's comment cannot be edited by this token.
+  return comments.find((comment) => {
+    return (
+      comment.body?.includes(PROPOSAL_MARKER) &&
+      comment.user?.login === viewer.login
+    );
+  });
 }
 
 /**

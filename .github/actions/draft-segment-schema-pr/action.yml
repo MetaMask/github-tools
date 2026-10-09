@@ -332,7 +332,9 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git checkout -B "$BRANCH"
-        git fetch origin "$BRANCH" || true
+        # A short-name fetch only updates FETCH_HEAD. The compare and
+        # force-with-lease below need the remote-tracking ref.
+        git fetch origin "refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}" || true
         git add -A
         git reset -- .segment-schema-draft-pr-summary.json || true
         compare_ref=HEAD

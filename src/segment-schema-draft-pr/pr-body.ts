@@ -5,14 +5,13 @@ import {
   MAX_CHANGED_TS_FILES,
   PROPOSAL_MARKER,
 } from './constants';
-import { changesetHasWritableChanges } from './diff-models';
 import type { AnalyticsChangeSet, IntendedFileChange, SchemaPr } from './types';
 
 /**
  * Proposal comment asking the author to agree to open a draft schema PR.
  *
- * Why: listed-only diffs (removals, renames, type changes, unresolved) cannot
- * produce YAML, so the copy-paste agreement sentence is omitted.
+ * Why: agreement is offered only when applyChanges produced a schema file.
+ * A client diff can look writable after the schema already contains those keys.
  *
  * @param changeset - Detected analytics diff.
  * @param intendedFiles - YAML paths that would be written.
@@ -34,7 +33,7 @@ export function renderProposalComment(
     '',
   ];
 
-  if (changesetHasWritableChanges(changeset)) {
+  if (intendedFiles.length > 0) {
     lines.push(
       'This does not block merge. To open a **draft** PR on the Segment schema repo, reply with:',
       '',

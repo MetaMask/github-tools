@@ -65,6 +65,12 @@ describe('pr-body', () => {
     expect(body).toContain('No draft will be opened from this pull request.');
   });
 
+  it('omits the agreement sentence when the schema write produced no files', () => {
+    const body = renderProposalComment(CHANGESET, []);
+    expect(body).toContain('New Event');
+    expect(body).not.toContain(AGREEMENT_PHRASE);
+  });
+
   it('tells the author to open the schema PR themselves when the file cap is exceeded', () => {
     const body = renderTooManyFilesComment(MAX_CHANGED_TS_FILES);
     expect(body).toContain(PROPOSAL_MARKER);

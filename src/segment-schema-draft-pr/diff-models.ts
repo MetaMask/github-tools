@@ -5,6 +5,7 @@ import type {
   PropertyChange,
   RemovedProperty,
   RenameChange,
+  UnresolvedProperty,
 } from './types';
 
 /**
@@ -74,9 +75,14 @@ export function diffModels(
     }
   }
 
-  const unresolved = [...head.events.values()].flatMap(
-    (event) => event.unresolved,
+  const baseUnresolved = new Set(
+    [...base.events.values()].flatMap((event) =>
+      event.unresolved.map(unresolvedIdentity),
+    ),
   );
+  const unresolved = [...head.events.values()]
+    .flatMap((event) => event.unresolved)
+    .filter((item) => !baseUnresolved.has(unresolvedIdentity(item)));
 
   return {
     eventsAdded,
@@ -105,6 +111,16 @@ export function changesetHasContent(changeset: AnalyticsChangeSet): boolean {
     changeset.typeChanges.length > 0 ||
     changeset.unresolved.length > 0
   );
+}
+
+/**
+ * Stable identity for an unresolved property bag entry.
+ *
+ * @param item - Unresolved listing.
+ * @returns Event, key, and file joined so equal entries compare equal.
+ */
+function unresolvedIdentity(item: UnresolvedProperty): string {
+  return `${item.eventName}\0${item.key}\0${item.file}`;
 }
 
 /**

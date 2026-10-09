@@ -1,5 +1,4 @@
 import { botBranchName } from './config';
-import { changesetHasWritableChanges } from './diff-models';
 import { generateSchemaDraft, writeSummaryFile } from './generate';
 import { createOctokitClients, parseRepo } from './github-api';
 import { writeGithubOutput } from './github-output';
@@ -63,7 +62,7 @@ async function runGenerate(args: CliArgs): Promise<void> {
     ['has_changes', summary.hasChanges ? 'true' : 'false'],
     [
       'has_writable_changes',
-      changesetHasWritableChanges(summary.changeset) ? 'true' : 'false',
+      summary.intendedFiles.length > 0 ? 'true' : 'false',
     ],
     ['branch', summary.branch],
     ['summary_file', summaryFile],

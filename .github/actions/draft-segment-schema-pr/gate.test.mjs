@@ -114,6 +114,28 @@ describe('collectTsDiff and hasAnalyticsDiff', () => {
     assert.equal(diff.mentionsAnalytics, false);
     assert.equal(hasAnalyticsDiff(diff, 'mobile'), false);
   });
+
+  it('treats addSensitiveProperties as an analytics hit', () => {
+    const diff = collectTsDiff([
+      {
+        filename: 'app/Home.ts',
+        patch: '+.addSensitiveProperties({ secret: true })',
+      },
+    ]);
+    assert.equal(diff.mentionsAnalytics, true);
+  });
+
+  it('counts a renamed TypeScript file once', () => {
+    const diff = collectTsDiff([
+      {
+        filename: 'app/next.ts',
+        previous_filename: 'app/prev.ts',
+        patch: '+const x = 1;\n',
+      },
+    ]);
+    assert.deepEqual(diff.files, ['app/next.ts', 'app/prev.ts']);
+    assert.equal(diff.recordCount, 1);
+  });
 });
 
 describe('shouldPushSchema', () => {
@@ -206,6 +228,16 @@ describe('decideGate', () => {
     assert.equal(result.skip, false);
     assert.equal(result.tooManyFiles, true);
     assert.equal(result.shouldPush, false);
+  });
+
+  it('does not treat 76 renamed TypeScript files as over the cap', () => {
+    const pullFiles = Array.from({ length: 76 }, (_, i) => ({
+      filename: `app/next-${i}.ts`,
+      previous_filename: `app/prev-${i}.ts`,
+      patch: '+createEventBuilder(MetaMetricsEvents.APP_OPENED)',
+    }));
+    const result = decideGate(input({ pullFiles }));
+    assert.equal(result.tooManyFiles, false);
   });
 
   it('pushes on create when agreement matches and YAML can be written', () => {

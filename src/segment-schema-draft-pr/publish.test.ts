@@ -59,7 +59,7 @@ const ARGS: CliArgs = {
  */
 function mockOctokits(params: {
   schemaPulls: Record<string, unknown>[];
-  comments: { id: number; body: string }[];
+  comments: { id: number; body: string; user?: { login: string } }[];
 }): {
   client: Octokit;
   schema: Octokit;
@@ -68,9 +68,19 @@ function mockOctokits(params: {
 } {
   const updateComment = jest.fn().mockResolvedValue({});
   const createComment = jest.fn().mockResolvedValue({});
-  const paginate = jest.fn().mockResolvedValue(params.comments);
+  const paginate = jest.fn().mockResolvedValue(
+    params.comments.map((comment) => ({
+      user: { login: 'github-actions[bot]' },
+      ...comment,
+    })),
+  );
   const client = {
     paginate,
+    users: {
+      getAuthenticated: jest
+        .fn()
+        .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
+    },
     issues: { updateComment, createComment },
   } as unknown as Octokit;
   const schema = {
