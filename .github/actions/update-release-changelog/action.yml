@@ -51,14 +51,6 @@ runs:
         ref: ${{ inputs.auto-changelog-ref }}
         path: ./auto-changelog
 
-    # Step 3: Setup environment
-    - name: Checkout and setup environment
-      uses: MetaMask/action-checkout-and-setup@v3
-      env:
-        AI_ANALYZER_LITELLM_KEY: ''
-      with:
-        is-high-risk-environment: true
-
     - name: Set up Node 24 for release changelog automation
       uses: actions/setup-node@v6
       env:
