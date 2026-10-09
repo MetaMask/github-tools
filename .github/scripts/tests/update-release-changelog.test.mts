@@ -6,10 +6,13 @@ import test from 'node:test';
 
 import { extractReleaseSection } from '../clean-release-changelog.mts';
 import {
+  findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
   getChangelogValidationArguments,
   getChangelogPushArguments,
   getChangelogPrPresentation,
+  getHistoricalSkippedPrNumbers,
+  isReleaseSectionEmpty,
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
@@ -34,6 +37,95 @@ test('records the failure stage in the proofread report', () => {
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
+});
+
+test('collects historical skipped PRs from auto-changelog diagnostics', () => {
+  assert.deepEqual(
+    getHistoricalSkippedPrNumbers(`[auto-changelog] skipped pr=35695 reason=historical-pr
+[auto-changelog] commit=abc accepted source-pr=1 canonical-pr=1 cherry-pick=false
+[auto-changelog] skipped pr=35716 reason=historical-pr
+[auto-changelog] skipped pr=35695 reason=historical-pr
+[auto-changelog] skipped pr=9 reason=cherry-pick-duplicate`),
+    ['35695', '35716'],
+  );
+  assert.deepEqual(getHistoricalSkippedPrNumbers(''), []);
+});
+
+test('finds the releases that already list a PR, oldest first, excluding the target', () => {
+  const changelog = `# Changelog
+
+## [Unreleased]
+
+- Mentions #35716 outside a release
+
+## [8.11.0]
+
+### Added
+
+- Added a notice (#35716)
+- Updated dependencies ([#35695](https://example.test/pull/35695))
+
+## [8.10.3]
+
+## [8.9.0]
+
+- Added an older feature (#35695)
+
+## [8.8.0]
+
+- Unrelated (#1)
+`;
+  assert.deepEqual(
+    findReleaseVersionsContainingPrs(changelog, ['35695', '35716'], '8.10.3'),
+    ['8.9.0', '8.11.0'],
+  );
+  assert.deepEqual(
+    findReleaseVersionsContainingPrs(changelog, ['35716'], '8.11.0'),
+    [],
+  );
+});
+
+test('detects a release section without entries', () => {
+  assert.equal(
+    isReleaseSectionEmpty(
+      '# Changelog\n\n## [8.10.3]\n\n## [8.10.2]\n',
+      '8.10.3',
+    ),
+    true,
+  );
+  assert.equal(
+    isReleaseSectionEmpty(
+      '# Changelog\n\n## [8.10.3]\n\n### Fixed\n\n- Fixed it (#1)\n\n## [8.10.2]\n',
+      '8.10.3',
+    ),
+    false,
+  );
+});
+
+test('asks for a manual edit when an OTA release has no new PRs', () => {
+  assert.deepEqual(
+    getChangelogPrPresentation({
+      version: '8.10.3',
+      changelogBranch: 'release-changelog/8.10.3',
+      previousVersionRef: 'null',
+      proofreadingStatus: 'no-new-prs',
+      presentInVersions: ['8.11.0', '8.12.0'],
+    }),
+    {
+      title:
+        'release: release-changelog/8.10.3 (no new PRs, manual edit required)',
+      body: 'This PR updates the change log for 8.10.3. (Hotfix - no test plan generated.)\n\n> There are no brand new PRs in 8.10.3, there are only cherry-picks that were already present in 8.11.0, 8.12.0. Please decide how you want to handle this and edit the changelog manually.',
+    },
+  );
+  assert.match(
+    getChangelogPrPresentation({
+      version: '8.10.3',
+      changelogBranch: 'release-changelog/8.10.3',
+      previousVersionRef: 'x',
+      proofreadingStatus: 'no-new-prs',
+    }).body,
+    /There are no brand new PRs in 8\.10\.3\. Please decide/u,
+  );
 });
 
 test('parses dry-run without changing positional arguments', () => {

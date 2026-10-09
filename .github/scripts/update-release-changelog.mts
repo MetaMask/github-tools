@@ -17,17 +17,18 @@ import {
   getPrNumbers,
   replaceReleaseSection,
 } from './clean-release-changelog.mts';
-import { parseReleaseBranch } from './release-version-utils.mts';
+import { compareSemver, parseReleaseBranch } from './release-version-utils.mts';
 import {
   selectChangelogBaseline,
   type ChangelogBaseline,
 } from './update-release-changelog-baseline.mts';
 
-type ProofreadingStatus = 'succeeded' | 'failed';
+type ProofreadingStatus = 'succeeded' | 'failed' | 'no-new-prs';
 
 type ProofreadingResult = {
   status: ProofreadingStatus;
   stage?: string;
+  presentInVersions?: string[];
 };
 
 type ChangelogPrPresentation = {
@@ -324,13 +325,73 @@ export function rebuildChangelogBranch({
   }
 }
 
+// Stderr is buffered so the verbose skip diagnostics can be parsed.
+function executeAutoChangelogCapturingDiagnostics(args: string[]): string {
+  const result = spawnSync('node', [getAutoChangelogCli(), ...args], {
+    env: deterministicEnvironment,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ['ignore', 'inherit', 'pipe'],
+  });
+  process.stderr.write(result.stderr);
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `auto-changelog exited with status ${String(result.status)}`,
+    );
+  }
+  return result.stderr;
+}
+
+export function getHistoricalSkippedPrNumbers(diagnostics: string): string[] {
+  const prNumbers = [
+    ...diagnostics.matchAll(
+      /\[auto-changelog\] skipped pr=(\d+) reason=historical-pr/gu,
+    ),
+  ].flatMap((match) => (match[1] ? [match[1]] : []));
+  return [...new Set(prNumbers)];
+}
+
+export function findReleaseVersionsContainingPrs(
+  changelog: string,
+  prNumbers: readonly string[],
+  excludedVersion: string,
+): string[] {
+  const wanted = new Set(prNumbers);
+  const versions = new Set<string>();
+  let currentVersion: string | undefined;
+  for (const line of changelog.split(/\r?\n/u)) {
+    const heading = /^## \[(\d+\.\d+\.\d+)\]$/u.exec(line);
+    if (heading) {
+      currentVersion = heading[1];
+    } else if (
+      currentVersion &&
+      currentVersion !== excludedVersion &&
+      getPrNumbers(line).some((prNumber) => wanted.has(prNumber))
+    ) {
+      versions.add(currentVersion);
+    }
+  }
+  return [...versions].sort(compareSemver);
+}
+
+export function isReleaseSectionEmpty(
+  changelogContent: string,
+  version: string,
+): boolean {
+  const { section } = extractReleaseSection(changelogContent, version);
+  return (section.match(/^- .+$/gmu) ?? []).length === 0;
+}
+
 function generateChangelog({
   repositoryUrl,
   version,
 }: {
   repositoryUrl: string;
   version: string;
-}): void {
+}): string[] {
   const commonArguments = [
     'update',
     '--rc',
@@ -348,7 +409,9 @@ function generateChangelog({
     '--verbose',
   ];
 
-  executeAutoChangelog(commonArguments);
+  return getHistoricalSkippedPrNumbers(
+    executeAutoChangelogCapturingDiagnostics(commonArguments),
+  );
 }
 
 export function validateGeneratedReleaseSection(
@@ -389,10 +452,11 @@ export function getChangelogValidationArguments(
 }
 
 function runChangelogValidation(proofreading: ProofreadingResult): void {
-  const validationArguments = getChangelogValidationArguments(
-    proofreading.status,
-  );
-  executeAutoChangelog(validationArguments);
+  // The validator rejects a release with no entries, which is the expected
+  // state here until a human edits the draft PR.
+  if (proofreading.status !== 'no-new-prs') {
+    executeAutoChangelog(getChangelogValidationArguments(proofreading.status));
+  }
 
   execute('git', ['diff', '--check']);
 }
@@ -477,6 +541,17 @@ function runCleanRoomProofread({
   }
 }
 
+export function getNoNewPrsWarning(
+  version: string,
+  presentInVersions: readonly string[],
+): string {
+  const cherryPicks =
+    presentInVersions.length > 0
+      ? `, there are only cherry-picks that were already present in ${presentInVersions.join(', ')}`
+      : '';
+  return `> There are no brand new PRs in ${version}${cherryPicks}. Please decide how you want to handle this and edit the changelog manually.`;
+}
+
 function getAiFailureWarning(proofreadingStage?: string): string {
   const stageDescription = proofreadingStage
     ? ` during ${proofreadingStage}`
@@ -500,12 +575,14 @@ export function getChangelogPrPresentation({
   previousVersionRef,
   proofreadingStatus,
   proofreadingStage,
+  presentInVersions = [],
 }: {
   version: string;
   changelogBranch: string;
   previousVersionRef: string;
   proofreadingStatus: ProofreadingStatus;
   proofreadingStage?: string;
+  presentInVersions?: readonly string[];
 }): ChangelogPrPresentation {
   let title = `release: ${changelogBranch}`;
   let body = `This PR updates the change log for ${version}.`;
@@ -515,6 +592,10 @@ export function getChangelogPrPresentation({
   if (proofreadingStatus === 'failed') {
     title = `${title} (AI automation failed, not proofread)`;
     body = `${body}\n\n${getAiFailureWarning(proofreadingStage)}`;
+  }
+  if (proofreadingStatus === 'no-new-prs') {
+    title = `${title} (no new PRs, manual edit required)`;
+    body = `${body}\n\n${getNoNewPrsWarning(version, presentInVersions)}`;
   }
   return { title, body };
 }
@@ -693,6 +774,9 @@ function commitAndPushChangelog({
       previousVersionRef,
       proofreadingStatus: proofreading.status,
       ...(proofreading.stage ? { proofreadingStage: proofreading.stage } : {}),
+      ...(proofreading.presentInVersions
+        ? { presentInVersions: proofreading.presentInVersions }
+        : {}),
     }),
   });
 }
@@ -788,21 +872,40 @@ function main(): void {
     );
   }
   console.log(`Generating changelog for ${platform} ${version}.`);
-  generateChangelog({ repositoryUrl, version });
-  // A generator duplicate is repairable by the clean-room step, but a missing
-  // PR reference is never safe to send to it or commit.
-  validateGeneratedReleaseSection(
-    readFileSync('CHANGELOG.md', 'utf8'),
-    version,
-    true,
-  );
+  const skippedPrNumbers = generateChangelog({ repositoryUrl, version });
 
-  const proofreading = runCleanRoomProofread({ repositoryUrl, version });
-  // The fallback must still meet the final one-reference-per-PR contract.
-  validateGeneratedReleaseSection(
-    readFileSync('CHANGELOG.md', 'utf8'),
-    version,
-  );
+  let proofreading: ProofreadingResult;
+  // An OTA hotfix may only cherry-pick PRs that an earlier release already
+  // lists; the draft PR then asks a human to write the section.
+  if (
+    parsedReleaseBranch?.kind === 'ota' &&
+    isReleaseSectionEmpty(readFileSync('CHANGELOG.md', 'utf8'), version)
+  ) {
+    const presentInVersions = findReleaseVersionsContainingPrs(
+      readFileSync('CHANGELOG.md', 'utf8'),
+      skippedPrNumbers,
+      version,
+    );
+    console.warn(
+      `No new PRs for ${version}; skipping the clean-room proofread and requesting a manual edit.`,
+    );
+    proofreading = { status: 'no-new-prs', presentInVersions };
+  } else {
+    // A generator duplicate is repairable by the clean-room step, but a missing
+    // PR reference is never safe to send to it or commit.
+    validateGeneratedReleaseSection(
+      readFileSync('CHANGELOG.md', 'utf8'),
+      version,
+      true,
+    );
+
+    proofreading = runCleanRoomProofread({ repositoryUrl, version });
+    // The fallback must still meet the final one-reference-per-PR contract.
+    validateGeneratedReleaseSection(
+      readFileSync('CHANGELOG.md', 'utf8'),
+      version,
+    );
+  }
   runChangelogValidation(proofreading);
   if (dryRun) {
     // Preflight the same source snapshots used for publication, but leave all
