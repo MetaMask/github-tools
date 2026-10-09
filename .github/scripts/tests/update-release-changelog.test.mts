@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { extractReleaseSection } from '../clean-release-changelog.mts';
 import {
   getAutoChangelogCli,
   getChangelogValidationArguments,
@@ -130,6 +131,113 @@ All notable changes to this project will be documented in this file.
 
 - Fixed an earlier issue (#100)
 `,
+  );
+});
+
+const stableShapedChangelog = `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [13.50.0]
+
+### Fixed
+
+- Fixed an earlier issue ([#100](https://github.com/MetaMask/metamask-extension/pull/100))
+
+## [13.49.0]
+
+### Added
+
+- Added an older feature ([#90](https://github.com/MetaMask/metamask-extension/pull/90))
+
+[Unreleased]: https://github.com/MetaMask/metamask-extension/compare/v13.50.0...HEAD
+[13.50.0]: https://github.com/MetaMask/metamask-extension/compare/v13.49.0...v13.50.0
+[13.49.0]: https://github.com/MetaMask/metamask-extension/releases/tag/v13.49.0
+`;
+
+const reviewedSection = `## [13.51.0]
+
+### Added
+
+- Added a current release feature (#101)`;
+
+test('merges into a stable-shaped changelog without disturbing history or link references', () => {
+  const merged = mergeCurrentReleaseSection({
+    changelog: stableShapedChangelog,
+    currentReleaseSection: reviewedSection,
+    version: '13.51.0',
+  });
+
+  assert.equal(
+    merged,
+    stableShapedChangelog.replace(
+      '## [13.50.0]',
+      `${reviewedSection}\n\n## [13.50.0]`,
+    ),
+  );
+  assert.equal(
+    extractReleaseSection(merged, '13.51.0').section,
+    reviewedSection,
+  );
+  assert.ok(merged.indexOf('## [Unreleased]') < merged.indexOf('## [13.51.0]'));
+  assert.ok(merged.indexOf('## [13.51.0]') < merged.indexOf('## [13.50.0]'));
+});
+
+test('keeps CRLF line endings when merging into a CRLF changelog', () => {
+  const merged = mergeCurrentReleaseSection({
+    changelog: stableShapedChangelog.replaceAll('\n', '\r\n'),
+    currentReleaseSection: reviewedSection,
+    version: '13.51.0',
+  });
+
+  assert.equal(merged.replaceAll('\r\n', '').includes('\n'), false);
+  assert.ok(merged.includes('## [13.51.0]\r\n\r\n### Added'));
+});
+
+test('replaces an existing current heading instead of duplicating it', () => {
+  const once = mergeCurrentReleaseSection({
+    changelog: stableShapedChangelog,
+    currentReleaseSection: reviewedSection,
+    version: '13.51.0',
+  });
+  const twice = mergeCurrentReleaseSection({
+    changelog: once,
+    currentReleaseSection: reviewedSection.replace('(#101)', '(#102)'),
+    version: '13.51.0',
+  });
+
+  assert.equal(twice.match(/^## \[13\.51\.0\]$/gmu)?.length, 1);
+  assert.match(twice, /\(#102\)/u);
+  assert.doesNotMatch(twice, /\(#101\)/u);
+});
+
+test('appends the reviewed section when the changelog has no releases yet', () => {
+  const merged = mergeCurrentReleaseSection({
+    changelog: '# Changelog\n\n## [Unreleased]\n',
+    currentReleaseSection: reviewedSection,
+    version: '13.51.0',
+  });
+
+  assert.equal(
+    merged,
+    `# Changelog\n\n## [Unreleased]\n\n${reviewedSection}\n`,
+  );
+});
+
+test('rejects a changelog without the Changelog heading', () => {
+  assert.throws(
+    () =>
+      mergeCurrentReleaseSection({
+        changelog: '## [13.50.0]\n',
+        currentReleaseSection: reviewedSection,
+        version: '13.51.0',
+      }),
+    /must begin with a Changelog heading/u,
   );
 });
 

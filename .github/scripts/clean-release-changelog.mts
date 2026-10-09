@@ -486,16 +486,23 @@ async function getPrEvidence(
   return { evidence, unavailablePrNumbers };
 }
 
-async function requestCleanRoomRewrite({
+export async function requestCleanRoomRewrite({
   prompt,
   section,
   prEvidence,
   apiKey,
+  fetchImpl = fetch,
+  sleep = async (milliseconds) =>
+    new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
+  timeoutMs = Number(process.env.CHANGELOG_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
 }: {
   prompt: string;
   section: string;
   prEvidence: readonly string[];
   apiKey: string;
+  fetchImpl?: typeof fetch;
+  sleep?: (milliseconds: number) => Promise<void>;
+  timeoutMs?: number;
 }): Promise<string> {
   const baseUrl = (process.env.LITELLM_BASE_URL ?? DEFAULT_BASE_URL).replace(
     /\/$/u,
@@ -521,12 +528,9 @@ async function requestCleanRoomRewrite({
   let lastError: string | undefined;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      Number(process.env.CHANGELOG_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
-    );
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const response = await fetchImpl(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -557,7 +561,7 @@ async function requestCleanRoomRewrite({
         console.warn(
           `Retrying clean-room model request (attempt ${attempt + 1}/${MAX_ATTEMPTS} in 1000ms).`,
         );
-        await new Promise((resolveDelay) => setTimeout(resolveDelay, 1_000));
+        await sleep(1_000);
       }
     } finally {
       clearTimeout(timeout);
