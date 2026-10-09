@@ -110,7 +110,7 @@ function succeeds(command: string, args: string[]): boolean {
   );
 }
 
-function getRemoteBranchSha(branch: string): string | undefined {
+export function getRemoteBranchSha(branch: string): string | undefined {
   const output = capture('git', [
     'ls-remote',
     '--heads',
@@ -126,7 +126,7 @@ function getRemoteRefSha(ref: string): string | undefined {
   return getRemoteBranchSha(branch);
 }
 
-function assertRemoteRefUnchanged({
+export function assertRemoteRefUnchanged({
   ref,
   expectedSha,
   description,
@@ -222,22 +222,24 @@ function determineChangelogBranch(version: string): string {
   return getRemoteBranchSha(fallbackBranch) ? fallbackBranch : preferredBranch;
 }
 
-function getReviewedCurrentReleaseSection({
+export function getReviewedCurrentReleaseSection({
   changelogBranch,
   changelogBranchSha,
   releaseBranch,
   version,
+  getOpenPrNumber = getOpenChangelogPrNumber,
 }: {
   changelogBranch: string;
   changelogBranchSha: string | undefined;
   releaseBranch: string;
   version: string;
+  getOpenPrNumber?: typeof getOpenChangelogPrNumber;
 }): string | undefined {
   if (!changelogBranchSha) {
     return undefined;
   }
 
-  if (!getOpenChangelogPrNumber(changelogBranch, releaseBranch)) {
+  if (!getOpenPrNumber(changelogBranch, releaseBranch)) {
     throw new Error(
       `${changelogBranch} exists without an open PR to ${releaseBranch}; refusing to overwrite it`,
     );
@@ -283,7 +285,7 @@ export function mergeCurrentReleaseSection({
   return `${changelog.slice(0, firstRelease.index)}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(firstRelease.index)}`;
 }
 
-function rebuildChangelogBranch({
+export function rebuildChangelogBranch({
   changelogBranch,
   releaseBranch,
   baseline,
@@ -551,7 +553,7 @@ export function parseUpdateChangelogArguments(argumentsList: string[]): {
   };
 }
 
-function pushChangelogBranch({
+export function pushChangelogBranch({
   changelogBranch,
   expectedRemoteSha,
 }: {

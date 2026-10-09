@@ -10,6 +10,7 @@ import {
   LiteLlmAuthenticationError,
   isLiteLlmAuthenticationError,
   mergeCleanRoomSections,
+  requestCleanRoomRewrite,
   requestGhApiWithRetry,
   replaceReleaseSection,
   splitReleaseSectionIntoChunks,
@@ -290,6 +291,173 @@ Here is the cleaned section:
         ['101', '102'],
       ),
     /adjacent list items/u,
+  );
+});
+
+type FetchResponse = Awaited<ReturnType<typeof fetch>>;
+type RecordedRequest = { url: string; init: RequestInit };
+
+function fakeResponse(status: number, body: unknown = {}): FetchResponse {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as FetchResponse;
+}
+
+function createFetch(
+  responses: (FetchResponse | Error)[],
+  requests: RecordedRequest[] = [],
+): typeof fetch {
+  return (async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    requests.push({ url: String(url), init: init ?? {} });
+    const next = responses.shift();
+    if (!next) {
+      throw new Error('Unexpected request');
+    }
+    if (next instanceof Error) {
+      throw next;
+    }
+    return next;
+  }) as typeof fetch;
+}
+
+function completion(content: unknown): FetchResponse {
+  return fakeResponse(200, { choices: [{ message: { content } }] });
+}
+
+const rewriteInput = {
+  prompt: 'Prompt',
+  section: generatedSection,
+  prEvidence: ['#101: Title'],
+  apiKey: 'litellm-key',
+};
+
+test('sends the pinned model with the bearer credential to chat completions', async () => {
+  const requests: RecordedRequest[] = [];
+  const result = await requestCleanRoomRewrite({
+    ...rewriteInput,
+    fetchImpl: createFetch([completion('  ## [13.51.0]  ')], requests),
+    sleep: async () => undefined,
+    timeoutMs: 1_000,
+  });
+
+  assert.equal(result, '## [13.51.0]');
+  assert.equal(requests.length, 1);
+  assert.match(requests[0]?.url ?? '', /\/chat\/completions$/u);
+  assert.equal(requests[0]?.init.method, 'POST');
+  const headers = requests[0]?.init.headers as Record<string, string>;
+  assert.equal(headers.Authorization, 'Bearer litellm-key');
+  const body = JSON.parse(String(requests[0]?.init.body)) as {
+    model: string;
+    temperature: number;
+    messages: { content: string }[];
+  };
+  assert.equal(body.model, 'gpt-5.6-terra');
+  assert.equal(body.temperature, 0);
+  assert.match(body.messages[1]?.content ?? '', /<release_section>/u);
+  assert.doesNotMatch(JSON.stringify(body), /litellm-key/u);
+});
+
+test('does not retry a rejected LiteLLM credential', async () => {
+  for (const status of [401, 403]) {
+    const requests: RecordedRequest[] = [];
+    const sleeps: number[] = [];
+    await assert.rejects(
+      async () =>
+        requestCleanRoomRewrite({
+          ...rewriteInput,
+          fetchImpl: createFetch([fakeResponse(status)], requests),
+          sleep: async (milliseconds) => {
+            sleeps.push(milliseconds);
+          },
+          timeoutMs: 1_000,
+        }),
+      (error: unknown) =>
+        isLiteLlmAuthenticationError(error) &&
+        error.message.includes(`HTTP ${String(status)}`),
+    );
+    assert.equal(requests.length, 1);
+    assert.deepEqual(sleeps, []);
+  }
+});
+
+test('retries one transient LiteLLM failure and then succeeds', async () => {
+  const requests: RecordedRequest[] = [];
+  const sleeps: number[] = [];
+  const result = await requestCleanRoomRewrite({
+    ...rewriteInput,
+    fetchImpl: createFetch(
+      [fakeResponse(503), completion('## [13.51.0]')],
+      requests,
+    ),
+    sleep: async (milliseconds) => {
+      sleeps.push(milliseconds);
+    },
+    timeoutMs: 1_000,
+  });
+
+  assert.equal(result, '## [13.51.0]');
+  assert.equal(requests.length, 2);
+  assert.deepEqual(sleeps, [1_000]);
+});
+
+test('stops after the retry budget for persistent LiteLLM failures', async () => {
+  const requests: RecordedRequest[] = [];
+  await assert.rejects(
+    async () =>
+      requestCleanRoomRewrite({
+        ...rewriteInput,
+        fetchImpl: createFetch(
+          [fakeResponse(500), fakeResponse(500)],
+          requests,
+        ),
+        sleep: async () => undefined,
+        timeoutMs: 1_000,
+      }),
+    /LiteLLM returned HTTP 500/u,
+  );
+  assert.equal(requests.length, 2);
+});
+
+test('rejects an empty LiteLLM message after the retry budget', async () => {
+  await assert.rejects(
+    async () =>
+      requestCleanRoomRewrite({
+        ...rewriteInput,
+        fetchImpl: createFetch([completion(''), completion(null)]),
+        sleep: async () => undefined,
+        timeoutMs: 1_000,
+      }),
+    /no message content/u,
+  );
+});
+
+test('aborts a LiteLLM request that exceeds the timeout', async () => {
+  const signals: (AbortSignal | null | undefined)[] = [];
+  const hangingFetch = (async (_url: unknown, init?: RequestInit) => {
+    signals.push(init?.signal);
+    return new Promise<FetchResponse>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new Error('aborted by timeout'));
+      });
+    });
+  }) as typeof fetch;
+
+  await assert.rejects(
+    async () =>
+      requestCleanRoomRewrite({
+        ...rewriteInput,
+        fetchImpl: hangingFetch,
+        sleep: async () => undefined,
+        timeoutMs: 5,
+      }),
+    /aborted by timeout/u,
+  );
+  assert.equal(signals.length, 2);
+  assert.equal(
+    signals.every((signal) => signal?.aborted),
+    true,
   );
 });
 
