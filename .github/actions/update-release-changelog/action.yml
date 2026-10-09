@@ -21,11 +21,11 @@ inputs:
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
   auto-changelog-repository:
     required: false
-    description: 'Temporary source repository for auto-changelog while unreleased behavior is required.'
+    description: 'TEMPORARY: source repository for auto-changelog. Remove with the source checkout/build steps once a released auto-changelog has the required behavior.'
     default: 'MetaMask/auto-changelog'
   auto-changelog-ref:
     required: false
-    description: 'Immutable auto-changelog commit SHA used by the temporary source CLI.'
+    description: 'TEMPORARY: immutable auto-changelog commit SHA built from source. Remove once a released auto-changelog is used.'
     default: '7bbff6b64971d5a12137949b4ac2363b5cd071ef'
 runs:
   using: composite
@@ -40,8 +40,11 @@ runs:
         ref: ${{ inputs.release-branch }}
         token: ${{ inputs.github-token }}
 
-    # Temporary source checkout until the required auto-changelog behavior is
-    # released and both consumers update their packaged dependency.
+    # TEMPORARY (1/3): the pinned auto-changelog commit includes fixes (e.g.
+    # 2c6add7 after v6.2.1) that no release has yet. Once it is released,
+    # remove this step, the build step below, the two
+    # `auto-changelog-*` inputs and `AUTO_CHANGELOG_CLI` in the update step,
+    # and run the released CLI (pinned version) instead.
     - name: Checkout auto-changelog source
       uses: actions/checkout@v6
       env:
@@ -58,6 +61,7 @@ runs:
       with:
         node-version: '24'
 
+    # TEMPORARY (2/3): builds the source checkout above; delete with it.
     # Corepack resolves Yarn from the working directory, not from `--cwd`, so
     # the build must run inside the checkout to use its own pinned Yarn.
     - name: Build auto-changelog source
@@ -81,6 +85,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        # TEMPORARY (3/3): points the runner at the source-built CLI; delete with it.
         AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
       run: |
         set -euo pipefail
