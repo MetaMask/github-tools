@@ -397,18 +397,15 @@ function runChangelogValidation(proofreading: ProofreadingResult): void {
   execute('git', ['diff', '--check']);
 }
 
-function writeFailedProofreadingReport(
+export function writeFailedProofreadingReport(
   reportPath: string,
   error: string,
+  stage = 'execution',
 ): void {
   mkdirSync(dirname(reportPath), { recursive: true });
   writeFileSync(
     reportPath,
-    `${JSON.stringify(
-      { status: 'failed', stage: 'execution', error },
-      null,
-      2,
-    )}\n`,
+    `${JSON.stringify({ status: 'failed', stage, error }, null, 2)}\n`,
   );
 }
 
@@ -440,6 +437,7 @@ function runCleanRoomProofread({
     writeFailedProofreadingReport(
       reportPath,
       'LiteLLM credential is unavailable',
+      'authentication',
     );
     return { status: 'failed', stage: 'authentication' };
   }

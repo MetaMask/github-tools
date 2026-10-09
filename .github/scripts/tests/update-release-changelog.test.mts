@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { extractReleaseSection } from '../clean-release-changelog.mts';
@@ -10,7 +13,28 @@ import {
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
+  writeFailedProofreadingReport,
 } from '../update-release-changelog.mts';
+
+test('records the failure stage in the proofread report', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'proofread-report-'));
+  try {
+    const reportPath = join(directory, 'nested', 'report.json');
+    writeFailedProofreadingReport(reportPath, 'no key', 'authentication');
+    assert.deepEqual(JSON.parse(readFileSync(reportPath, 'utf8')), {
+      status: 'failed',
+      stage: 'authentication',
+      error: 'no key',
+    });
+    writeFailedProofreadingReport(reportPath, 'boom');
+    assert.equal(
+      (JSON.parse(readFileSync(reportPath, 'utf8')) as { stage: string }).stage,
+      'execution',
+    );
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
 
 test('parses dry-run without changing positional arguments', () => {
   assert.deepEqual(
