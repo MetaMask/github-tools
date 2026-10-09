@@ -8,11 +8,11 @@ The [CLI](../../../src/segment-schema-draft-pr/README.md) is what this action ru
 
 ## Modes
 
-| Mode | Event | What it does |
-| --- | --- | --- |
-| `propose` | `pull_request` opened, synchronize, reopened, ready_for_review | Generates YAML and posts or edits one proposal comment. Pushes the bot branch when an open schema pull request already exists. |
-| `create` | `issue_comment` created | Pushes the bot branch and opens a draft schema pull request when the commenter is the pull request author, the client pull request is open, the head is in the same repository, and generate produced additive YAML. |
-| `close` | `pull_request` closed | When a schema pull request exists and the client pull request is unmerged, comments on the schema pull request and closes it. A merged client pull request leaves the schema draft open. Close leaves the bot branch in place. |
+| Mode      | Event                                                          | What it does                                                                                                                                                                                                                   |
+| --------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `propose` | `pull_request` opened, synchronize, reopened, ready_for_review | Generates YAML and posts or edits one proposal comment. Pushes the bot branch when an open schema pull request already exists.                                                                                                 |
+| `create`  | `issue_comment` created                                        | Pushes the bot branch and opens a draft schema pull request when the commenter is the pull request author, the client pull request is open, the head is in the same repository, and generate produced additive YAML.           |
+| `close`   | `pull_request` closed                                          | When a schema pull request exists and the client pull request is unmerged, comments on the schema pull request and closes it. A merged client pull request leaves the schema draft open. Close leaves the bot branch in place. |
 
 The agreement sentence is the first line of the author's comment, with optional trailing whitespace:
 
