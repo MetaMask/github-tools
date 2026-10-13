@@ -266,6 +266,7 @@ describe('schema pull list client', () => {
       'utf8',
     );
     assert.match(action, /getOctokit\(process\.env\.SEGMENT_SCHEMA_TOKEN\)/u);
+    assert.doesNotMatch(action, /const \{\s*getOctokit\s*\}/u);
     assert.doesNotMatch(action, /headers:\s*\{\s*authorization:/u);
   });
 });

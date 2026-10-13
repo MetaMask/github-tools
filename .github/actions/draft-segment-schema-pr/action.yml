@@ -136,7 +136,7 @@ runs:
           const [schemaOwner, schemaRepo] = process.env.SEGMENT_SCHEMA_REPOSITORY.split('/');
           const branch = botBranchName(platform, pr.number);
           // The auth hook on `github` replaces Authorization, so schema reads need their own client.
-          const { getOctokit } = require('@actions/github');
+          // getOctokit is already in scope from github-script.
           const schemaGithub = getOctokit(process.env.SEGMENT_SCHEMA_TOKEN);
           const schemaPulls = await schemaGithub.rest.pulls.list({
             owner: schemaOwner,

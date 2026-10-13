@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - List open schema pull requests with a client authenticated as the schema app token
+- Build that client from the `getOctokit` global that `github-script` already provides
 
 ## [1.20.0]
 
