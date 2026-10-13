@@ -135,13 +135,15 @@ runs:
 
           const [schemaOwner, schemaRepo] = process.env.SEGMENT_SCHEMA_REPOSITORY.split('/');
           const branch = botBranchName(platform, pr.number);
-          const schemaPulls = await github.request('GET /repos/{owner}/{repo}/pulls', {
+          // The auth hook on `github` replaces Authorization, so schema reads need their own client.
+          const { getOctokit } = require('@actions/github');
+          const schemaGithub = getOctokit(process.env.SEGMENT_SCHEMA_TOKEN);
+          const schemaPulls = await schemaGithub.rest.pulls.list({
             owner: schemaOwner,
             repo: schemaRepo,
             head: `${schemaOwner}:${branch}`,
             state: 'open',
             per_page: 5,
-            headers: { authorization: `token ${process.env.SEGMENT_SCHEMA_TOKEN}` },
           });
           const schemaPrExists = Boolean(schemaPulls.data[0]);
 

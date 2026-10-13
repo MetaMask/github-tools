@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   AGREEMENT_PHRASE,
@@ -253,5 +256,16 @@ describe('decideGate', () => {
     assert.equal(result.skip, false);
     assert.equal(result.shouldPush, true);
     assert.equal(result.branch, botBranchName('mobile', 12));
+  });
+});
+
+describe('schema pull list client', () => {
+  it('builds the schema client from the schema token', () => {
+    const action = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'action.yml'),
+      'utf8',
+    );
+    assert.match(action, /getOctokit\(process\.env\.SEGMENT_SCHEMA_TOKEN\)/u);
+    assert.doesNotMatch(action, /headers:\s*\{\s*authorization:/u);
   });
 });
