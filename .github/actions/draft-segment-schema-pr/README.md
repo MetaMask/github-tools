@@ -30,7 +30,7 @@ A `github-script` step runs before github-tools is installed. It ends the job fo
 
 A pull request that changes more than 150 non-test TypeScript files skips YAML generation. The sticky comment tells the author to open the schema pull request. A rename counts as one file.
 
-`propose` and `close` use a same-repository head. `create` runs after `did-user-agree-to-create-pr` and `is-cross-repo-pr`. The App token is minted on `propose`, `create`, and `close`.
+`propose` and `close` use a same-repository head. `create` runs after `did-user-agree-to-create-pr` and `is-cross-repo-pr`. That second job records `IS_CROSS_REPO_PR`, `CLIENT_PR_OPEN`, and `HAS_OPT_OUT_LABEL`. `create` queues when those are `false`, `true`, and `false`. Its first step reads the pull request again after the job holds `draft-segment-schema-write-<N>`, and mints the App token when that read still matches. Agreement sits outside the lock, so an unmerged close can finish first. The action gate repeats the open and opt-out checks before the schema write.
 
 ## Tokens
 
