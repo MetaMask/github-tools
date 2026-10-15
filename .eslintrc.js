@@ -18,6 +18,18 @@ module.exports = {
     },
 
     {
+      files: ['*.mjs'],
+      parserOptions: {
+        sourceType: 'module',
+        ecmaVersion: 2022,
+      },
+      extends: ['@metamask/eslint-config-nodejs'],
+      rules: {
+        'import/extensions': 'off',
+      },
+    },
+
+    {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
     },
