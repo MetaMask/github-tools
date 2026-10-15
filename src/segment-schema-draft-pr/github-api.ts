@@ -8,6 +8,9 @@ const PER_PAGE = 'per_page';
 const ISSUE_NUMBER = 'issue_number';
 const COMMENT_ID = 'comment_id';
 
+/** Author of comments posted with the workflow `GITHUB_TOKEN`. */
+const WORKFLOW_COMMENT_LOGIN = 'github-actions[bot]';
+
 export type RepoId = {
   owner: string;
   repo: string;
@@ -273,7 +276,6 @@ async function findProposalComment(
   repoId: RepoId,
   prNumber: number,
 ): Promise<{ id: number } | undefined> {
-  const { data: viewer } = await octokit.users.getAuthenticated();
   const comments = await octokit.paginate(
     'GET /repos/{owner}/{repo}/issues/{issue_number}/comments',
     {
@@ -288,7 +290,7 @@ async function findProposalComment(
   return comments.find((comment) => {
     return (
       comment.body?.includes(PROPOSAL_MARKER) &&
-      comment.user?.login === viewer.login
+      comment.user?.login === WORKFLOW_COMMENT_LOGIN
     );
   });
 }

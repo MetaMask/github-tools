@@ -121,11 +121,6 @@ describe('github-api', () => {
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
-      users: {
-        getAuthenticated: jest
-          .fn()
-          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
-      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -156,11 +151,6 @@ describe('github-api', () => {
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
-      users: {
-        getAuthenticated: jest
-          .fn()
-          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
-      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -186,11 +176,6 @@ describe('github-api', () => {
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
-      users: {
-        getAuthenticated: jest
-          .fn()
-          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
-      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 
@@ -217,11 +202,6 @@ describe('github-api', () => {
     const createComment = jest.fn().mockResolvedValue({});
     const octokit = {
       paginate,
-      users: {
-        getAuthenticated: jest
-          .fn()
-          .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
-      },
       issues: { updateComment, createComment },
     } as unknown as Octokit;
 

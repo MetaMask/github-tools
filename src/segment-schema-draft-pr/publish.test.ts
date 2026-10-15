@@ -76,11 +76,6 @@ function mockOctokits(params: {
   );
   const client = {
     paginate,
-    users: {
-      getAuthenticated: jest
-        .fn()
-        .mockResolvedValue({ data: { login: 'github-actions[bot]' } }),
-    },
     issues: { updateComment, createComment },
   } as unknown as Octokit;
   const schema = {
