@@ -463,8 +463,12 @@ test('aborts a LiteLLM request that exceeds the timeout', async () => {
 
 test('rejects a proofread when any source PR lacks evidence', () => {
   assert.throws(
-    () => assertPrEvidenceAvailable(['101', '102']),
-    /PR evidence unavailable for #101, #102/u,
+    () =>
+      assertPrEvidenceAvailable([
+        { prNumber: '101', error: 'HTTP 404: Not Found' },
+        { prNumber: '102', error: 'HTTP 500: Internal Server Error' },
+      ]),
+    /PR evidence unavailable: #101 \(HTTP 404: Not Found\), #102 \(HTTP 500: Internal Server Error\)/u,
   );
   assert.doesNotThrow(() => assertPrEvidenceAvailable([]));
 });

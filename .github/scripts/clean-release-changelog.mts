@@ -371,13 +371,18 @@ type PullRequestMetadata = {
   body?: unknown;
 };
 
+type UnavailablePrEvidence = {
+  prNumber: string;
+  error: string;
+};
+
 export function assertPrEvidenceAvailable(
-  unavailablePrNumbers: readonly string[],
+  unavailablePrEvidence: readonly UnavailablePrEvidence[],
 ): void {
-  if (unavailablePrNumbers.length > 0) {
+  if (unavailablePrEvidence.length > 0) {
     throw new Error(
-      `PR evidence unavailable for ${unavailablePrNumbers
-        .map((prNumber) => `#${prNumber}`)
+      `PR evidence unavailable: ${unavailablePrEvidence
+        .map(({ prNumber, error }) => `#${prNumber} (${error})`)
         .join(', ')}`,
     );
   }
@@ -428,7 +433,10 @@ export async function requestGhApiWithRetry(
 async function getPrEvidence(
   repository: string,
   prNumbers: readonly string[],
-): Promise<{ evidence: string[]; unavailablePrNumbers: string[] }> {
+): Promise<{
+  evidence: string[];
+  unavailablePrEvidence: UnavailablePrEvidence[];
+}> {
   const match = /github\.com[/:]([^/]+)\/([^/]+)$/u.exec(
     repository.replace(/\.git$/u, ''),
   );
@@ -442,7 +450,7 @@ async function getPrEvidence(
     throw new Error(`Cannot parse GitHub repository URL: ${repository}`);
   }
   const evidence: string[] = [];
-  const unavailablePrNumbers: string[] = [];
+  const unavailablePrEvidence: UnavailablePrEvidence[] = [];
   const uniquePrNumbers = [...new Set(prNumbers)];
   console.log(
     `Collecting GitHub evidence for ${uniquePrNumbers.length} changelog PRs.`,
@@ -479,11 +487,14 @@ async function getPrEvidence(
       evidence.push(
         `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`,
       );
-    } catch {
-      unavailablePrNumbers.push(prNumber);
+    } catch (error) {
+      unavailablePrEvidence.push({
+        prNumber,
+        error: getErrorDetails(error),
+      });
     }
   }
-  return { evidence, unavailablePrNumbers };
+  return { evidence, unavailablePrEvidence };
 }
 
 export async function requestCleanRoomRewrite({
@@ -601,7 +612,7 @@ async function main(): Promise<void> {
     const sourcePrNumbers = getPrNumbers(section);
     console.log(`Clean-room proofreading started with ${MODEL}.`);
     const prEvidence = await getPrEvidence(repository, sourcePrNumbers);
-    assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
+    assertPrEvidenceAvailable(prEvidence.unavailablePrEvidence);
     console.log(
       `Collected evidence for ${prEvidence.evidence.length} changelog PRs.`,
     );
