@@ -430,9 +430,10 @@ export async function requestGhApiWithRetry(
   });
 }
 
-async function getPrEvidence(
+export async function getPrEvidence(
   repository: string,
   prNumbers: readonly string[],
+  request: GhApiRequest = executeGhApi,
 ): Promise<{
   evidence: string[];
   unavailablePrEvidence: UnavailablePrEvidence[];
@@ -474,16 +475,26 @@ async function getPrEvidence(
         typeof pullRequest.body === 'string'
           ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
           : '<body unavailable>';
-      const files = (
-        await requestGhApiWithRetry([
-          `repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${MAX_PR_FILES}`,
-          '--jq',
-          '.[].filename',
-        ])
-      )
-        .split(/\r?\n/u)
-        .filter(Boolean)
-        .slice(0, MAX_PR_FILES);
+      let files: string[] = [];
+      try {
+        files = (
+          await requestGhApiWithRetry(
+            [
+              `repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${MAX_PR_FILES}`,
+              '--jq',
+              '.[].filename',
+            ],
+            request,
+          )
+        )
+          .split(/\r?\n/u)
+          .filter(Boolean)
+          .slice(0, MAX_PR_FILES);
+      } catch (error) {
+        console.warn(
+          `Changed-file evidence unavailable for #${prNumber}; continuing with PR title and body: ${getErrorDetails(error)}`,
+        );
+      }
       evidence.push(
         `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`,
       );

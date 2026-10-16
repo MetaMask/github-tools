@@ -5,6 +5,7 @@ import {
   assertPrEvidenceAvailable,
   extractReleaseSection,
   getEvidenceEnvironment,
+  getPrEvidence,
   getPrNumbers,
   isRetryableGhApiFailure,
   LiteLlmAuthenticationError,
@@ -77,6 +78,32 @@ test('does not retry permanent GitHub API failures', async () => {
     isRetryableGhApiFailure(new Error('HTTP 404: Not Found')),
     false,
   );
+});
+
+test('uses PR title and body when changed-file evidence is unavailable', async () => {
+  const requests: string[] = [];
+  const evidence = await getPrEvidence(
+    'https://github.com/MetaMask/metamask-mobile',
+    ['37469'],
+    async (argumentsList) => {
+      requests.push(argumentsList[0] ?? '');
+      if (argumentsList[0]?.endsWith('/pulls/37469')) {
+        return JSON.stringify({
+          title: 'fix: match the recurring every sheet to expires after',
+          body: 'The recurring interval picker now matches the expiration sheet.',
+        });
+      }
+      throw new Error('HTTP 503: Service Unavailable');
+    },
+  );
+
+  assert.deepEqual(evidence.unavailablePrEvidence, []);
+  assert.match(
+    evidence.evidence[0] ?? '',
+    /#37469: fix: match the recurring every sheet/u,
+  );
+  assert.match(evidence.evidence[0] ?? '', /<files unavailable>/u);
+  assert.equal(requests.length, 4);
 });
 
 test('identifies LiteLLM credential rejections', () => {
