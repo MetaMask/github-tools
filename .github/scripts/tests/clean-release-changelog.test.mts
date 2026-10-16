@@ -5,6 +5,8 @@ import {
   assertPrEvidenceAvailable,
   extractReleaseSection,
   getEvidenceEnvironment,
+  getLocalEvidenceLogArguments,
+  getLocalPrEvidence,
   getPrEvidence,
   getPrNumbers,
   isRetryableGhApiFailure,
@@ -80,7 +82,7 @@ test('does not retry permanent GitHub API failures', async () => {
   );
 });
 
-test('uses PR title and body when changed-file evidence is unavailable', async () => {
+test('uses PR title and body when local evidence is unavailable', async () => {
   const requests: string[] = [];
   const evidence = await getPrEvidence(
     'https://github.com/MetaMask/metamask-mobile',
@@ -93,7 +95,7 @@ test('uses PR title and body when changed-file evidence is unavailable', async (
           body: 'The recurring interval picker now matches the expiration sheet.',
         });
       }
-      throw new Error('HTTP 503: Service Unavailable');
+      throw new Error('Unexpected GitHub request');
     },
   );
 
@@ -102,8 +104,39 @@ test('uses PR title and body when changed-file evidence is unavailable', async (
     evidence.evidence[0] ?? '',
     /#37469: fix: match the recurring every sheet/u,
   );
-  assert.match(evidence.evidence[0] ?? '', /<files unavailable>/u);
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 1);
+});
+
+test('does not query GitHub when local mainline evidence exists', async () => {
+  const evidence = await getPrEvidence(
+    'https://github.com/MetaMask/metamask-mobile',
+    ['37469'],
+    async () => {
+      throw new Error('GitHub evidence was not expected');
+    },
+    new Map([
+      [
+        '37469',
+        '#37469: fix: match the recurring every sheet to expires after\nLocal squash commit body:\nThe interval picker now matches.',
+      ],
+    ]),
+  );
+
+  assert.deepEqual(evidence.unavailablePrEvidence, []);
+  assert.deepEqual(evidence.evidence, [
+    '#37469: fix: match the recurring every sheet to expires after\nLocal squash commit body:\nThe interval picker now matches.',
+  ]);
+});
+
+test('limits local evidence history to referenced PR numbers', () => {
+  assert.deepEqual(getLocalEvidenceLogArguments([]), undefined);
+  assert.deepEqual(getLocalEvidenceLogArguments(['37469', '37522', '37469']), [
+    'log',
+    'HEAD',
+    '--extended-regexp',
+    '--grep=\\(#(37469|37522)\\)',
+    '--format=%H%x1f%s%x1f%b%x1e',
+  ]);
 });
 
 test('identifies LiteLLM credential rejections', () => {

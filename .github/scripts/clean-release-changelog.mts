@@ -13,7 +13,6 @@ const MAX_ATTEMPTS = 2;
 const GH_API_MAX_ATTEMPTS = 3;
 const GH_API_RETRY_DELAY_MS = 1_000;
 const MAX_PR_BODY_LENGTH = 4_000;
-const MAX_PR_FILES = 40;
 const MAX_ENTRIES_PER_CLEAN_ROOM_REQUEST = 20;
 const VALID_CATEGORY_NAMES = [
   'Added',
@@ -371,6 +370,12 @@ type PullRequestMetadata = {
   body?: unknown;
 };
 
+type LocalCommit = {
+  hash: string;
+  subject: string;
+  body: string;
+};
+
 type UnavailablePrEvidence = {
   prNumber: string;
   error: string;
@@ -430,10 +435,80 @@ export async function requestGhApiWithRetry(
   });
 }
 
+export function getLocalEvidenceLogArguments(
+  prNumbers: readonly string[],
+): string[] | undefined {
+  const uniquePrNumbers = [...new Set(prNumbers)];
+  if (uniquePrNumbers.length === 0) {
+    return undefined;
+  }
+
+  return [
+    'log',
+    'HEAD',
+    '--extended-regexp',
+    `--grep=\\(#(${uniquePrNumbers.join('|')})\\)`,
+    '--format=%H%x1f%s%x1f%b%x1e',
+  ];
+}
+
+async function isCommitOnMain(commitHash: string): Promise<boolean> {
+  try {
+    await execFileAsync('git', ['merge-base', '--is-ancestor', commitHash, 'origin/main'], {
+      env: evidenceEnvironment,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getLocalPrEvidence(
+  prNumbers: readonly string[],
+): Promise<Map<string, string>> {
+  const argumentsList = getLocalEvidenceLogArguments(prNumbers);
+  if (!argumentsList) {
+    return new Map();
+  }
+
+  const { stdout } = await execFileAsync(
+    'git',
+    argumentsList,
+    { encoding: 'utf8', env: evidenceEnvironment },
+  );
+  const wantedPrNumbers = new Set(prNumbers);
+  const commitsByPrNumber = new Map<string, LocalCommit>();
+
+  for (const record of stdout.split('\x1e')) {
+    const [hash, subject, body] = record.trim().split('\x1f');
+    if (!hash || !subject || /\bcherry-pick(?:ing)?\b/iu.test(`${subject}\n${body ?? ''}`)) {
+      continue;
+    }
+    for (const prNumber of subject.matchAll(/\(#(\d+)\)/gu)) {
+      const number = prNumber[1];
+      if (number && wantedPrNumbers.has(number) && !commitsByPrNumber.has(number)) {
+        commitsByPrNumber.set(number, { hash, subject, body: body ?? '' });
+      }
+    }
+  }
+
+  const evidence = new Map<string, string>();
+  for (const [prNumber, commit] of commitsByPrNumber) {
+    if (await isCommitOnMain(commit.hash)) {
+      evidence.set(
+        prNumber,
+        `#${prNumber}: ${commit.subject}\nLocal squash commit body:\n${commit.body.slice(0, MAX_PR_BODY_LENGTH) || '<body unavailable>'}`,
+      );
+    }
+  }
+  return evidence;
+}
+
 export async function getPrEvidence(
   repository: string,
   prNumbers: readonly string[],
   request: GhApiRequest = executeGhApi,
+  localEvidence: ReadonlyMap<string, string> = new Map(),
 ): Promise<{
   evidence: string[];
   unavailablePrEvidence: UnavailablePrEvidence[];
@@ -457,14 +532,20 @@ export async function getPrEvidence(
     `Collecting GitHub evidence for ${uniquePrNumbers.length} changelog PRs.`,
   );
   for (const [index, prNumber] of uniquePrNumbers.entries()) {
+    const localPrEvidence = localEvidence.get(prNumber);
+    if (localPrEvidence) {
+      evidence.push(localPrEvidence);
+      continue;
+    }
     try {
       console.log(
         `Collecting evidence for PR ${index + 1}/${uniquePrNumbers.length}.`,
       );
       const pullRequest = JSON.parse(
-        await requestGhApiWithRetry([
-          `repos/${owner}/${repo}/pulls/${prNumber}`,
-        ]),
+        await requestGhApiWithRetry(
+          [`repos/${owner}/${repo}/pulls/${prNumber}`],
+          request,
+        ),
       ) as PullRequestMetadata;
       const title =
         typeof pullRequest.title === 'string' ? pullRequest.title : undefined;
@@ -475,28 +556,8 @@ export async function getPrEvidence(
         typeof pullRequest.body === 'string'
           ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
           : '<body unavailable>';
-      let files: string[] = [];
-      try {
-        files = (
-          await requestGhApiWithRetry(
-            [
-              `repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${MAX_PR_FILES}`,
-              '--jq',
-              '.[].filename',
-            ],
-            request,
-          )
-        )
-          .split(/\r?\n/u)
-          .filter(Boolean)
-          .slice(0, MAX_PR_FILES);
-      } catch (error) {
-        console.warn(
-          `Changed-file evidence unavailable for #${prNumber}; continuing with PR title and body: ${getErrorDetails(error)}`,
-        );
-      }
       evidence.push(
-        `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`,
+        `#${prNumber}: ${title}\nBody:\n${body}`,
       );
     } catch (error) {
       unavailablePrEvidence.push({
@@ -622,7 +683,16 @@ async function main(): Promise<void> {
     const prompt = readFileSync(promptPath, 'utf8');
     const sourcePrNumbers = getPrNumbers(section);
     console.log(`Clean-room proofreading started with ${MODEL}.`);
-    const prEvidence = await getPrEvidence(repository, sourcePrNumbers);
+    const localPrEvidence = await getLocalPrEvidence(sourcePrNumbers);
+    console.log(
+      `Using local mainline squash evidence for ${localPrEvidence.size} changelog PRs.`,
+    );
+    const prEvidence = await getPrEvidence(
+      repository,
+      sourcePrNumbers,
+      executeGhApi,
+      localPrEvidence,
+    );
     assertPrEvidenceAvailable(prEvidence.unavailablePrEvidence);
     console.log(
       `Collected evidence for ${prEvidence.evidence.length} changelog PRs.`,
