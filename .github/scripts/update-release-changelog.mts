@@ -813,6 +813,7 @@ function main(): void {
   );
   execute('git', ['fetch', 'origin', releaseBranch]);
   execute('git', ['fetch', 'origin', 'stable']);
+  execute('git', ['fetch', 'origin', 'main']);
   execute('git', [
     'fetch',
     '--prune',

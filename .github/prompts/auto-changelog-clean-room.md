@@ -104,10 +104,10 @@ the corrected Markdown.
 ## Research rules
 
 - For an unclear, overly technical, generic, or potentially duplicate entry,
-  look up the matching PR from its trailing `(#12345)` reference before
-  rewriting it. Read the PR title, description, and changed-file summary;
-  inspect the relevant diff when that is necessary to describe the
-  user-visible effect accurately.
+  use the matching evidence for its trailing `(#12345)` reference before
+  rewriting it. Mainline squash commits provide local title/body evidence;
+  direct-release and cherry-pick entries provide GitHub PR title/body evidence.
+  Do not infer implementation details when the available evidence is vague.
 - Use the repository and PR information only to clarify the entry, assign its
   category, or identify a coordinated release-wide change. Do not turn a
   minor implementation change into an unsupported feature claim.
