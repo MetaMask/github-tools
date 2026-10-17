@@ -861,6 +861,12 @@ function main(): void {
           version,
         });
 
+  if (reviewedCurrentReleaseSection) {
+    console.log(
+      `Preserving reviewed ${version} section from open changelog branch origin/${changelogBranch}.`,
+    );
+  }
+
   rebuildChangelogBranch({ changelogBranch, releaseBranch, baseline });
   if (reviewedCurrentReleaseSection) {
     writeFileSync(
