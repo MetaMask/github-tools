@@ -102,6 +102,18 @@ function executeAutoChangelog(args: string[]): void {
   execute('node', [getAutoChangelogCli(), ...args]);
 }
 
+function pauseForRaceTest(): void {
+  const milliseconds = Number(
+    process.env.RELEASE_CHANGELOG_RACE_TEST_PAUSE_MS ?? '0',
+  );
+  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0) {
+    return;
+  }
+
+  console.log(`Pausing for ${milliseconds}ms before publication race check.`);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
 function succeeds(command: string, args: string[]): boolean {
   return (
     spawnSync(command, args, {
@@ -914,6 +926,7 @@ function main(): void {
     );
   }
   runChangelogValidation(proofreading);
+  pauseForRaceTest();
   if (dryRun) {
     // Preflight the same source snapshots used for publication, but leave all
     // commits, remote branches, and pull requests unchanged.
