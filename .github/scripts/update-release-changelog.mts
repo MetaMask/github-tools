@@ -110,6 +110,14 @@ function pauseForRaceTest(): void {
     return;
   }
 
+  const markerBranch = process.env.RELEASE_CHANGELOG_RACE_TEST_READY_BRANCH;
+  if (markerBranch) {
+    execute('git', [
+      'push',
+      'origin',
+      `HEAD:refs/heads/${markerBranch}`,
+    ]);
+  }
   console.log(`Pausing for ${milliseconds}ms before publication race check.`);
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
