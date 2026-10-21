@@ -11,6 +11,8 @@ This repository holds a collection of scripts which are intended to be run local
 
 - `yarn run slack:release-testing`: Publishes a notification to slack for active releases regarding the release testing statuses.
 
+- `yarn segment-schema:draft-pr`: Local CLI for the Segment schema draft. See the [CLI](src/segment-schema-draft-pr/README.md) and the [action](.github/actions/draft-segment-schema-pr/README.md).
+
 ### Authentication
 
 Some scripts require a GitHub token in order to run fully.
