@@ -4,7 +4,7 @@ import { parseDocument, YAMLMap, Scalar } from 'yaml';
 import type { Document } from 'yaml';
 
 import { TODO_DESCRIPTION } from './constants';
-import { toKebabSlug } from './names';
+import { uniqueKebabSlug } from './names';
 import { defaultPropKeys, type SchemaIndex } from './schema-index';
 import type {
   AnalyticsChangeSet,
@@ -37,74 +37,38 @@ export async function applyChanges(
   index: SchemaIndex,
 ): Promise<ApplyResult> {
   const intendedFiles: IntendedFileChange[] = [];
-  const addedEventNames = new Set(
-    changeset.eventsAdded.map((item) => item.eventName),
-  );
 
   let wroteLibraryToPlan = false;
-  const claimedPaths = new Map<string, string>();
+  const takenSlugs = await takenSlugsInLibrary(
+    schemaDir,
+    config.defaultLibrary,
+  );
+  const slugByEvent = assignEventSlugs(
+    newEventNames(changeset, index),
+    takenSlugs,
+  );
 
-  for (const event of changeset.eventsAdded) {
-    const existing = index.eventsByName.get(event.eventName);
-    if (existing) {
-      continue;
-    }
-
-    const relative = unsortedEventPath(config, event.eventName);
-    if (
-      slugOwnedByOtherEvent(
-        index,
-        schemaDir,
-        relative,
-        claimedPaths,
-        event.eventName,
-      )
-    ) {
-      continue;
-    }
+  for (const [eventName, slug] of slugByEvent) {
+    const relative = unsortedEventPath(config, slug);
     const properties = changeset.propertiesAdded.filter(
-      (item) => item.eventName === event.eventName,
+      (item) => item.eventName === eventName,
     );
     const absolute = path.join(schemaDir, relative);
     await fs.mkdir(path.dirname(absolute), { recursive: true });
-    const doc = buildNewEventDocument(event.eventName, config, properties);
+    const doc = buildNewEventDocument(eventName, config, properties);
     await preserveAndWrite(absolute, previousDir, relative, doc);
-    claimedPaths.set(relative, event.eventName);
     intendedFiles.push({
       path: relative,
       kind: 'create',
-      eventName: event.eventName,
+      eventName,
     });
     wroteLibraryToPlan = true;
   }
 
   const propertiesByEvent = groupByEvent(changeset.propertiesAdded);
   for (const [eventName, properties] of propertiesByEvent) {
-    if (addedEventNames.has(eventName) && !index.eventsByName.get(eventName)) {
-      continue;
-    }
-
     const indexed = index.eventsByName.get(eventName);
     if (!indexed) {
-      const relative = unsortedEventPath(config, eventName);
-      if (
-        slugOwnedByOtherEvent(
-          index,
-          schemaDir,
-          relative,
-          claimedPaths,
-          eventName,
-        )
-      ) {
-        continue;
-      }
-      const absolute = path.join(schemaDir, relative);
-      await fs.mkdir(path.dirname(absolute), { recursive: true });
-      const doc = buildNewEventDocument(eventName, config, properties);
-      await preserveAndWrite(absolute, previousDir, relative, doc);
-      claimedPaths.set(relative, eventName);
-      intendedFiles.push({ path: relative, kind: 'create', eventName });
-      wroteLibraryToPlan = true;
       continue;
     }
 
@@ -136,51 +100,118 @@ export async function applyChanges(
  * Path of a new event in the platform unsorted library.
  *
  * @param config - Platform config.
- * @param eventName - Display name.
+ * @param slug - Filename stem.
  * @returns Path relative to the schema root.
  */
-function unsortedEventPath(config: PlatformConfig, eventName: string): string {
+function unsortedEventPath(config: PlatformConfig, slug: string): string {
   return path.join(
     'libraries',
     'events',
     config.defaultLibrary,
-    `${toKebabSlug(eventName)}.yaml`,
+    `${slug}.yaml`,
   );
 }
 
 /**
- * True when another event already owns this kebab path.
+ * Event names that need a new YAML file.
  *
- * Why: `Foo Bar` and `Foo-Bar` share `foo-bar.yaml`. Writing the second
- * would replace the first event's file.
- *
+ * @param changeset - Diff to apply.
  * @param index - Current schema index.
- * @param schemaDir - Schema checkout.
- * @param relative - Candidate YAML path.
- * @param claimedPaths - Paths written earlier in this run.
- * @param eventName - Event about to be written.
- * @returns Whether the path belongs to a different event.
+ * @returns Names in changeset order, each once.
  */
-function slugOwnedByOtherEvent(
+function newEventNames(
+  changeset: AnalyticsChangeSet,
   index: SchemaIndex,
-  schemaDir: string,
-  relative: string,
-  claimedPaths: Map<string, string>,
-  eventName: string,
-): boolean {
-  const claimed = claimedPaths.get(relative);
-  if (claimed !== undefined) {
-    return claimed !== eventName;
-  }
+): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
 
-  for (const event of index.eventsByName.values()) {
-    if (path.relative(schemaDir, event.filePath) !== relative) {
-      continue;
+  const consider = (eventName: string) => {
+    if (seen.has(eventName) || index.eventsByName.has(eventName)) {
+      return;
     }
-    return event.name !== eventName;
+    seen.add(eventName);
+    names.push(eventName);
+  };
+
+  for (const event of changeset.eventsAdded) {
+    consider(event.eventName);
+  }
+  for (const property of changeset.propertiesAdded) {
+    consider(property.eventName);
   }
 
-  return false;
+  return names;
+}
+
+/**
+ * Assigns a unique kebab stem to each new event.
+ *
+ * Names are sorted first so the same set of events always maps to the
+ * same files. `Foo Bar` sorts before `Foo-Bar` and keeps `foo-bar`; the
+ * other name receives `foo-bar-2`.
+ *
+ * @param eventNames - New event display names.
+ * @param taken - Stems already used in the library. This set is updated.
+ * @returns Event name to filename stem.
+ */
+function assignEventSlugs(
+  eventNames: readonly string[],
+  taken: Set<string>,
+): Map<string, string> {
+  const assigned = new Map<string, string>();
+  for (const eventName of [...eventNames].sort()) {
+    const slug = uniqueKebabSlug(eventName, taken);
+    taken.add(slug);
+    assigned.set(eventName, slug);
+  }
+  return assigned;
+}
+
+/**
+ * Filename stems already present in a library directory.
+ *
+ * @param schemaDir - Schema checkout.
+ * @param library - Library id under `libraries/events`.
+ * @returns Stems of `*.yaml` files in that directory.
+ */
+async function takenSlugsInLibrary(
+  schemaDir: string,
+  library: string,
+): Promise<Set<string>> {
+  const dir = path.join(schemaDir, 'libraries', 'events', library);
+  let filenames: string[];
+  try {
+    filenames = await fs.readdir(dir);
+  } catch (error) {
+    const { code } = error as { code?: string };
+    if (code === 'ENOENT') {
+      return new Set();
+    }
+    throw error;
+  }
+
+  const taken = new Set<string>();
+  for (const filename of filenames) {
+    const stem = stemFromYamlFilename(filename);
+    if (stem !== undefined) {
+      taken.add(stem);
+    }
+  }
+  return taken;
+}
+
+/**
+ * Stem of a top-level event YAML filename.
+ *
+ * @param filename - Directory entry name.
+ * @returns The filename stem.
+ */
+function stemFromYamlFilename(filename: string): string | undefined {
+  if (!filename.endsWith('.yaml')) {
+    return undefined;
+  }
+  return filename.slice(0, -'.yaml'.length);
 }
 
 /**
@@ -312,6 +343,10 @@ async function preserveAndWrite(
  * @param previous - Document from the last bot branch.
  */
 function overlayPreservedFields(next: Document, previous: Document): void {
+  if (yamlKey(previous.get('name')) !== yamlKey(next.get('name'))) {
+    return;
+  }
+
   const previousDescription = previous.get('description');
   if (isNonTodoDescription(previousDescription)) {
     next.set('description', previousDescription);

@@ -23,3 +23,35 @@ export function toKebabSlug(eventName: string): string {
     .replace(/[^a-z0-9]+/gu, '-')
     .replace(/^-|-$/gu, '');
 }
+
+const MAX_KEBAB_SUFFIX = 99;
+
+/**
+ * Picks a kebab filename stem that no other event file is using.
+ *
+ * `Foo Bar` and `Foo-Bar` both slug to `foo-bar`. The plain slug is used
+ * when it is free. Otherwise the smallest numeric suffix that is free is
+ * used (`foo-bar-2`).
+ *
+ * @param eventName - Segment event display name.
+ * @param taken - Stems already used in the target library.
+ * @returns A unique kebab stem.
+ */
+export function uniqueKebabSlug(
+  eventName: string,
+  taken: ReadonlySet<string>,
+): string {
+  const base = toKebabSlug(eventName) || 'event';
+  if (!taken.has(base)) {
+    return base;
+  }
+
+  for (let suffix = 2; suffix <= MAX_KEBAB_SUFFIX; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!taken.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`No free schema filename for event "${eventName}"`);
+}

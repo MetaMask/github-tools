@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Choose a distinct YAML filename when two analytics event names share a kebab slug
 - List open schema pull requests with a client authenticated as the schema app token
 - Build that client from the `getOctokit` global that `github-script` already provides
 - Match proposal comments posted by `github-actions[bot]`

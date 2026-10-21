@@ -189,7 +189,143 @@ properties:
     await fs.rm(previousDir, { recursive: true, force: true });
   });
 
-  it('does not overwrite a file when two event names share a slug', async () => {
+  it('writes a suffixed file when the kebab slug is already taken', async () => {
+    await writeTree(schemaDir, {
+      'libraries/events/metamask-mobile-unsorted/foo-bar.yaml':
+        EXISTING_EVENT.replace('name: App Opened', 'name: Foo Bar').replace(
+          'library: metamask-mobile-perps',
+          'library: metamask-mobile-unsorted',
+        ),
+      'libraries/events/metamask-mobile-unsorted/notes.md': 'notes',
+    });
+    const index = await buildSchemaIndex(schemaDir);
+    const changeset: AnalyticsChangeSet = {
+      eventsAdded: [{ enumKey: 'FOO_BAR', eventName: 'Foo-Bar' }],
+      eventsRemoved: [],
+      eventsRenamed: [],
+      propertiesAdded: [
+        { eventName: 'Foo-Bar', key: 'source', type: 'string' },
+      ],
+      propertiesRemoved: [],
+      typeChanges: [],
+      unresolved: [],
+    };
+
+    const result = await applyChanges(
+      schemaDir,
+      undefined,
+      MOBILE,
+      changeset,
+      index,
+    );
+    expect(result.intendedFiles).toStrictEqual([
+      {
+        path: 'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml',
+        kind: 'create',
+        eventName: 'Foo-Bar',
+      },
+    ]);
+    const original = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/foo-bar.yaml',
+      ),
+      'utf8',
+    );
+    expect(original).toContain('name: Foo Bar');
+    const created = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml',
+      ),
+      'utf8',
+    );
+    expect(created).toContain('name: "Foo-Bar"');
+    expect(created).toContain('source:');
+  });
+
+  it('assigns sorted distinct files when two new events share a slug', async () => {
+    const index = await buildSchemaIndex(schemaDir);
+    const changeset: AnalyticsChangeSet = {
+      eventsAdded: [
+        { enumKey: 'FOO_HYPHEN', eventName: 'Foo-Bar' },
+        { enumKey: 'FOO_SPACE', eventName: 'Foo Bar' },
+      ],
+      eventsRemoved: [],
+      eventsRenamed: [],
+      propertiesAdded: [],
+      propertiesRemoved: [],
+      typeChanges: [],
+      unresolved: [],
+    };
+
+    const result = await applyChanges(
+      schemaDir,
+      undefined,
+      MOBILE,
+      changeset,
+      index,
+    );
+    expect(result.intendedFiles.map((file) => file.path)).toStrictEqual([
+      'libraries/events/metamask-mobile-unsorted/foo-bar.yaml',
+      'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml',
+    ]);
+    expect(result.intendedFiles.map((file) => file.eventName)).toStrictEqual([
+      'Foo Bar',
+      'Foo-Bar',
+    ]);
+  });
+
+  it('keeps an unnamed yaml file when its stem matches a new event', async () => {
+    await writeTree(schemaDir, {
+      'libraries/events/metamask-mobile-unsorted/foo-bar.yaml': 'type: TRACK\n',
+    });
+    const index = await buildSchemaIndex(schemaDir);
+    const changeset: AnalyticsChangeSet = {
+      eventsAdded: [],
+      eventsRemoved: [],
+      eventsRenamed: [],
+      propertiesAdded: [
+        { eventName: 'Foo Bar', key: 'source', type: 'string' },
+      ],
+      propertiesRemoved: [],
+      typeChanges: [],
+      unresolved: [],
+    };
+
+    await applyChanges(schemaDir, undefined, MOBILE, changeset, index);
+    const original = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/foo-bar.yaml',
+      ),
+      'utf8',
+    );
+    expect(original).toBe('type: TRACK\n');
+    const created = await fs.readFile(
+      path.join(
+        schemaDir,
+        'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml',
+      ),
+      'utf8',
+    );
+    expect(created).toContain('name: "Foo Bar"');
+    expect(created).toContain('source:');
+  });
+
+  it('skips preserved fields when the previous file names a different event', async () => {
+    const previousDir = await fs.mkdtemp(path.join(os.tmpdir(), 'prev-'));
+    await writeTree(previousDir, {
+      'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml': `name: Other Event
+description: Human written description
+type: TRACK
+version: 1
+labels:
+  library: metamask-mobile-unsorted
+  kpi: true
+properties: {}
+`,
+    });
     await writeTree(schemaDir, {
       'libraries/events/metamask-mobile-unsorted/foo-bar.yaml':
         EXISTING_EVENT.replace('name: App Opened', 'name: Foo Bar').replace(
@@ -208,22 +344,19 @@ properties:
       unresolved: [],
     };
 
-    const result = await applyChanges(
-      schemaDir,
-      undefined,
-      MOBILE,
-      changeset,
-      index,
-    );
-    expect(result.intendedFiles).toStrictEqual([]);
+    await applyChanges(schemaDir, previousDir, MOBILE, changeset, index);
     const written = await fs.readFile(
       path.join(
         schemaDir,
-        'libraries/events/metamask-mobile-unsorted/foo-bar.yaml',
+        'libraries/events/metamask-mobile-unsorted/foo-bar-2.yaml',
       ),
       'utf8',
     );
-    expect(written).toContain('name: Foo Bar');
+    expect(written).toContain('name: "Foo-Bar"');
+    expect(written).toContain('TODO: fill description');
+    expect(written).not.toContain('Human written description');
+    expect(written).not.toContain('kpi:');
+    await fs.rm(previousDir, { recursive: true, force: true });
   });
 
   it('quotes event names that are not plain YAML scalars', async () => {
