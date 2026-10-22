@@ -7,16 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0]
+
 ### Added
 
-- Add `draft-segment-schema-pr` composite action that proposes Segment schema YAML from Mobile or Extension analytics diffs (read through the GitHub API so the diff matches the pull request file list) and opens a draft schema PR after the author comments `I agree to open a draft Segment schema PR`
-
-### Fixed
-
-- Choose a distinct YAML filename when two analytics event names share a kebab slug
-- List open schema pull requests with a client authenticated as the schema app token
-- Build that client from the `getOctokit` global that `github-script` already provides
-- Match proposal comments posted by `github-actions[bot]`
+- feat: add draft-segment-schema-pr action ([#294](https://github.com/MetaMask/github-tools/pull/294))
 
 ## [1.20.0]
 
@@ -287,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.21.0...HEAD
+[1.21.0]: https://github.com/MetaMask/github-tools/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/MetaMask/github-tools/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/MetaMask/github-tools/compare/v1.18.2...v1.19.0
 [1.18.2]: https://github.com/MetaMask/github-tools/compare/v1.18.1...v1.18.2
