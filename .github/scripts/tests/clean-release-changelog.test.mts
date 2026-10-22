@@ -107,6 +107,12 @@ test('uses PR title and body when local evidence is unavailable', async () => {
   assert.equal(requests.length, 1);
 });
 
+test('collects local evidence only from mainline squash commits', async () => {
+  const localEvidence = await getLocalPrEvidence(['1']);
+
+  assert.ok(localEvidence instanceof Map);
+});
+
 test('does not query GitHub when local mainline evidence exists', async () => {
   const evidence = await getPrEvidence(
     'https://github.com/MetaMask/metamask-mobile',

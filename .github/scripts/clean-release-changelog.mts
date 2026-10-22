@@ -454,9 +454,13 @@ export function getLocalEvidenceLogArguments(
 
 async function isCommitOnMain(commitHash: string): Promise<boolean> {
   try {
-    await execFileAsync('git', ['merge-base', '--is-ancestor', commitHash, 'origin/main'], {
-      env: evidenceEnvironment,
-    });
+    await execFileAsync(
+      'git',
+      ['merge-base', '--is-ancestor', commitHash, 'origin/main'],
+      {
+        env: evidenceEnvironment,
+      },
+    );
     return true;
   } catch {
     return false;
@@ -471,22 +475,29 @@ export async function getLocalPrEvidence(
     return new Map();
   }
 
-  const { stdout } = await execFileAsync(
-    'git',
-    argumentsList,
-    { encoding: 'utf8', env: evidenceEnvironment },
-  );
+  const { stdout } = await execFileAsync('git', argumentsList, {
+    encoding: 'utf8',
+    env: evidenceEnvironment,
+  });
   const wantedPrNumbers = new Set(prNumbers);
   const commitsByPrNumber = new Map<string, LocalCommit>();
 
   for (const record of stdout.split('\x1e')) {
     const [hash, subject, body] = record.trim().split('\x1f');
-    if (!hash || !subject || /\bcherry-pick(?:ing)?\b/iu.test(`${subject}\n${body ?? ''}`)) {
+    if (
+      !hash ||
+      !subject ||
+      /\bcherry-pick(?:ing)?\b/iu.test(`${subject}\n${body ?? ''}`)
+    ) {
       continue;
     }
     for (const prNumber of subject.matchAll(/\(#(\d+)\)/gu)) {
       const number = prNumber[1];
-      if (number && wantedPrNumbers.has(number) && !commitsByPrNumber.has(number)) {
+      if (
+        number &&
+        wantedPrNumbers.has(number) &&
+        !commitsByPrNumber.has(number)
+      ) {
         commitsByPrNumber.set(number, { hash, subject, body: body ?? '' });
       }
     }
@@ -556,9 +567,7 @@ export async function getPrEvidence(
         typeof pullRequest.body === 'string'
           ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
           : '<body unavailable>';
-      evidence.push(
-        `#${prNumber}: ${title}\nBody:\n${body}`,
-      );
+      evidence.push(`#${prNumber}: ${title}\nBody:\n${body}`);
     } catch (error) {
       unavailablePrEvidence.push({
         prNumber,
