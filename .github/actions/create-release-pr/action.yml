@@ -48,6 +48,7 @@ inputs:
   google-application-creds-base64:
     description: 'Google application credentials base64 encoded.'
     required: true
+
 runs:
   using: composite
   steps:

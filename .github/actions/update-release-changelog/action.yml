@@ -27,6 +27,7 @@ inputs:
     required: false
     description: 'TEMPORARY: immutable release-tools commit SHA built from source. Remove once a released auto-changelog is used.'
     default: '8eea4283bd6c9976eb32292d8431023e7d4ecc06'
+
 runs:
   using: composite
   steps:

@@ -13,14 +13,18 @@ jobs:
           is-high-risk-environment: false
 
       - run: yarn lint
+
       - name: Validate release changelog automation
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+
       - run: yarn lint:release-changelog
+
       - name: Validate RC changelog
         if: ${{ startsWith(github.head_ref, 'release/') }}
         run: yarn lint:changelog --rc
+
       - name: Validate changelog
         if: ${{ !startsWith(github.head_ref, 'release/') }}
         run: yarn lint:changelog
@@ -42,6 +46,7 @@ jobs:
           is-high-risk-environment: false
 
       - run: yarn test
+
       - name: Test release changelog automation
         uses: actions/setup-node@v6
         with:
