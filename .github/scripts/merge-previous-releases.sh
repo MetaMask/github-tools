@@ -8,8 +8,8 @@
 #
 # Key behaviors:
 # - Merges older active RCs into the new release branch
-# - Always resets to destination (new RC) content after merge, preventing
-#   git from creating duplicate content when both branches have the same changes
+# - Uses an ancestry-only merge to prevent duplicate code content, while
+#   preserving a finalized source release's changelog history
 # - Both branches remain open after merge
 # - Fails fast on errors to prevent pushing partial merges
 #
@@ -18,6 +18,8 @@
 # - GITHUB_TOKEN: Token used by `gh` to list open release PRs
 
 set -e
+
+SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse a release branch name to extract version components
 # Returns: "major minor patch" or empty string if not valid
@@ -55,6 +57,31 @@ is_branch_merged() {
   git merge-base --is-ancestor "origin/${source_branch}" HEAD 2>/dev/null
 }
 
+# Structurally merge a finalized source release section into the destination
+# changelog. Ambiguous source data preserves the destination unchanged.
+preserve_source_changelog_history() {
+  local source_branch="$1"
+  local source_version
+  source_version=$(parse_release_version "$source_branch")
+
+  if [[ -z "$source_version" ]]; then
+    return
+  fi
+
+  if ! git cat-file -e "origin/${source_branch}:CHANGELOG.md" 2>/dev/null; then
+    return
+  fi
+
+  node "$SCRIPT_DIRECTORY/merge-previous-release-changelog.mjs" \
+    "origin/${source_branch}" \
+    "${source_version// /.}"
+
+  if ! git diff --quiet -- CHANGELOG.md; then
+    git_exec add -- CHANGELOG.md
+    git_exec commit --amend --no-edit
+  fi
+}
+
 # Merge a source branch (older release branch) into the current branch (new release branch),
 # always keeping destination content.
 merge_with_favor_destination() {
@@ -72,11 +99,13 @@ merge_with_favor_destination() {
     return 1  # Return 1 to indicate skipped
   fi
 
-  # -s ours: creates merge commit but keeps destination content entirely
+  # -s ours records ancestry without duplicating code changes from the source.
   if ! git_exec merge -s ours "origin/${source_branch}" -m "Merge ${source_branch} into ${dest_branch}"; then
     echo "❌ Failed to merge ${source_branch}"
     exit 1
   fi
+
+  preserve_source_changelog_history "$source_branch"
 
   echo "✅ Successfully merged ${source_branch} into ${dest_branch}"
   return 0  # Return 0 to indicate merged
