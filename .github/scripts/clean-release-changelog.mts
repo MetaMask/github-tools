@@ -33,6 +33,7 @@ export function getEvidenceEnvironment(
 
 const evidenceEnvironment = getEvidenceEnvironment();
 const execFileAsync = promisify(execFile);
+const EVIDENCE_MAX_BUFFER = 10 * 1024 * 1024;
 
 type GhApiRequest = (argumentsList: string[]) => Promise<string>;
 
@@ -413,6 +414,7 @@ async function executeGhApi(argumentsList: string[]): Promise<string> {
   const { stdout } = await execFileAsync('gh', ['api', ...argumentsList], {
     encoding: 'utf8',
     env: evidenceEnvironment,
+    maxBuffer: EVIDENCE_MAX_BUFFER,
   });
   return stdout;
 }
@@ -478,6 +480,7 @@ export async function getLocalPrEvidence(
   const { stdout } = await execFileAsync('git', argumentsList, {
     encoding: 'utf8',
     env: evidenceEnvironment,
+    maxBuffer: EVIDENCE_MAX_BUFFER,
   });
   const wantedPrNumbers = new Set(prNumbers);
   const commitsByPrNumber = new Map<string, LocalCommit>();
