@@ -27,38 +27,25 @@ inputs:
     required: false
     description: 'Immutable auto-changelog commit SHA used by the temporary source CLI.'
     default: '7bbff6b64971d5a12137949b4ac2363b5cd071ef'
-  github-tools-repository:
-    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_repository }}
-  github-tools-ref:
-    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_ref }}
-
 runs:
   using: composite
   steps:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
     - name: Checkout invoking repository
       uses: actions/checkout@v6
+      env:
+        LITELLM_API_KEY: ''
       with:
         fetch-depth: 0
         ref: ${{ inputs.release-branch }}
         token: ${{ inputs.github-token }}
 
-    # Step 2: Checkout github-tools repository
-    - name: Checkout GitHub tools repository
-      uses: actions/checkout@v6
-      with:
-        repository: ${{ inputs.github-tools-repository }}
-        ref: ${{ inputs.github-tools-ref }}
-        path: ./github-tools
-
     # Temporary source checkout until the required auto-changelog behavior is
     # released and both consumers update their packaged dependency.
     - name: Checkout auto-changelog source
       uses: actions/checkout@v6
+      env:
+        LITELLM_API_KEY: ''
       with:
         repository: ${{ inputs.auto-changelog-repository }}
         ref: ${{ inputs.auto-changelog-ref }}
@@ -67,15 +54,39 @@ runs:
     # Step 3: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
+      env:
+        LITELLM_API_KEY: ''
       with:
         is-high-risk-environment: true
 
     - name: Set up Node 24 for release changelog automation
       uses: actions/setup-node@v6
+      env:
+        LITELLM_API_KEY: ''
       with:
         node-version: '24'
 
-    # Step 4: Update changelog using shared helper script
+    - name: Build auto-changelog source
+      shell: bash
+      env:
+        LITELLM_API_KEY: ''
+      run: |
+        set -euo pipefail
+        corepack enable
+        corepack yarn --cwd ./auto-changelog install --immutable
+        corepack yarn --cwd ./auto-changelog build
+
+    - name: Prepare clean-room credential
+      if: ${{ env.LITELLM_API_KEY != '' }}
+      shell: bash
+      run: |
+        # Only the Node runner can read this file; it removes the path before
+        # spawning deterministic tooling and passes the value only to the cleaner.
+        umask 077
+        credential_file="$RUNNER_TEMP/release-changelog-litellm-key"
+        printf '%s' "$LITELLM_API_KEY" > "$credential_file"
+        echo "LITELLM_API_KEY_FILE=$credential_file" >> "$GITHUB_ENV"
+
     - name: Update changelog branch
       shell: bash
       env:
@@ -87,22 +98,32 @@ runs:
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
         AUTO_CHANGELOG_CLI: ${{ github.workspace }}/auto-changelog/dist/cli.mjs
+        LITELLM_API_KEY: ''
       run: |
         set -euo pipefail
 
-        corepack enable
-        corepack yarn --cwd ./auto-changelog install --immutable
-        corepack yarn --cwd ./auto-changelog build
-
-        node ./github-tools/.github/scripts/update-release-changelog.mts \
+        # This is the first step that can read the credential file.
+        node "$GITHUB_ACTION_PATH/../../scripts/update-release-changelog.mts" \
           "$RELEASE_BRANCH" \
           "$PLATFORM" \
           "$REPOSITORY_URL" \
           "$PREVIOUS_VERSION_REF"
 
+    - name: Remove clean-room credential
+      if: ${{ always() }}
+      shell: bash
+      env:
+        LITELLM_API_KEY: ''
+      run: |
+        if [[ -n "${LITELLM_API_KEY_FILE:-}" ]]; then
+          rm -f "$LITELLM_API_KEY_FILE"
+        fi
+
     - name: Upload clean-room proofread report
       if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}
       uses: actions/upload-artifact@v7
+      env:
+        LITELLM_API_KEY: ''
       with:
         name: release-changelog-ai-report
         path: .tmp/release-changelog-ai/*.json

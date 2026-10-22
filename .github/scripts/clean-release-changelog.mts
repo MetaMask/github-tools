@@ -10,6 +10,17 @@ const MAX_ATTEMPTS = 2;
 const MAX_PR_BODY_LENGTH = 4_000;
 const MAX_PR_FILES = 40;
 
+export function getEvidenceEnvironment(
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const scrubbedEnvironment = { ...environment };
+  delete scrubbedEnvironment.LITELLM_API_KEY;
+  delete scrubbedEnvironment.LITELLM_API_KEY_FILE;
+  return scrubbedEnvironment;
+}
+
+const evidenceEnvironment = getEvidenceEnvironment();
+
 type ReleaseSection = {
   section: string;
   start: number;
@@ -157,10 +168,22 @@ type PullRequestMetadata = {
   body?: unknown;
 };
 
+export function assertPrEvidenceAvailable(
+  unavailablePrNumbers: readonly string[],
+): void {
+  if (unavailablePrNumbers.length > 0) {
+    throw new Error(
+      `PR evidence unavailable for ${unavailablePrNumbers
+        .map((prNumber) => `#${prNumber}`)
+        .join(', ')}`,
+    );
+  }
+}
+
 function getPrEvidence(
   repository: string,
   prNumbers: readonly string[],
-): string[] {
+): { evidence: string[]; unavailablePrNumbers: string[] } {
   const match = /github\.com[/:]([^/]+)\/([^/]+)$/u.exec(
     repository.replace(/\.git$/u, ''),
   );
@@ -173,19 +196,22 @@ function getPrEvidence(
   if (!owner || !repo) {
     throw new Error(`Cannot parse GitHub repository URL: ${repository}`);
   }
-  return [...new Set(prNumbers)].map((prNumber) => {
+  const evidence: string[] = [];
+  const unavailablePrNumbers: string[] = [];
+  for (const prNumber of new Set(prNumbers)) {
     try {
       const pullRequest = JSON.parse(
         execFileSync(
           'gh',
           ['api', `repos/${owner}/${repo}/pulls/${prNumber}`],
-          { encoding: 'utf8' },
+          { encoding: 'utf8', env: evidenceEnvironment },
         ),
       ) as PullRequestMetadata;
       const title =
-        typeof pullRequest.title === 'string'
-          ? pullRequest.title
-          : '<title unavailable>';
+        typeof pullRequest.title === 'string' ? pullRequest.title : undefined;
+      if (!title) {
+        throw new Error('PR title is unavailable');
+      }
       const body =
         typeof pullRequest.body === 'string'
           ? pullRequest.body.slice(0, MAX_PR_BODY_LENGTH)
@@ -198,16 +224,19 @@ function getPrEvidence(
           '--jq',
           '.[].filename',
         ],
-        { encoding: 'utf8' },
+        { encoding: 'utf8', env: evidenceEnvironment },
       )
         .split(/\r?\n/u)
         .filter(Boolean)
         .slice(0, MAX_PR_FILES);
-      return `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`;
+      evidence.push(
+        `#${prNumber}: ${title}\nBody:\n${body}\nChanged files:\n${files.join('\n') || '<files unavailable>'}`,
+      );
     } catch {
-      return `#${prNumber}: <evidence unavailable>`;
+      unavailablePrNumbers.push(prNumber);
     }
-  });
+  }
+  return { evidence, unavailablePrNumbers };
 }
 
 async function requestCleanRoomRewrite({
@@ -310,10 +339,12 @@ async function main(): Promise<void> {
     const { section } = extractReleaseSection(changelogContent, version);
     const prompt = readFileSync(promptPath, 'utf8');
     const sourcePrNumbers = getPrNumbers(section);
+    const prEvidence = getPrEvidence(repository, sourcePrNumbers);
+    assertPrEvidenceAvailable(prEvidence.unavailablePrNumbers);
     const replacement = await requestCleanRoomRewrite({
       prompt,
       section,
-      prEvidence: getPrEvidence(repository, sourcePrNumbers),
+      prEvidence: prEvidence.evidence,
       apiKey,
     });
     validateReplacement(replacement, version, sourcePrNumbers);
