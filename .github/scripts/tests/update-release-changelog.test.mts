@@ -6,12 +6,14 @@ import test from 'node:test';
 
 import { extractReleaseSection } from '../clean-release-changelog.mts';
 import {
+  appendNewReleaseEntries,
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
   getChangelogValidationArguments,
   getChangelogPushArguments,
   getChangelogPrPresentation,
   getHistoricalSkippedPrNumbers,
+  getNewReleaseEntriesSection,
   isReleaseSectionEmpty,
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
@@ -170,6 +172,94 @@ test('uses the standard validator when clean-room proofreading fails', () => {
     '--prettier',
     '--rc',
   ]);
+});
+
+test('isolates newly generated entries without changing the existing release section', () => {
+  const existingSection = `## [13.51.0]
+
+### Added
+
+- Added an existing feature (#101)
+
+### Fixed
+
+- Fixed an existing issue (#102)`;
+  const generatedSection = `## [13.51.0]
+
+### Added
+
+- Reworded existing feature (#101)
+- Added a new feature (#103)
+
+### Fixed
+
+- Reworded existing issue (#102)`;
+
+  const newEntriesSection = getNewReleaseEntriesSection({
+    existingSection,
+    generatedSection,
+    version: '13.51.0',
+  });
+
+  assert.equal(
+    newEntriesSection,
+    `## [13.51.0]
+
+### Added
+
+- Added a new feature (#103)`,
+  );
+  assert.equal(
+    appendNewReleaseEntries({
+      existingSection,
+      newEntriesSection: newEntriesSection ?? '',
+      version: '13.51.0',
+    }),
+    `${existingSection}
+
+### Added
+
+- Added a new feature (#103)`,
+  );
+});
+
+test('finds no new release entries when every generated PR is already documented', () => {
+  assert.equal(
+    getNewReleaseEntriesSection({
+      existingSection: `## [13.51.0]
+
+### Fixed
+
+- Fixed an existing issue (#101)`,
+      generatedSection: `## [13.51.0]
+
+### Fixed
+
+- Reworded existing issue (#101)`,
+      version: '13.51.0',
+    }),
+    undefined,
+  );
+});
+
+test('rejects a generated entry that mixes documented and new PR references', () => {
+  assert.throws(
+    () =>
+      getNewReleaseEntriesSection({
+        existingSection: `## [13.51.0]
+
+### Fixed
+
+- Fixed an existing issue (#101)`,
+        generatedSection: `## [13.51.0]
+
+### Fixed
+
+- Fixed an existing and a new issue (#101, #102)`,
+        version: '13.51.0',
+      }),
+    /mixes documented and new PR references/u,
+  );
 });
 
 test('preserves the reviewed release section above historical predecessor history', () => {

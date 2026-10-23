@@ -286,6 +286,110 @@ export function mergeCurrentReleaseSection({
   return `${changelog.slice(0, firstRelease.index)}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(firstRelease.index)}`;
 }
 
+type ReleaseSectionEntry = {
+  lines: string[];
+  prNumbers: string[];
+};
+
+type ReleaseSectionCategory = {
+  heading: string;
+  entries: ReleaseSectionEntry[];
+};
+
+function parseReleaseSectionCategories(
+  section: string,
+): ReleaseSectionCategory[] {
+  const [, ...lines] = section.split(/\r?\n/u);
+  const categories: ReleaseSectionCategory[] = [];
+  let category: ReleaseSectionCategory | undefined;
+  let entry: ReleaseSectionEntry | undefined;
+
+  for (const line of lines) {
+    if (line.startsWith('### ')) {
+      category = { heading: line, entries: [] };
+      categories.push(category);
+      entry = undefined;
+    } else if (line.startsWith('- ')) {
+      if (!category) {
+        throw new Error('Release entries must appear under a category heading');
+      }
+      entry = { lines: [line], prNumbers: getPrNumbers(line) };
+      category.entries.push(entry);
+    } else if (line !== '' && entry) {
+      entry.lines.push(line);
+      entry.prNumbers = getPrNumbers(entry.lines.join('\n'));
+    } else if (line !== '') {
+      throw new Error(`Unexpected release section content: ${line}`);
+    }
+  }
+
+  return categories;
+}
+
+export function getNewReleaseEntriesSection({
+  existingSection,
+  generatedSection,
+  version,
+}: {
+  existingSection: string;
+  generatedSection: string;
+  version: string;
+}): string | undefined {
+  const existingPrNumbers = new Set(getPrNumbers(existingSection));
+  const categories = parseReleaseSectionCategories(generatedSection)
+    .map(({ heading, entries }) => ({
+      heading,
+      entries: entries.filter(({ prNumbers }) => {
+        if (prNumbers.length === 0) {
+          throw new Error('Generated release entry lacks a PR reference');
+        }
+        const existingCount = prNumbers.filter((prNumber) =>
+          existingPrNumbers.has(prNumber),
+        ).length;
+        if (existingCount > 0 && existingCount < prNumbers.length) {
+          throw new Error(
+            'Generated release entry mixes documented and new PR references',
+          );
+        }
+        return existingCount === 0;
+      }),
+    }))
+    .filter(({ entries }) => entries.length > 0);
+
+  if (categories.length === 0) {
+    return undefined;
+  }
+
+  return [
+    `## [${version}]`,
+    ...categories.flatMap(({ heading, entries }) => [
+      '',
+      heading,
+      '',
+      ...entries.flatMap(({ lines }) => lines),
+    ]),
+  ].join('\n');
+}
+
+export function appendNewReleaseEntries({
+  existingSection,
+  newEntriesSection,
+  version,
+}: {
+  existingSection: string;
+  newEntriesSection: string;
+  version: string;
+}): string {
+  const heading = `## [${version}]`;
+  if (!newEntriesSection.startsWith(heading)) {
+    throw new Error(`Expected new entries section to begin with ${heading}`);
+  }
+  const newEntries = newEntriesSection.slice(heading.length).trim();
+  return newEntries === ''
+    ? existingSection
+    : `${existingSection.trimEnd()}\n\n${newEntries}`;
+}
+
 export function rebuildChangelogBranch({
   changelogBranch,
   releaseBranch,
@@ -851,6 +955,16 @@ function main(): void {
     throw new Error('Unable to resolve the selected target or baseline SHA');
   }
 
+  const existingTargetReleaseSection = hasReleaseHeading(
+    `origin/${releaseBranch}`,
+    version,
+  )
+    ? extractReleaseSection(
+        readChangelogAtRef(`origin/${releaseBranch}`),
+        version,
+      ).section
+    : undefined;
+
   const reviewedCurrentReleaseSection =
     baseline.kind === 'target'
       ? undefined
@@ -881,10 +995,35 @@ function main(): void {
   console.log(`Generating changelog for ${platform} ${version}.`);
   const skippedPrNumbers = generateChangelog({ repositoryUrl, version });
 
+  const generatedSection = extractReleaseSection(
+    readFileSync('CHANGELOG.md', 'utf8'),
+    version,
+  ).section;
+  const newEntriesSection = existingTargetReleaseSection
+    ? getNewReleaseEntriesSection({
+        existingSection: existingTargetReleaseSection,
+        generatedSection,
+        version,
+      })
+    : generatedSection;
+
+  if (existingTargetReleaseSection) {
+    writeFileSync(
+      'CHANGELOG.md',
+      replaceReleaseSection(
+        readFileSync('CHANGELOG.md', 'utf8'),
+        version,
+        newEntriesSection ?? existingTargetReleaseSection,
+      ),
+    );
+  }
+
   let proofreading: ProofreadingResult;
   // An OTA hotfix may only cherry-pick PRs that an earlier release already
   // lists; the draft PR then asks a human to write the section.
-  if (
+  if (!newEntriesSection) {
+    proofreading = { status: 'no-new-prs' };
+  } else if (
     parsedReleaseBranch?.kind === 'ota' &&
     isReleaseSectionEmpty(readFileSync('CHANGELOG.md', 'utf8'), version)
   ) {
@@ -907,6 +1046,24 @@ function main(): void {
     );
 
     proofreading = runCleanRoomProofread({ repositoryUrl, version });
+    if (existingTargetReleaseSection) {
+      const cleanedNewEntries = extractReleaseSection(
+        readFileSync('CHANGELOG.md', 'utf8'),
+        version,
+      ).section;
+      writeFileSync(
+        'CHANGELOG.md',
+        replaceReleaseSection(
+          readFileSync('CHANGELOG.md', 'utf8'),
+          version,
+          appendNewReleaseEntries({
+            existingSection: existingTargetReleaseSection,
+            newEntriesSection: cleanedNewEntries,
+            version,
+          }),
+        ),
+      );
+    }
     // The fallback must still meet the final one-reference-per-PR contract.
     validateGeneratedReleaseSection(
       readFileSync('CHANGELOG.md', 'utf8'),
