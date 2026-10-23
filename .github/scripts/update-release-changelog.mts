@@ -23,7 +23,7 @@ import {
   type ChangelogBaseline,
 } from './update-release-changelog-baseline.mts';
 
-type ProofreadingStatus = 'succeeded' | 'failed' | 'no-new-prs';
+type ProofreadingStatus = 'succeeded' | 'failed' | 'no-new-prs' | 'unchanged';
 
 type ProofreadingResult = {
   status: ProofreadingStatus;
@@ -371,7 +371,36 @@ export function getNewReleaseEntriesSection({
   ].join('\n');
 }
 
-export function appendNewReleaseEntries({
+// Matches auto-changelog's `orderedChangeCategories`, which determines the
+// order categories are written in a release section.
+const CATEGORY_ORDER = [
+  'Uncategorized',
+  'Added',
+  'Changed',
+  'Deprecated',
+  'Removed',
+  'Fixed',
+  'Security',
+];
+
+function getCategoryRank(heading: string): number {
+  const rank = CATEGORY_ORDER.indexOf(heading.slice('### '.length));
+  return rank === -1 ? CATEGORY_ORDER.length : rank;
+}
+
+/**
+ * Merges newly generated entries into an existing release section. Existing
+ * lines are never modified. New entries go at the top of a matching category,
+ * as auto-changelog does, and a missing category is inserted in canonical
+ * order.
+ *
+ * @param options - Options.
+ * @param options.existingSection - The release section to preserve.
+ * @param options.newEntriesSection - A release section holding only new entries.
+ * @param options.version - The release version.
+ * @returns The merged release section.
+ */
+export function mergeNewReleaseEntries({
   existingSection,
   newEntriesSection,
   version,
@@ -384,10 +413,57 @@ export function appendNewReleaseEntries({
   if (!newEntriesSection.startsWith(heading)) {
     throw new Error(`Expected new entries section to begin with ${heading}`);
   }
-  const newEntries = newEntriesSection.slice(heading.length).trim();
-  return newEntries === ''
-    ? existingSection
-    : `${existingSection.trimEnd()}\n\n${newEntries}`;
+
+  const lineEnding = existingSection.includes('\r\n') ? '\r\n' : '\n';
+  const lines = existingSection.trimEnd().split(/\r?\n/u);
+
+  for (const {
+    heading: categoryHeading,
+    entries,
+  } of parseReleaseSectionCategories(newEntriesSection)) {
+    const entryLines = entries.flatMap((entry) => entry.lines);
+    if (entryLines.length === 0) {
+      continue;
+    }
+
+    const headingIndex = lines.indexOf(categoryHeading);
+    if (headingIndex !== -1) {
+      // Skip the blank line(s) after the heading so entries lead the list.
+      let insertAt = headingIndex + 1;
+      while (insertAt < lines.length && lines[insertAt] === '') {
+        insertAt += 1;
+      }
+      const isEmptyCategory =
+        insertAt >= lines.length || lines[insertAt]?.startsWith('### ');
+      lines.splice(
+        insertAt,
+        0,
+        ...(insertAt === headingIndex + 1 ? [''] : []),
+        ...entryLines,
+        ...(isEmptyCategory && insertAt < lines.length ? [''] : []),
+      );
+      continue;
+    }
+
+    const rank = getCategoryRank(categoryHeading);
+    const nextCategoryIndex = lines.findIndex(
+      (line) => line.startsWith('### ') && getCategoryRank(line) > rank,
+    );
+    if (nextCategoryIndex === -1) {
+      lines.push('', categoryHeading, '', ...entryLines);
+    } else {
+      lines.splice(
+        nextCategoryIndex,
+        0,
+        categoryHeading,
+        '',
+        ...entryLines,
+        '',
+      );
+    }
+  }
+
+  return lines.join(lineEnding);
 }
 
 export function rebuildChangelogBranch({
@@ -995,33 +1071,39 @@ function main(): void {
   console.log(`Generating changelog for ${platform} ${version}.`);
   const skippedPrNumbers = generateChangelog({ repositoryUrl, version });
 
+  // Lines already on the release branch, or reviewed in the open changelog PR,
+  // are never reworded; only newly generated PRs go to the proofreader.
+  const preservedSection =
+    reviewedCurrentReleaseSection ?? existingTargetReleaseSection;
   const generatedSection = extractReleaseSection(
     readFileSync('CHANGELOG.md', 'utf8'),
     version,
   ).section;
-  const newEntriesSection = existingTargetReleaseSection
+  const newEntriesSection = preservedSection
     ? getNewReleaseEntriesSection({
-        existingSection: existingTargetReleaseSection,
+        existingSection: preservedSection,
         generatedSection,
         version,
       })
     : generatedSection;
 
-  if (existingTargetReleaseSection) {
+  if (preservedSection) {
     writeFileSync(
       'CHANGELOG.md',
       replaceReleaseSection(
         readFileSync('CHANGELOG.md', 'utf8'),
         version,
-        newEntriesSection ?? existingTargetReleaseSection,
+        newEntriesSection ?? preservedSection,
       ),
     );
   }
 
   let proofreading: ProofreadingResult;
-  // An OTA hotfix may only cherry-pick PRs that an earlier release already
-  // lists; the draft PR then asks a human to write the section.
-  if (!newEntriesSection) {
+  if (preservedSection && !newEntriesSection) {
+    proofreading = { status: 'unchanged' };
+  } else if (!newEntriesSection) {
+    // An OTA hotfix may only cherry-pick PRs that an earlier release already
+    // lists; the draft PR then asks a human to write the section.
     proofreading = { status: 'no-new-prs' };
   } else if (
     parsedReleaseBranch?.kind === 'ota' &&
@@ -1046,7 +1128,7 @@ function main(): void {
     );
 
     proofreading = runCleanRoomProofread({ repositoryUrl, version });
-    if (existingTargetReleaseSection) {
+    if (preservedSection) {
       const cleanedNewEntries = extractReleaseSection(
         readFileSync('CHANGELOG.md', 'utf8'),
         version,
@@ -1056,8 +1138,8 @@ function main(): void {
         replaceReleaseSection(
           readFileSync('CHANGELOG.md', 'utf8'),
           version,
-          appendNewReleaseEntries({
-            existingSection: existingTargetReleaseSection,
+          mergeNewReleaseEntries({
+            existingSection: preservedSection,
             newEntriesSection: cleanedNewEntries,
             version,
           }),

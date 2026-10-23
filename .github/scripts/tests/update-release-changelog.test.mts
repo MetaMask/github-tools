@@ -6,7 +6,6 @@ import test from 'node:test';
 
 import { extractReleaseSection } from '../clean-release-changelog.mts';
 import {
-  appendNewReleaseEntries,
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
   getChangelogValidationArguments,
@@ -14,6 +13,7 @@ import {
   getChangelogPrPresentation,
   getHistoricalSkippedPrNumbers,
   getNewReleaseEntriesSection,
+  mergeNewReleaseEntries,
   isReleaseSectionEmpty,
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
@@ -210,16 +210,84 @@ test('isolates newly generated entries without changing the existing release sec
 - Added a new feature (#103)`,
   );
   assert.equal(
-    appendNewReleaseEntries({
+    mergeNewReleaseEntries({
       existingSection,
       newEntriesSection: newEntriesSection ?? '',
       version: '13.51.0',
     }),
-    `${existingSection}
+    `## [13.51.0]
 
 ### Added
 
-- Added a new feature (#103)`,
+- Added a new feature (#103)
+- Added an existing feature (#101)
+
+### Fixed
+
+- Fixed an existing issue (#102)`,
+  );
+});
+
+test('merges new entries into matching categories and inserts missing ones in canonical order', () => {
+  const existingSection = `## [13.51.0]
+
+### Added
+
+- Added an existing feature (#101)
+
+### Fixed
+
+- Fixed an existing issue (#102)
+  with a continuation line`;
+
+  assert.equal(
+    mergeNewReleaseEntries({
+      existingSection,
+      newEntriesSection: `## [13.51.0]
+
+### Changed
+
+- Changed a thing (#103)
+
+### Fixed
+
+- Fixed a new issue (#104)
+
+### Security
+
+- Hardened a thing (#105)`,
+      version: '13.51.0',
+    }),
+    `## [13.51.0]
+
+### Added
+
+- Added an existing feature (#101)
+
+### Changed
+
+- Changed a thing (#103)
+
+### Fixed
+
+- Fixed a new issue (#104)
+- Fixed an existing issue (#102)
+  with a continuation line
+
+### Security
+
+- Hardened a thing (#105)`,
+  );
+});
+
+test('keeps the existing line ending when merging new entries', () => {
+  assert.equal(
+    mergeNewReleaseEntries({
+      existingSection: '## [1.0.0]\r\n\r\n### Fixed\r\n\r\n- Old (#1)\r\n',
+      newEntriesSection: '## [1.0.0]\n\n### Added\n\n- New (#2)',
+      version: '1.0.0',
+    }),
+    '## [1.0.0]\r\n\r\n### Added\r\n\r\n- New (#2)\r\n\r\n### Fixed\r\n\r\n- Old (#1)',
   );
 });
 
