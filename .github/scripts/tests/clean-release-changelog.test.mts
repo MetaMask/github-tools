@@ -3,22 +3,24 @@ import test from 'node:test';
 
 import {
   assertPrEvidenceAvailable,
-  extractReleaseSection,
-  getEvidenceEnvironment,
   getLocalEvidenceLogArguments,
   getLocalPrEvidence,
   getPrEvidence,
-  getPrNumbers,
   isRetryableGhApiFailure,
   LiteLlmAuthenticationError,
   isLiteLlmAuthenticationError,
   mergeCleanRoomSections,
   requestCleanRoomRewrite,
   requestGhApiWithRetry,
-  replaceReleaseSection,
   splitReleaseSectionIntoChunks,
   validateReplacement,
 } from '../clean-release-changelog.mts';
+import {
+  extractReleaseSection,
+  getPrNumbers,
+  replaceReleaseSection,
+} from '../release-section.mts';
+import { getEnvironmentWithoutAiKey } from '../shared/environment.mts';
 
 const generatedSection = `## [13.51.0]
 
@@ -29,7 +31,7 @@ const generatedSection = `## [13.51.0]
 
 test('removes LiteLLM credentials from evidence subprocesses', () => {
   assert.deepEqual(
-    getEvidenceEnvironment({
+    getEnvironmentWithoutAiKey({
       GH_TOKEN: 'github-token',
       AI_ANALYZER_LITELLM_KEY: 'litellm-key',
     }),

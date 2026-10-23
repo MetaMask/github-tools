@@ -1,9 +1,19 @@
 import { execFile } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import {
+  CHANGE_CATEGORIES,
+  extractReleaseSection,
+  getPrNumbers,
+  releaseHeading,
+  replaceReleaseSection,
+  splitLines,
+} from './release-section.mts';
+import { getEnvironmentWithoutAiKey } from './shared/environment.mts';
+import { writeReport } from './shared/report.mts';
 import { retry } from './shared/retry.mts';
 
 const MODEL = 'gpt-5.6-terra';
@@ -14,34 +24,12 @@ const GH_API_MAX_ATTEMPTS = 3;
 const GH_API_RETRY_DELAY_MS = 1_000;
 const MAX_PR_BODY_LENGTH = 4_000;
 const MAX_ENTRIES_PER_CLEAN_ROOM_REQUEST = 20;
-const VALID_CATEGORY_NAMES = [
-  'Added',
-  'Changed',
-  'Deprecated',
-  'Removed',
-  'Fixed',
-  'Security',
-];
 
-export function getEvidenceEnvironment(
-  environment: NodeJS.ProcessEnv = process.env,
-): NodeJS.ProcessEnv {
-  const scrubbedEnvironment = { ...environment };
-  delete scrubbedEnvironment.AI_ANALYZER_LITELLM_KEY;
-  return scrubbedEnvironment;
-}
-
-const evidenceEnvironment = getEvidenceEnvironment();
+const evidenceEnvironment = getEnvironmentWithoutAiKey();
 const execFileAsync = promisify(execFile);
 const EVIDENCE_MAX_BUFFER = 10 * 1024 * 1024;
 
 type GhApiRequest = (argumentsList: string[]) => Promise<string>;
-
-type ReleaseSection = {
-  section: string;
-  start: number;
-  end: number;
-};
 
 type LiteLlmResponse = {
   choices?: { message?: { content?: unknown } }[];
@@ -65,55 +53,10 @@ function getArgument(name: string): string | undefined {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-function writeReport(reportPath: string, report: Record<string, string>): void {
-  mkdirSync(dirname(reportPath), { recursive: true });
-  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-}
-
 function fail(reportPath: string, stage: string, error: string): void {
   writeReport(reportPath, { status: 'failed', stage, error });
   console.error(`Clean-room proofread failed during ${stage}: ${error}`);
   process.exitCode = 1;
-}
-
-export function extractReleaseSection(
-  content: string,
-  version: string,
-): ReleaseSection {
-  const heading = `## [${version}]`;
-  const headingMatches = content.match(
-    new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\]$`, 'gmu'),
-  );
-  if (headingMatches?.length !== 1) {
-    throw new Error(`Expected exactly one release heading for ${version}`);
-  }
-
-  const start = content.indexOf(heading);
-  const nextHeading = content.indexOf('\n## [', start + heading.length);
-  const rawEnd = nextHeading === -1 ? content.length : nextHeading + 1;
-  const section = content.slice(start, rawEnd).trimEnd();
-
-  return {
-    section,
-    start,
-    end: start + section.length,
-  };
-}
-
-export function replaceReleaseSection(
-  content: string,
-  version: string,
-  replacement: string,
-): string {
-  const { start, end } = extractReleaseSection(content, version);
-  return `${content.slice(0, start)}${replacement}${content.slice(end)}`;
-}
-
-export function getPrNumbers(section: string): string[] {
-  return [...section.matchAll(/#(\d+)/gu)].flatMap((match) => {
-    const prNumber = match[1];
-    return prNumber ? [prNumber] : [];
-  });
 }
 
 type CleanRoomChunk = {
@@ -130,8 +73,8 @@ export function splitReleaseSectionIntoChunks(
     throw new Error('maxEntries must be a positive integer');
   }
 
-  const lines = section.trimEnd().split(/\r?\n/u);
-  const heading = `## [${version}]`;
+  const lines = splitLines(section.trimEnd());
+  const heading = releaseHeading(version);
   if (lines[0] !== heading) {
     throw new Error(`Expected section to start with ${heading}`);
   }
@@ -213,8 +156,8 @@ function getCategorizedBlocks(
   section: string,
   version: string,
 ): Map<string, string[]> {
-  const lines = section.trimEnd().split(/\r?\n/u);
-  const heading = `## [${version}]`;
+  const lines = splitLines(section.trimEnd());
+  const heading = releaseHeading(version);
   if (lines[0] !== heading) {
     throw new Error(`Expected section to start with ${heading}`);
   }
@@ -272,11 +215,11 @@ export function mergeCleanRoomSections(
     }
   }
 
-  const categories = VALID_CATEGORY_NAMES.flatMap((category) => {
+  const categories = CHANGE_CATEGORIES.flatMap((category) => {
     const blocks = blocksByCategory.get(category) ?? [];
     return blocks.length > 0 ? [`### ${category}\n\n${blocks.join('\n')}`] : [];
   });
-  return `## [${version}]\n\n${categories.join('\n\n')}`;
+  return `${releaseHeading(version)}\n\n${categories.join('\n\n')}`;
 }
 
 export function validateReplacement(
@@ -284,18 +227,21 @@ export function validateReplacement(
   version: string,
   expectedPrNumbers: readonly string[],
 ): void {
-  if (!section.startsWith(`## [${version}]\n`)) {
-    throw new Error(`Response must start with ## [${version}]`);
+  const heading = releaseHeading(version);
+  if (!section.startsWith(`${heading}\n`)) {
+    throw new Error(`Response must start with ${heading}`);
   }
-  if (/^## \[/mu.test(section.slice(`## [${version}]`.length))) {
+  if (/^## \[/mu.test(section.slice(heading.length))) {
     throw new Error('Response must contain only one release section');
   }
   if (/^### Uncategorized$/mu.test(section)) {
     throw new Error('Response must not contain Uncategorized');
   }
 
-  const categoryPattern =
-    /^### (Added|Changed|Deprecated|Removed|Fixed|Security)$/gmu;
+  const categoryPattern = new RegExp(
+    `^### (${CHANGE_CATEGORIES.join('|')})$`,
+    'gmu',
+  );
   const categories = [...section.matchAll(categoryPattern)];
   if (categories.length === 0) {
     throw new Error('Response must contain at least one valid category');
@@ -315,9 +261,9 @@ export function validateReplacement(
       categoryStart,
       nextCategory === -1 ? undefined : nextCategory,
     );
-    const categoryEntries = categoryBody
-      .split(/\r?\n/u)
-      .filter((line) => line !== '');
+    const categoryEntries = splitLines(categoryBody).filter(
+      (line) => line !== '',
+    );
     if (categoryEntries.length === 0) {
       throw new Error(`Category ${categoryName} must not be empty`);
     }
@@ -331,8 +277,8 @@ export function validateReplacement(
     }
   }
 
-  const releaseBody = section.slice(`## [${version}]`.length);
-  for (const line of releaseBody.split(/\r?\n/u)) {
+  const releaseBody = section.slice(heading.length);
+  for (const line of splitLines(releaseBody)) {
     if (
       line === '' ||
       categoryPattern.test(line) ||
@@ -587,8 +533,7 @@ export async function requestCleanRoomRewrite({
   prEvidence,
   apiKey,
   fetchImpl = fetch,
-  sleep = async (milliseconds) =>
-    new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
+  sleep,
   timeoutMs = Number(process.env.CHANGELOG_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
 }: {
   prompt: string;
@@ -620,49 +565,49 @@ export async function requestCleanRoomRewrite({
     ],
   };
 
-  let lastError: string | undefined;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetchImpl(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new LiteLlmAuthenticationError(response.status);
+  return retry(
+    async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetchImpl(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            throw new LiteLlmAuthenticationError(response.status);
+          }
+          throw new Error(`LiteLLM returned HTTP ${String(response.status)}`);
         }
-        throw new Error(`LiteLLM returned HTTP ${String(response.status)}`);
-      }
 
-      const payload = (await response.json()) as LiteLlmResponse;
-      const content = payload.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || content.trim() === '') {
-        throw new Error('LiteLLM returned no message content');
+        const payload = (await response.json()) as LiteLlmResponse;
+        const content = payload.choices?.[0]?.message?.content;
+        if (typeof content !== 'string' || content.trim() === '') {
+          throw new Error('LiteLLM returned no message content');
+        }
+        return content.trim();
+      } finally {
+        clearTimeout(timeout);
       }
-      return content.trim();
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-      if (isLiteLlmAuthenticationError(error)) {
-        throw error;
-      }
-      if (attempt < MAX_ATTEMPTS) {
+    },
+    {
+      maxAttempts: MAX_ATTEMPTS,
+      ...(sleep ? { sleep } : {}),
+      // A rejected credential never succeeds on retry.
+      shouldRetry: (error) => !isLiteLlmAuthenticationError(error),
+      onRetry: ({ attempt, delayMilliseconds }) => {
         console.warn(
-          `Retrying clean-room model request (attempt ${attempt + 1}/${MAX_ATTEMPTS} in 1000ms).`,
+          `Retrying clean-room model request (attempt ${attempt + 1}/${MAX_ATTEMPTS} in ${delayMilliseconds}ms).`,
         );
-        await sleep(1_000);
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  throw new Error(lastError ?? 'LiteLLM request failed');
+      },
+    },
+  );
 }
 
 async function main(): Promise<void> {

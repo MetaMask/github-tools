@@ -14,10 +14,21 @@ import { fileURLToPath } from 'node:url';
 
 import {
   extractReleaseSection,
+  getEntryLines,
+  getNewReleaseEntriesSection,
   getPrNumbers,
+  getReleaseVersions,
+  hasSingleReleaseHeading,
+  mergeCurrentReleaseSection,
+  mergeNewReleaseEntries,
+  parseReleaseHeadingVersion,
   replaceReleaseSection,
-} from './clean-release-changelog.mts';
+  restoreGeneratedCategories,
+  splitLines,
+} from './release-section.mts';
 import { compareSemver, parseReleaseBranch } from './release-version-utils.mts';
+import { getEnvironmentWithoutAiKey } from './shared/environment.mts';
+import { writeReport } from './shared/report.mts';
 import {
   selectChangelogBaseline,
   type ChangelogBaseline,
@@ -45,8 +56,7 @@ const PROMPT_PATH = resolve(
 
 // All Git and generator children use this environment. The cleaner is
 // the sole process allowed to receive the raw LiteLLM key.
-const deterministicEnvironment = { ...process.env };
-delete deterministicEnvironment.AI_ANALYZER_LITELLM_KEY;
+const deterministicEnvironment = getEnvironmentWithoutAiKey();
 
 function capture(command: string, args: string[]): string {
   return execFileSync(command, args, {
@@ -146,25 +156,14 @@ export function assertRemoteRefUnchanged({
 
 function hasReleaseHeading(ref: string, version: string): boolean {
   try {
-    const changelog = readChangelogAtRef(ref);
-    return (
-      changelog.match(
-        new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\]$`, 'gmu'),
-      )?.length === 1
-    );
+    return hasSingleReleaseHeading(readChangelogAtRef(ref), version);
   } catch {
     return false;
   }
 }
 
 function getStableVersions(): string[] {
-  const changelog = readChangelogAtRef('origin/stable');
-  return [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\]$/gmu)].flatMap(
-    (match) => {
-      const version = match[1];
-      return version ? [version] : [];
-    },
-  );
+  return getReleaseVersions(readChangelogAtRef('origin/stable'));
 }
 
 function getReleaseBranches() {
@@ -259,291 +258,6 @@ export function getReviewedCurrentReleaseSection({
   }
 }
 
-export function mergeCurrentReleaseSection({
-  changelog,
-  currentReleaseSection,
-  version,
-}: {
-  changelog: string;
-  currentReleaseSection: string;
-  version: string;
-}): string {
-  const heading = `## [${version}]`;
-  if (changelog.includes(heading)) {
-    return replaceReleaseSection(changelog, version, currentReleaseSection);
-  }
-
-  if (!/^# Changelog\r?\n/u.test(changelog)) {
-    throw new Error('CHANGELOG.md must begin with a Changelog heading');
-  }
-
-  // Releases follow the preamble and `## [Unreleased]`, newest first.
-  const firstRelease = /^## \[(?!Unreleased\])/mu.exec(changelog);
-  const lineEnding = changelog.includes('\r\n') ? '\r\n' : '\n';
-  const normalizedSection = currentReleaseSection.replaceAll('\n', lineEnding);
-  if (!firstRelease) {
-    return `${changelog.trimEnd()}${lineEnding}${lineEnding}${normalizedSection}${lineEnding}`;
-  }
-  return `${changelog.slice(0, firstRelease.index)}${normalizedSection}${lineEnding}${lineEnding}${changelog.slice(firstRelease.index)}`;
-}
-
-type ReleaseSectionEntry = {
-  lines: string[];
-  prNumbers: string[];
-};
-
-type ReleaseSectionCategory = {
-  heading: string;
-  entries: ReleaseSectionEntry[];
-};
-
-function parseReleaseSectionCategories(
-  section: string,
-): ReleaseSectionCategory[] {
-  const [, ...lines] = section.split(/\r?\n/u);
-  const categories: ReleaseSectionCategory[] = [];
-  let category: ReleaseSectionCategory | undefined;
-  let entry: ReleaseSectionEntry | undefined;
-
-  for (const line of lines) {
-    if (line.startsWith('### ')) {
-      category = { heading: line, entries: [] };
-      categories.push(category);
-      entry = undefined;
-    } else if (line.startsWith('- ')) {
-      if (!category) {
-        throw new Error('Release entries must appear under a category heading');
-      }
-      entry = { lines: [line], prNumbers: getPrNumbers(line) };
-      category.entries.push(entry);
-    } else if (line !== '' && entry) {
-      entry.lines.push(line);
-      entry.prNumbers = getPrNumbers(entry.lines.join('\n'));
-    } else if (line !== '') {
-      throw new Error(`Unexpected release section content: ${line}`);
-    }
-  }
-
-  return categories;
-}
-
-const PR_REFERENCE_PATTERN = /\(#(\d+)\)|#(\d+)/gu;
-
-// The generator appends the entry's own PR last, so earlier refs are prose.
-function keepOnlyOwningReference(lines: string[]): string[] {
-  const [firstLine = '', ...otherLines] = lines;
-  const lastMatch = [...firstLine.matchAll(PR_REFERENCE_PATTERN)].pop();
-  const demote = (text: string, keepOffset?: number): string =>
-    text.replace(
-      PR_REFERENCE_PATTERN,
-      (match, parenthesized?: string, bare?: string, offset?: number) =>
-        offset === keepOffset ? match : `PR ${parenthesized ?? bare ?? ''}`,
-    );
-  return [
-    demote(firstLine, lastMatch?.index),
-    ...otherLines.map((line) => demote(line)),
-  ];
-}
-
-export function getNewReleaseEntriesSection({
-  existingSection,
-  generatedSection,
-  version,
-}: {
-  existingSection: string;
-  generatedSection: string;
-  version: string;
-}): string | undefined {
-  const existingPrNumbers = new Set(getPrNumbers(existingSection));
-  const categories = parseReleaseSectionCategories(generatedSection)
-    .map(({ heading, entries }) => ({
-      heading,
-      entries: entries.flatMap(({ lines }) => {
-        const [owner] = getPrNumbers(lines[0] ?? '').slice(-1);
-        if (owner === undefined) {
-          throw new Error('Generated release entry lacks a PR reference');
-        }
-        return existingPrNumbers.has(owner)
-          ? []
-          : [{ lines: keepOnlyOwningReference(lines) }];
-      }),
-    }))
-    .filter(({ entries }) => entries.length > 0);
-
-  if (categories.length === 0) {
-    return undefined;
-  }
-
-  return [
-    `## [${version}]`,
-    ...categories.flatMap(({ heading, entries }) => [
-      '',
-      heading,
-      '',
-      ...entries.flatMap(({ lines }) => lines),
-    ]),
-  ].join('\n');
-}
-
-/**
- * Puts each AI-cleaned entry back under the category the generator chose, so
- * proofreading cannot recategorize a PR. Entries that merge PRs from different
- * generated categories, or that the generator left Uncategorized, keep the
- * proofreader's category.
- *
- * @param options - Options.
- * @param options.generatedSection - The new-entries section before proofreading.
- * @param options.cleanedSection - The same section after proofreading.
- * @param options.version - The release version.
- * @returns The cleaned section with generator categories restored.
- */
-export function restoreGeneratedCategories({
-  generatedSection,
-  cleanedSection,
-  version,
-}: {
-  generatedSection: string;
-  cleanedSection: string;
-  version: string;
-}): string {
-  const generatedCategoryByPr = new Map<string, string>();
-  for (const { heading, entries } of parseReleaseSectionCategories(
-    generatedSection,
-  )) {
-    for (const entry of entries) {
-      for (const prNumber of entry.prNumbers) {
-        generatedCategoryByPr.set(prNumber, heading);
-      }
-    }
-  }
-
-  const buckets = new Map<string, string[]>();
-  const order: string[] = [];
-  for (const { heading, entries } of parseReleaseSectionCategories(
-    cleanedSection,
-  )) {
-    for (const entry of entries) {
-      const generatedHeadings = new Set(
-        entry.prNumbers.map((prNumber) => generatedCategoryByPr.get(prNumber)),
-      );
-      const [only] = [...generatedHeadings];
-      const target =
-        generatedHeadings.size === 1 &&
-        only !== undefined &&
-        only !== '### Uncategorized'
-          ? only
-          : heading;
-      if (!buckets.has(target)) {
-        buckets.set(target, []);
-        order.push(target);
-      }
-      buckets.get(target)?.push(...entry.lines);
-    }
-  }
-
-  return [
-    `## [${version}]`,
-    ...order
-      .sort((left, right) => getCategoryRank(left) - getCategoryRank(right))
-      .flatMap((heading) => ['', heading, '', ...(buckets.get(heading) ?? [])]),
-  ].join('\n');
-}
-
-// Matches auto-changelog's `orderedChangeCategories`, which determines the
-// order categories are written in a release section.
-const CATEGORY_ORDER = [
-  'Uncategorized',
-  'Added',
-  'Changed',
-  'Deprecated',
-  'Removed',
-  'Fixed',
-  'Security',
-];
-
-function getCategoryRank(heading: string): number {
-  const rank = CATEGORY_ORDER.indexOf(heading.slice('### '.length));
-  return rank === -1 ? CATEGORY_ORDER.length : rank;
-}
-
-/**
- * Merges newly generated entries into an existing release section. Existing
- * lines are never modified. New entries go at the top of a matching category,
- * as auto-changelog does, and a missing category is inserted in canonical
- * order.
- *
- * @param options - Options.
- * @param options.existingSection - The release section to preserve.
- * @param options.newEntriesSection - A release section holding only new entries.
- * @param options.version - The release version.
- * @returns The merged release section.
- */
-export function mergeNewReleaseEntries({
-  existingSection,
-  newEntriesSection,
-  version,
-}: {
-  existingSection: string;
-  newEntriesSection: string;
-  version: string;
-}): string {
-  const heading = `## [${version}]`;
-  if (!newEntriesSection.startsWith(heading)) {
-    throw new Error(`Expected new entries section to begin with ${heading}`);
-  }
-
-  const lineEnding = existingSection.includes('\r\n') ? '\r\n' : '\n';
-  const lines = existingSection.trimEnd().split(/\r?\n/u);
-
-  for (const {
-    heading: categoryHeading,
-    entries,
-  } of parseReleaseSectionCategories(newEntriesSection)) {
-    const entryLines = entries.flatMap((entry) => entry.lines);
-    if (entryLines.length === 0) {
-      continue;
-    }
-
-    const headingIndex = lines.indexOf(categoryHeading);
-    if (headingIndex !== -1) {
-      // Skip the blank line(s) after the heading so entries lead the list.
-      let insertAt = headingIndex + 1;
-      while (insertAt < lines.length && lines[insertAt] === '') {
-        insertAt += 1;
-      }
-      const isEmptyCategory =
-        insertAt >= lines.length || lines[insertAt]?.startsWith('### ');
-      lines.splice(
-        insertAt,
-        0,
-        ...(insertAt === headingIndex + 1 ? [''] : []),
-        ...entryLines,
-        ...(isEmptyCategory && insertAt < lines.length ? [''] : []),
-      );
-      continue;
-    }
-
-    const rank = getCategoryRank(categoryHeading);
-    const nextCategoryIndex = lines.findIndex(
-      (line) => line.startsWith('### ') && getCategoryRank(line) > rank,
-    );
-    if (nextCategoryIndex === -1) {
-      lines.push('', categoryHeading, '', ...entryLines);
-    } else {
-      lines.splice(
-        nextCategoryIndex,
-        0,
-        categoryHeading,
-        '',
-        ...entryLines,
-        '',
-      );
-    }
-  }
-
-  return lines.join(lineEnding);
-}
-
 export function rebuildChangelogBranch({
   changelogBranch,
   releaseBranch,
@@ -620,10 +334,10 @@ export function findReleaseVersionsContainingPrs(
   const wanted = new Set(prNumbers);
   const versions = new Set<string>();
   let currentVersion: string | undefined;
-  for (const line of changelog.split(/\r?\n/u)) {
-    const heading = /^## \[(\d+\.\d+\.\d+)\]$/u.exec(line);
-    if (heading) {
-      currentVersion = heading[1];
+  for (const line of splitLines(changelog)) {
+    const headingVersion = parseReleaseHeadingVersion(line);
+    if (headingVersion) {
+      currentVersion = headingVersion;
     } else if (
       currentVersion &&
       currentVersion !== excludedVersion &&
@@ -640,7 +354,7 @@ export function isReleaseSectionEmpty(
   version: string,
 ): boolean {
   const { section } = extractReleaseSection(changelogContent, version);
-  return (section.match(/^- .+$/gmu) ?? []).length === 0;
+  return getEntryLines(section).length === 0;
 }
 
 function generateChangelog({
@@ -678,7 +392,7 @@ export function validateGeneratedReleaseSection(
   allowDuplicatePrReferences = false,
 ): void {
   const { section } = extractReleaseSection(changelogContent, version);
-  const entries = section.match(/^- .+$/gmu) ?? [];
+  const entries = getEntryLines(section);
   if (entries.length === 0) {
     throw new Error(`Generated ## [${version}] section contains no entries`);
   }
@@ -724,11 +438,7 @@ export function writeFailedProofreadingReport(
   error: string,
   stage = 'execution',
 ): void {
-  mkdirSync(dirname(reportPath), { recursive: true });
-  writeFileSync(
-    reportPath,
-    `${JSON.stringify({ status: 'failed', stage, error }, null, 2)}\n`,
-  );
+  writeReport(reportPath, { status: 'failed', stage, error });
 }
 
 function getAiAnalyzerLiteLlmKey(): string | undefined {
@@ -1057,6 +767,14 @@ function main(): void {
     );
   }
 
+  const readChangelog = () => readFileSync('CHANGELOG.md', 'utf8');
+  const writeChangelog = (content: string) =>
+    writeFileSync('CHANGELOG.md', content);
+  const readCurrentReleaseSection = () =>
+    extractReleaseSection(readChangelog(), version).section;
+  const writeCurrentReleaseSection = (section: string) =>
+    writeChangelog(replaceReleaseSection(readChangelog(), version, section));
+
   configureGit(
     process.env.GIT_AUTHOR_NAME ?? 'metamaskbot',
     process.env.GIT_AUTHOR_EMAIL ?? 'metamaskbot@users.noreply.github.com',
@@ -1129,10 +847,9 @@ function main(): void {
 
   rebuildChangelogBranch({ changelogBranch, releaseBranch, baseline });
   if (reviewedCurrentReleaseSection) {
-    writeFileSync(
-      'CHANGELOG.md',
+    writeChangelog(
       mergeCurrentReleaseSection({
-        changelog: readFileSync('CHANGELOG.md', 'utf8'),
+        changelog: readChangelog(),
         currentReleaseSection: reviewedCurrentReleaseSection,
         version,
       }),
@@ -1145,10 +862,7 @@ function main(): void {
   // are never reworded; only newly generated PRs go to the proofreader.
   const preservedSection =
     reviewedCurrentReleaseSection ?? existingTargetReleaseSection;
-  const generatedSection = extractReleaseSection(
-    readFileSync('CHANGELOG.md', 'utf8'),
-    version,
-  ).section;
+  const generatedSection = readCurrentReleaseSection();
   const newEntriesSection = preservedSection
     ? getNewReleaseEntriesSection({
         existingSection: preservedSection,
@@ -1158,14 +872,7 @@ function main(): void {
     : generatedSection;
 
   if (preservedSection) {
-    writeFileSync(
-      'CHANGELOG.md',
-      replaceReleaseSection(
-        readFileSync('CHANGELOG.md', 'utf8'),
-        version,
-        newEntriesSection ?? preservedSection,
-      ),
-    );
+    writeCurrentReleaseSection(newEntriesSection ?? preservedSection);
   }
 
   let proofreading: ProofreadingResult;
@@ -1177,10 +884,10 @@ function main(): void {
     proofreading = { status: 'no-new-prs' };
   } else if (
     parsedReleaseBranch?.kind === 'ota' &&
-    isReleaseSectionEmpty(readFileSync('CHANGELOG.md', 'utf8'), version)
+    isReleaseSectionEmpty(readChangelog(), version)
   ) {
     const presentInVersions = findReleaseVersionsContainingPrs(
-      readFileSync('CHANGELOG.md', 'utf8'),
+      readChangelog(),
       skippedPrNumbers,
       version,
     );
@@ -1191,45 +898,28 @@ function main(): void {
   } else {
     // A generator duplicate is repairable by the clean-room step, but a missing
     // PR reference is never safe to send to it or commit.
-    validateGeneratedReleaseSection(
-      readFileSync('CHANGELOG.md', 'utf8'),
-      version,
-      true,
-    );
+    validateGeneratedReleaseSection(readChangelog(), version, true);
 
     proofreading = runCleanRoomProofread({ repositoryUrl, version });
     if (preservedSection) {
-      const cleanedNewEntries = extractReleaseSection(
-        readFileSync('CHANGELOG.md', 'utf8'),
-        version,
-      ).section;
-      writeFileSync(
-        'CHANGELOG.md',
-        replaceReleaseSection(
-          readFileSync('CHANGELOG.md', 'utf8'),
-          version,
-          mergeNewReleaseEntries({
-            existingSection: preservedSection,
-            newEntriesSection: restoreGeneratedCategories({
-              generatedSection: newEntriesSection,
-              cleanedSection: cleanedNewEntries,
-              version,
-            }),
+      writeCurrentReleaseSection(
+        mergeNewReleaseEntries({
+          existingSection: preservedSection,
+          newEntriesSection: restoreGeneratedCategories({
+            generatedSection: newEntriesSection,
+            cleanedSection: readCurrentReleaseSection(),
             version,
           }),
-        ),
+          version,
+        }),
       );
     }
     // The fallback must still meet the final one-reference-per-PR contract.
-    validateGeneratedReleaseSection(
-      readFileSync('CHANGELOG.md', 'utf8'),
-      version,
-    );
+    validateGeneratedReleaseSection(readChangelog(), version);
   }
   runChangelogValidation(proofreading);
-  if (dryRun) {
-    // Preflight the same source snapshots used for publication, but leave all
-    // commits, remote branches, and pull requests unchanged.
+
+  const assertSourcesUnchanged = () => {
     assertRemoteRefUnchanged({
       ref: `origin/${releaseBranch}`,
       expectedSha: targetReleaseSha,
@@ -1247,6 +937,12 @@ function main(): void {
         description: 'Reviewed changelog branch',
       });
     }
+  };
+
+  if (dryRun) {
+    // Preflight the same source snapshots used for publication, but leave all
+    // commits, remote branches, and pull requests unchanged.
+    assertSourcesUnchanged();
     console.log(
       `Dry run passed for ${releaseBranch}; no commit, push, or PR update was performed.`,
     );
@@ -1259,25 +955,7 @@ function main(): void {
     releaseBranch,
     expectedRemoteSha: changelogBranchSha,
     proofreading,
-    assertSourcesUnchanged: () => {
-      assertRemoteRefUnchanged({
-        ref: `origin/${releaseBranch}`,
-        expectedSha: targetReleaseSha,
-        description: 'Target release branch',
-      });
-      assertRemoteRefUnchanged({
-        ref: baseline.ref,
-        expectedSha: baselineSha,
-        description: 'Selected baseline',
-      });
-      if (reviewedCurrentReleaseSection && changelogBranchSha) {
-        assertRemoteRefUnchanged({
-          ref: `origin/${changelogBranch}`,
-          expectedSha: changelogBranchSha,
-          description: 'Reviewed changelog branch',
-        });
-      }
-    },
+    assertSourcesUnchanged,
   });
 }
 

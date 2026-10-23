@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { extractReleaseSection } from '../clean-release-changelog.mts';
+import {
+  extractReleaseSection,
+  getNewReleaseEntriesSection,
+  mergeCurrentReleaseSection,
+  mergeNewReleaseEntries,
+  restoreGeneratedCategories,
+} from '../release-section.mts';
 import {
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
@@ -12,11 +18,7 @@ import {
   getChangelogPushArguments,
   getChangelogPrPresentation,
   getHistoricalSkippedPrNumbers,
-  getNewReleaseEntriesSection,
-  mergeNewReleaseEntries,
-  restoreGeneratedCategories,
   isReleaseSectionEmpty,
-  mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
   validateGeneratedReleaseSection,
   writeFailedProofreadingReport,
