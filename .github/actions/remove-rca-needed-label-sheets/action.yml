@@ -32,19 +32,19 @@ runs:
   using: composite
   steps:
     - name: Checkout consuming repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         token: ${{ inputs.github-token }}
 
     - name: Checkout GitHub tools repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         repository: ${{ inputs.github-tools-repository }}
         ref: ${{ inputs.github-tools-ref }}
         path: ./github-tools
 
     - name: Setup Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
       with:
         node-version: '20'
 
