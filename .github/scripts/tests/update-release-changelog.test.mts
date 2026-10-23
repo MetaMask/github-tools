@@ -14,6 +14,7 @@ import {
   getHistoricalSkippedPrNumbers,
   getNewReleaseEntriesSection,
   mergeNewReleaseEntries,
+  restoreGeneratedCategories,
   isReleaseSectionEmpty,
   mergeCurrentReleaseSection,
   parseUpdateChangelogArguments,
@@ -277,6 +278,17 @@ test('merges new entries into matching categories and inserts missing ones in ca
 ### Security
 
 - Hardened a thing (#105)`,
+  );
+});
+
+test('restores the generator category when proofreading recategorizes an entry', () => {
+  assert.equal(
+    restoreGeneratedCategories({
+      generatedSection: `## [1.0.0]\n\n### Added\n\n- Added a (#1)\n\n### Fixed\n\n- Fixed b (#2)\n\n### Uncategorized\n\n- Did c (#3)\n\n### Fixed\n\n- Fixed d (#4)`,
+      cleanedSection: `## [1.0.0]\n\n### Changed\n\n- Updated a (#1)\n- Updated c (#3)\n- Merged d and b (#2, #4)`,
+      version: '1.0.0',
+    }),
+    `## [1.0.0]\n\n### Added\n\n- Updated a (#1)\n\n### Changed\n\n- Updated c (#3)\n\n### Fixed\n\n- Merged d and b (#2, #4)`,
   );
 });
 

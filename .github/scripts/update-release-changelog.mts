@@ -371,6 +371,70 @@ export function getNewReleaseEntriesSection({
   ].join('\n');
 }
 
+/**
+ * Puts each AI-cleaned entry back under the category the generator chose, so
+ * proofreading cannot recategorize a PR. Entries that merge PRs from different
+ * generated categories, or that the generator left Uncategorized, keep the
+ * proofreader's category.
+ *
+ * @param options - Options.
+ * @param options.generatedSection - The new-entries section before proofreading.
+ * @param options.cleanedSection - The same section after proofreading.
+ * @param options.version - The release version.
+ * @returns The cleaned section with generator categories restored.
+ */
+export function restoreGeneratedCategories({
+  generatedSection,
+  cleanedSection,
+  version,
+}: {
+  generatedSection: string;
+  cleanedSection: string;
+  version: string;
+}): string {
+  const generatedCategoryByPr = new Map<string, string>();
+  for (const { heading, entries } of parseReleaseSectionCategories(
+    generatedSection,
+  )) {
+    for (const entry of entries) {
+      for (const prNumber of entry.prNumbers) {
+        generatedCategoryByPr.set(prNumber, heading);
+      }
+    }
+  }
+
+  const buckets = new Map<string, string[]>();
+  const order: string[] = [];
+  for (const { heading, entries } of parseReleaseSectionCategories(
+    cleanedSection,
+  )) {
+    for (const entry of entries) {
+      const generatedHeadings = new Set(
+        entry.prNumbers.map((prNumber) => generatedCategoryByPr.get(prNumber)),
+      );
+      const [only] = [...generatedHeadings];
+      const target =
+        generatedHeadings.size === 1 &&
+        only !== undefined &&
+        only !== '### Uncategorized'
+          ? only
+          : heading;
+      if (!buckets.has(target)) {
+        buckets.set(target, []);
+        order.push(target);
+      }
+      buckets.get(target)?.push(...entry.lines);
+    }
+  }
+
+  return [
+    `## [${version}]`,
+    ...order
+      .sort((left, right) => getCategoryRank(left) - getCategoryRank(right))
+      .flatMap((heading) => ['', heading, '', ...(buckets.get(heading) ?? [])]),
+  ].join('\n');
+}
+
 // Matches auto-changelog's `orderedChangeCategories`, which determines the
 // order categories are written in a release section.
 const CATEGORY_ORDER = [
@@ -1140,7 +1204,11 @@ function main(): void {
           version,
           mergeNewReleaseEntries({
             existingSection: preservedSection,
-            newEntriesSection: cleanedNewEntries,
+            newEntriesSection: restoreGeneratedCategories({
+              generatedSection: newEntriesSection,
+              cleanedSection: cleanedNewEntries,
+              version,
+            }),
             version,
           }),
         ),
