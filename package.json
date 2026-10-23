@@ -8,7 +8,7 @@
     "url": "https://github.com/MetaMask/github-tools.git"
   },
   "scripts": {
-    "changelog:check": "ts-node src/changelog-check.ts",
+    "changelog:check": "node --loader ts-node/esm src/changelog-check.mts",
     "count-references-to-contributor-docs": "ts-node --swc src/scripts/count-references-to-contributor-docs/cli.ts",
     "gen:commits": "node .github/scripts/generate-rc-commits.mjs",
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
