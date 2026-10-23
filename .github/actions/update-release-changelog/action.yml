@@ -19,14 +19,6 @@ inputs:
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
-  auto-changelog-repository:
-    required: false
-    description: 'TEMPORARY: source repository containing auto-changelog. Remove with the source checkout/build steps once a released auto-changelog has the required behavior.'
-    default: 'MetaMask/release-tools'
-  auto-changelog-ref:
-    required: false
-    description: 'TEMPORARY: immutable release-tools commit SHA built from source. Remove once a released auto-changelog is used.'
-    default: '8eea4283bd6c9976eb32292d8431023e7d4ecc06'
 
 runs:
   using: composite
@@ -41,20 +33,6 @@ runs:
         ref: ${{ inputs.release-branch }}
         token: ${{ inputs.github-token }}
 
-    # TEMPORARY (1/3): the pinned release-tools commit includes auto-changelog
-    # fixes that no release has yet. Once it is released,
-    # remove this step, the build step below, the two
-    # `auto-changelog-*` inputs and `AUTO_CHANGELOG_CLI` in the update step,
-    # and run the released CLI (pinned version) instead.
-    - name: Checkout release-tools source
-      uses: actions/checkout@v6
-      env:
-        AI_ANALYZER_LITELLM_KEY: ''
-      with:
-        repository: ${{ inputs.auto-changelog-repository }}
-        ref: ${{ inputs.auto-changelog-ref }}
-        path: ./release-tools
-
     - name: Set up Node 24 for release changelog automation
       uses: actions/setup-node@v6
       env:
@@ -62,19 +40,17 @@ runs:
       with:
         node-version: '24'
 
-    # TEMPORARY (2/3): builds the source checkout above; delete with it.
-    # Corepack resolves Yarn from the working directory, not from `--cwd`, so
-    # the build must run inside the checkout to use its own pinned Yarn.
-    - name: Build auto-changelog from release-tools source
+    # Corepack resolves Yarn from the working directory, so install from the
+    # github-tools root to use its own pinned Yarn and lockfile.
+    - name: Install github-tools dependencies
       shell: bash
-      working-directory: ./release-tools
+      working-directory: ${{ github.action_path }}/../../..
       env:
         AI_ANALYZER_LITELLM_KEY: ''
       run: |
         set -euo pipefail
         corepack enable
         corepack yarn install --immutable
-        corepack yarn workspace @metamask/auto-changelog build
 
     - name: Update changelog branch
       shell: bash
@@ -86,8 +62,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         REPOSITORY_URL: ${{ inputs.repository-url }}
         PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
-        # TEMPORARY (3/3): points the runner at the source-built CLI; delete with it.
-        AUTO_CHANGELOG_CLI: ${{ github.workspace }}/release-tools/packages/auto-changelog/dist/cli.js
+        AUTO_CHANGELOG_CLI: ${{ github.action_path }}/../../../node_modules/@metamask/auto-changelog/dist/cli.js
       run: |
         set -euo pipefail
 

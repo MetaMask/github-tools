@@ -92,7 +92,7 @@ export function getAutoChangelogCli(
   const sourceCli = environment.AUTO_CHANGELOG_CLI;
   if (!sourceCli) {
     throw new Error(
-      'AUTO_CHANGELOG_CLI must point to the pinned auto-changelog source CLI',
+      'AUTO_CHANGELOG_CLI must point to the installed auto-changelog CLI',
     );
   }
   return sourceCli;
