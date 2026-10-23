@@ -1,11 +1,10 @@
 You are reviewing a generated MetaMask changelog section before release.
 
 Your task is to rewrite and recategorize only the release section provided
-below. Inspect the matching pull requests and relevant repository changes when
-needed to understand an entry. Return the complete corrected release section
-in Markdown, including its `## [VERSION]` heading and all `###` category
-headings. Do not include analysis, explanations, a diff, or any text outside
-the corrected Markdown.
+below. Use the provided PR evidence when needed to understand an entry. Return
+the complete corrected release section in Markdown, including its `## [VERSION]`
+heading and all `###` category headings. Do not include analysis, explanations,
+a diff, or any text outside the corrected Markdown.
 
 ## Goals
 
@@ -108,26 +107,10 @@ the corrected Markdown.
   rewriting it. Mainline squash commits provide local title/body evidence;
   direct-release and cherry-pick entries provide GitHub PR title/body evidence.
   Do not infer implementation details when the available evidence is vague.
-- Use the repository and PR information only to clarify the entry, assign its
-  category, or identify a coordinated release-wide change. Do not turn a
-  minor implementation change into an unsupported feature claim.
+- Use the PR evidence only to clarify the entry, assign its category, or
+  identify a coordinated release-wide change. Do not turn a minor
+  implementation change into an unsupported feature claim.
 - Do not include research notes, source paths, PR titles, links, or commit
   hashes in the result. Output only the corrected changelog section.
-- If `pr_titles` or `pr_evidence` is provided, treat it as an index to
-  prioritize research, not as a substitute for inspecting the matching PR when
-  the available evidence does not answer the question.
-
-## Input
-
-<release_section>
-PASTE THE GENERATED `## [VERSION]` SECTION HERE
-</release_section>
-
-<pr_titles>
-OPTIONAL: PASTE ONE `#PR_NUMBER: TITLE` LINE FOR EACH PR IN THE RELEASE
-SECTION HERE
-</pr_titles>
-
-<pr_evidence>
-OPTIONAL: PASTE BOUNDED PR BODY AND CHANGED-FILE EVIDENCE HERE
-</pr_evidence>
+- The `pr_evidence` block is all the research material available. If it does
+  not answer a question about an entry, keep the entry's existing wording.
