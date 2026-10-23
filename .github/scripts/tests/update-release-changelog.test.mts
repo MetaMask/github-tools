@@ -322,23 +322,42 @@ test('finds no new release entries when every generated PR is already documented
   );
 });
 
-test('rejects a generated entry that mixes documented and new PR references', () => {
-  assert.throws(
-    () =>
-      getNewReleaseEntriesSection({
-        existingSection: `## [13.51.0]
+test('judges a generated entry by its last PR reference and demotes earlier mentions', () => {
+  const existingSection = `## [13.51.0]
 
 ### Fixed
 
-- Fixed an existing issue (#101)`,
-        generatedSection: `## [13.51.0]
+- Fixed an existing issue (#101)`;
+
+  assert.equal(
+    getNewReleaseEntriesSection({
+      existingSection,
+      generatedSection: `## [13.51.0]
 
 ### Fixed
 
-- Fixed an existing and a new issue (#101, #102)`,
-        version: '13.51.0',
-      }),
-    /mixes documented and new PR references/u,
+- Fixed a regression from (#101) and #100 (#102)
+  see also #101`,
+      version: '13.51.0',
+    }),
+    `## [13.51.0]
+
+### Fixed
+
+- Fixed a regression from PR 101 and PR 100 (#102)
+  see also PR 101`,
+  );
+  assert.equal(
+    getNewReleaseEntriesSection({
+      existingSection,
+      generatedSection: `## [13.51.0]
+
+### Fixed
+
+- Reworded a documented PR that mentions (#102) (#101)`,
+      version: '13.51.0',
+    }),
+    undefined,
   );
 });
 

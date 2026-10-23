@@ -326,6 +326,24 @@ function parseReleaseSectionCategories(
   return categories;
 }
 
+const PR_REFERENCE_PATTERN = /\(#(\d+)\)|#(\d+)/gu;
+
+// The generator appends the entry's own PR last, so earlier refs are prose.
+function keepOnlyOwningReference(lines: string[]): string[] {
+  const [firstLine = '', ...otherLines] = lines;
+  const lastMatch = [...firstLine.matchAll(PR_REFERENCE_PATTERN)].pop();
+  const demote = (text: string, keepOffset?: number): string =>
+    text.replace(
+      PR_REFERENCE_PATTERN,
+      (match, parenthesized?: string, bare?: string, offset?: number) =>
+        offset === keepOffset ? match : `PR ${parenthesized ?? bare ?? ''}`,
+    );
+  return [
+    demote(firstLine, lastMatch?.index),
+    ...otherLines.map((line) => demote(line)),
+  ];
+}
+
 export function getNewReleaseEntriesSection({
   existingSection,
   generatedSection,
@@ -339,19 +357,14 @@ export function getNewReleaseEntriesSection({
   const categories = parseReleaseSectionCategories(generatedSection)
     .map(({ heading, entries }) => ({
       heading,
-      entries: entries.filter(({ prNumbers }) => {
-        if (prNumbers.length === 0) {
+      entries: entries.flatMap(({ lines }) => {
+        const [owner] = getPrNumbers(lines[0] ?? '').slice(-1);
+        if (owner === undefined) {
           throw new Error('Generated release entry lacks a PR reference');
         }
-        const existingCount = prNumbers.filter((prNumber) =>
-          existingPrNumbers.has(prNumber),
-        ).length;
-        if (existingCount > 0 && existingCount < prNumbers.length) {
-          throw new Error(
-            'Generated release entry mixes documented and new PR references',
-          );
-        }
-        return existingCount === 0;
+        return existingPrNumbers.has(owner)
+          ? []
+          : [{ lines: keepOnlyOwningReference(lines) }];
       }),
     }))
     .filter(({ entries }) => entries.length > 0);
