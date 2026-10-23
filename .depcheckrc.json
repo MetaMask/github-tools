@@ -1,7 +1,8 @@
 {
   "parsers": {
     "**/*.mjs": "es6",
-    "**/*.ts": "typescript"
+    "**/*.ts": "typescript",
+    "**/*.mts": "typescript"
   },
   "ignores": [
     "@lavamoat/allow-scripts",

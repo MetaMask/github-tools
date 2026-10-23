@@ -5,12 +5,12 @@ module.exports = {
 
   overrides: [
     {
-      files: ['*.ts'],
+      files: ['*.ts', '*.mts'],
       extends: ['@metamask/eslint-config-typescript'],
     },
 
     {
-      files: ['*.js', '*.ts'],
+      files: ['*.js', '*.ts', '*.mts'],
       parserOptions: {
         sourceType: 'script',
       },
@@ -18,7 +18,7 @@ module.exports = {
     },
 
     {
-      files: ['*.mjs'],
+      files: ['*.mjs', '*.mts'],
       parserOptions: {
         sourceType: 'module',
         ecmaVersion: 2022,
