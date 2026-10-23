@@ -60,13 +60,13 @@ runs:
         ref: ${{ inputs.checkout-base-branch }}
         token: ${{ inputs.github-token }}
 
-    # Step 3: Setup environment
+    # Step 2: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: true
 
-    # Step 4: Print Input Values
+    # Step 3: Print Input Values
     - name: Print Input Values
       env:
         PLATFORM: ${{ inputs.platform }}
@@ -101,7 +101,7 @@ runs:
         echo "Git User Email: $GIT_USER_EMAIL"
         echo "-------------"
 
-    # Step 5: Create Release PR
+    # Step 4: Create Release PR
     - name: Create Release PR
       id: create-release-pr
       shell: bash
@@ -133,7 +133,7 @@ runs:
           "$GIT_USER_NAME" \
           "$GIT_USER_EMAIL"
 
-    # Step 6: Upload commits.csv as artifact (if generated)
+    # Step 5: Upload commits.csv as artifact (if generated)
     - name: Upload commits.csv artifact
       if: ${{ hashFiles('commits.csv') != '' }}
       uses: actions/upload-artifact@v7

@@ -2,10 +2,10 @@
 
 # Script to create platform release PRs for MetaMask
 # This script handles the creation of release PRs for both mobile and extension platforms
-# It creates three PRs:
+# It creates two PRs:
 # 1. A release PR with version updates
-# 2. A changelog PR with updated changelog and test plan (skipped in test mode)
-# 3. A version bump PR for the main branch
+# 2. A version bump PR for the main branch (skipped for hotfix releases)
+# The changelog PR is created separately by the release-branch push workflow.
 #
 # Usage:
 #   create-platform-release-pr.sh <platform> <previous_version_ref> <new_version> [new_version_number] [git_user_name] [git_user_email]
@@ -21,8 +21,7 @@
 # Environment:
 #   BASE_BRANCH           - The base branch for the release PR (defaults to 'main')
 #   GITHUB_TOKEN          - Token for GitHub CLI operations (falls back to gh auth config)
-#   TEST_ONLY             - When set to "true", uses test branch prefixes and skips changelog PR
-#   GITHUB_REPOSITORY_URL - Full HTTPS URL for the repository (required for changelog generation when TEST_ONLY is not "true")
+#   TEST_ONLY             - When set to "true", uses test branch prefixes and skips test plan generation
 
 set -e
 set -u

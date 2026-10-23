@@ -89,13 +89,13 @@ function execute(
 export function getAutoChangelogCli(
   environment: NodeJS.ProcessEnv = process.env,
 ): string {
-  const sourceCli = environment.AUTO_CHANGELOG_CLI;
-  if (!sourceCli) {
+  const cli = environment.AUTO_CHANGELOG_CLI;
+  if (!cli) {
     throw new Error(
       'AUTO_CHANGELOG_CLI must point to the installed auto-changelog CLI',
     );
   }
-  return sourceCli;
+  return cli;
 }
 
 function executeAutoChangelog(args: string[]): void {
@@ -208,6 +208,7 @@ function configureGit(authorName: string, authorEmail: string): void {
   execute('git', ['fetch']);
 }
 
+// Discards any stale local state so the work starts from the remote tip.
 function ensureReleaseBranch(releaseBranch: string): void {
   execute('git', ['checkout', releaseBranch]);
   execute('git', ['reset', '--hard', `origin/${releaseBranch}`]);
@@ -897,21 +898,13 @@ export function pushChangelogBranch({
   expectedRemoteSha: string | undefined;
 }): void {
   try {
-    if (expectedRemoteSha) {
-      // The changelog branch is rebuilt from the target on every rerun, so its
-      // history may change. The lease preserves any concurrent human or bot edit.
-      execute(
-        'git',
-        getChangelogPushArguments({ changelogBranch, expectedRemoteSha }),
-      );
-    } else {
-      // Creation must fail if another actor won the race. Updating a PR after
-      // a rejected creation push could associate unverified branch content.
-      execute(
-        'git',
-        getChangelogPushArguments({ changelogBranch, expectedRemoteSha }),
-      );
-    }
+    // The branch is rebuilt on every rerun, so history may change. The lease
+    // protects a concurrent human or bot edit; with no expected SHA the push
+    // must create the branch and fails if another actor already did.
+    execute(
+      'git',
+      getChangelogPushArguments({ changelogBranch, expectedRemoteSha }),
+    );
   } catch (error) {
     if (expectedRemoteSha) {
       throw new Error(

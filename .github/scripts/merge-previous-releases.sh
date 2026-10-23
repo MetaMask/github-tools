@@ -83,7 +83,7 @@ preserve_source_changelog_history() {
 }
 
 # Merge a source branch (older release branch) into the current branch (new release branch),
-# always keeping destination content.
+# keeping destination code and then restoring the source's finalized changelog history.
 merge_with_favor_destination() {
   local source_branch="$1"
   local dest_branch="$2"
