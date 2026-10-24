@@ -24,4 +24,4 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   DependencyType == 'devDependencies'.
 
 % The package must specify a minimum Node version of 20.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '>=20.0.0').
+gen_enforced_field(WorkspaceCwd, 'engines.node', '>=22.18.0').
