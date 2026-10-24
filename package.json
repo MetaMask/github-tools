@@ -16,13 +16,13 @@
     "lint:constraints": "yarn constraints",
     "lint:changelog": "auto-changelog validate --prettier",
     "lint:dependencies": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache --ext js,ts,mts && eslint --no-ignore --cache --ext mjs .github/actions/draft-segment-schema-pr",
+    "lint:eslint": "eslint . --cache --ext js,ts,mts && eslint --no-ignore --cache --ext mjs .github/actions/draft-segment-schema-pr '.github/scripts/**/*.mts'",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' '!.cursor/**' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "lint:tsc": "tsc",
     "segment-schema:draft-pr": "ts-node src/segment-schema-draft-pr/cli.ts",
     "slack:release-testing": "node .github/scripts/slack-release-testing.mjs",
-    "test": "jest && node --test .github/actions/draft-segment-schema-pr/gate.test.mjs && jest-it-up",
+    "test": "jest && node --test '.github/**/*.test.{mjs,mts}' && jest-it-up",
     "test:watch": "jest --watch",
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
@@ -80,7 +80,7 @@
   },
   "packageManager": "yarn@4.14.1",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.18.0"
   },
   "lavamoat": {
     "allowScripts": {
