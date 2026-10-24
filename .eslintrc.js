@@ -33,6 +33,21 @@ module.exports = {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
     },
+
+    {
+      files: ['.github/scripts/**/*.mts'],
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
+
+    {
+      files: ['.github/scripts/**/*.test.mts'],
+      rules: {
+        '@typescript-eslint/no-floating-promises': 'off',
+        'n/no-process-env': 'off',
+      },
+    },
   ],
 
   ignorePatterns: [

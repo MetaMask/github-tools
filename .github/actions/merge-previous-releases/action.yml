@@ -34,6 +34,11 @@ runs:
         ref: ${{ inputs.github-tools-ref }}
         path: ./github-tools
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
+
     - name: Set Git user and email
       shell: bash
       run: |
