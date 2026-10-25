@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { parseDocument, YAMLMap, Scalar } from 'yaml';
-import type { Document } from 'yaml';
+import type { Document as YamlDocument } from 'yaml';
 
 import { TODO_DESCRIPTION } from './constants';
 import { uniqueKebabSlug } from './names';
@@ -226,7 +226,7 @@ function buildNewEventDocument(
   eventName: string,
   config: PlatformConfig,
   properties: PropertyChange[],
-): Document {
+): YamlDocument {
   const doc = parseDocument(
     [
       'name: ""',
@@ -251,7 +251,10 @@ function buildNewEventDocument(
  * @param doc - Event YAML document.
  * @param properties - Properties to add.
  */
-function appendProperties(doc: Document, properties: PropertyChange[]): void {
+function appendProperties(
+  doc: YamlDocument,
+  properties: PropertyChange[],
+): void {
   const map = ensurePropertiesMap(doc);
   for (const property of properties) {
     if (map.has(property.key)) {
@@ -283,7 +286,7 @@ function quotedScalar(value: string): Scalar {
  * @param doc - Event YAML document.
  * @returns Properties map.
  */
-function ensurePropertiesMap(doc: Document): YAMLMap {
+function ensurePropertiesMap(doc: YamlDocument): YAMLMap {
   const current = doc.get('properties');
   if (current instanceof YAMLMap) {
     current.flow = false;
@@ -317,7 +320,7 @@ async function preserveAndWrite(
   absolute: string,
   previousDir: string | undefined,
   relative: string,
-  doc: Document,
+  doc: YamlDocument,
 ): Promise<void> {
   if (previousDir) {
     const previousPath = path.join(previousDir, relative);
@@ -342,7 +345,10 @@ async function preserveAndWrite(
  * @param next - Newly generated document.
  * @param previous - Document from the last bot branch.
  */
-function overlayPreservedFields(next: Document, previous: Document): void {
+function overlayPreservedFields(
+  next: YamlDocument,
+  previous: YamlDocument,
+): void {
   if (yamlKey(previous.get('name')) !== yamlKey(next.get('name'))) {
     return;
   }
