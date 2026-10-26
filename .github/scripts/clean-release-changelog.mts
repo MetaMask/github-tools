@@ -270,7 +270,8 @@ function assertNotAdjacentListItems(line: string): void {
 
 /**
  * Groups a model response's entries by category, rejecting stray Markdown.
- * It is deliberately strict because the input is untrusted model output.
+ * This is stricter than `parseReleaseSectionCategories` because the input is
+ * untrusted model output, not auto-changelog's own format.
  *
  * @param section - One chunk's cleaned section.
  * @param version - The release version.

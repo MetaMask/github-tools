@@ -25,25 +25,7 @@ import {
   hasSingleReleaseHeading,
   LINK_REFERENCE,
 } from './release-section.mts';
-
-/**
- * Compares two `major.minor.patch` versions.
- * @param left - The first version.
- * @param right - The second version.
- * @returns A positive number when `left` is newer, negative when older, else 0.
- */
-function compareVersions(left: string, right: string): number {
-  const leftParts = left.split('.').map(Number);
-  const rightParts = right.split('.').map(Number);
-
-  for (let index = 0; index < leftParts.length; index += 1) {
-    const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
-    if (difference !== 0) {
-      return difference;
-    }
-  }
-  return 0;
-}
+import { compareSemver } from './release-version-utils.mts';
 
 /**
  * Finds the `[version]: url` link reference for a release.
@@ -81,7 +63,7 @@ function findInsertionIndex(
     if (
       candidate &&
       match.index !== undefined &&
-      compareVersions(version, candidate) > 0
+      compareSemver(version, candidate) > 0
     ) {
       return match.index;
     }
