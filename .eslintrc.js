@@ -7,6 +7,9 @@ module.exports = {
     {
       files: ['*.ts', '*.mts'],
       extends: ['@metamask/eslint-config-typescript'],
+      parserOptions: {
+        project: './tsconfig.json',
+      },
     },
 
     {
@@ -32,6 +35,14 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
+    },
+
+    {
+      files: ['.github/scripts/**/*.test.mts'],
+      rules: {
+        '@typescript-eslint/no-floating-promises': 'off',
+        'n/no-process-env': 'off',
+      },
     },
   ],
 
