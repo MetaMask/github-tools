@@ -18,10 +18,13 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-// Any `[label]: url` line, including `[Unreleased]: url`.
-const LINK_REFERENCE = /^\[[^\]]+\]: /mu;
-// A release section ends at the next heading or at the link references.
-const SECTION_END = /^(?:## \[|\[[^\]]+\]: )/mu;
+import {
+  detectLineEnding,
+  extractReleaseSection,
+  getReleaseVersions,
+  hasSingleReleaseHeading,
+  LINK_REFERENCE,
+} from './release-section.mts';
 
 /**
  * Compares two `major.minor.patch` versions.
@@ -43,55 +46,6 @@ function compareVersions(left: string, right: string): number {
 }
 
 /**
- * Escapes a string for literal use inside a regular expression.
- * @param value - The string to escape.
- * @returns The escaped string.
- */
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-}
-
-/**
- * Finds every `## [version]` heading for a version.
- * @param changelog - The changelog contents.
- * @param version - The release version.
- * @returns All matching headings.
- */
-function getReleaseHeadingMatches(
-  changelog: string,
-  version: string,
-): RegExpMatchArray[] {
-  const heading = `## [${version}]`;
-  return [
-    ...changelog.matchAll(new RegExp(`^${escapeRegex(heading)}$`, 'gmu')),
-  ];
-}
-
-/**
- * Extracts the section for a release, if it appears exactly once.
- * @param changelog - The changelog contents.
- * @param version - The release version.
- * @returns The section text, or undefined when missing or ambiguous.
- */
-function getReleaseSection(
-  changelog: string,
-  version: string,
-): string | undefined {
-  const matches = getReleaseHeadingMatches(changelog, version);
-  // A duplicated heading means we can't tell which copy is the real one.
-  if (matches.length !== 1 || matches[0]?.index === undefined) {
-    return undefined;
-  }
-
-  const start = matches[0].index;
-  const bodyStart = start + matches[0][0].length;
-  const bodyEnd = changelog.slice(bodyStart).search(SECTION_END);
-  return changelog
-    .slice(start, bodyEnd === -1 ? undefined : bodyStart + bodyEnd)
-    .trimEnd();
-}
-
-/**
  * Finds the `[version]: url` link reference for a release.
  * @param changelog - The changelog contents.
  * @param version - The release version.
@@ -103,7 +57,7 @@ function getReleaseReference(
 ): string | undefined {
   const matches = [
     ...changelog.matchAll(
-      new RegExp(`^\\[${escapeRegex(version)}\\]: .+$`, 'gmu'),
+      new RegExp(`^\\[${version.replaceAll('.', '\\.')}\\]: .+$`, 'gmu'),
     ),
   ];
   return matches.length === 1 ? matches[0]?.[0] : undefined;
@@ -217,7 +171,9 @@ function main(): void {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
-  const section = getReleaseSection(source, version);
+  const section = hasSingleReleaseHeading(source, version)
+    ? extractReleaseSection(source, version).section
+    : undefined;
 
   // Only a finalized release has a versioned section; an unreleased or
   // duplicated one is not safe to copy.
@@ -229,7 +185,7 @@ function main(): void {
   }
   // The destination already records this release, so there is nothing to
   // restore and inserting would duplicate the heading.
-  if (getReleaseHeadingMatches(destination, version).length > 0) {
+  if (getReleaseVersions(destination).includes(version)) {
     console.warn(
       `Destination already has a ${version} section; preserving destination changelog.`,
     );
@@ -237,7 +193,7 @@ function main(): void {
   }
 
   // Match the destination so the diff doesn't rewrite every line ending.
-  const lineEnding = destination.includes('\r\n') ? '\r\n' : '\n';
+  const lineEnding = detectLineEnding(destination);
   const withSection = insertReleaseSection(
     destination,
     section,

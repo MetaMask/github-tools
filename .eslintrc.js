@@ -38,10 +38,17 @@ module.exports = {
     },
 
     {
+      files: ['.github/scripts/**/*.mts'],
+      // These are command-line scripts that read their inputs from the environment.
+      rules: {
+        'n/no-process-env': 'off',
+      },
+    },
+
+    {
       files: ['.github/scripts/**/*.test.mts'],
       rules: {
         '@typescript-eslint/no-floating-promises': 'off',
-        'n/no-process-env': 'off',
       },
     },
   ],

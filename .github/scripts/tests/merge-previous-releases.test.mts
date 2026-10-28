@@ -12,6 +12,8 @@ import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import test, { after } from 'node:test';
 
+import { getGitTestEnvironment, git } from './git-test-environment.mts';
+
 const SCRIPT_PATH = join(
   process.cwd(),
   '.github',
@@ -23,28 +25,6 @@ const TEMPORARY_DIRECTORY = mkdtempSync(
   join(tmpdir(), 'previous-release-merge-'),
 );
 after(() => rmSync(TEMPORARY_DIRECTORY, { force: true, recursive: true }));
-
-// CI runners have no global git identity, and the script commits.
-const GIT_IDENTITY = {
-  GIT_AUTHOR_NAME: 'Test User',
-  GIT_AUTHOR_EMAIL: 'test@example.com',
-  GIT_COMMITTER_NAME: 'Test User',
-  GIT_COMMITTER_EMAIL: 'test@example.com',
-};
-
-/**
- * Runs a git command and returns its trimmed output.
- * @param directory - The working directory.
- * @param argumentsList - The git arguments.
- * @returns The trimmed stdout.
- */
-function git(directory: string, ...argumentsList: string[]): string {
-  return execFileSync('git', argumentsList, {
-    cwd: directory,
-    encoding: 'utf8',
-    env: { ...process.env, ...GIT_IDENTITY },
-  }).trim();
-}
 
 /**
  * Creates an origin repository with a `main`, an older active release, and a
@@ -112,8 +92,7 @@ function createReleaseMergeFixture({
       execFileSync('bash', [SCRIPT_PATH], {
         cwd: workDirectory,
         env: {
-          ...process.env,
-          ...GIT_IDENTITY,
+          ...getGitTestEnvironment(),
           NEW_RELEASE_BRANCH: 'release/13.55.0',
           GITHUB_TOKEN: 'test-token',
           PATH: `${binDirectory}${delimiter}${process.env.PATH ?? ''}`,
