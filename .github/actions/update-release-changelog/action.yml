@@ -12,21 +12,9 @@ inputs:
   repository-url:
     required: true
     description: 'Full HTTPS URL for the invoking repository.'
-  previous-version-ref:
-    required: false
-    default: 'null'
-    description: 'Previous release version reference (branch/tag/SHA). Use "null" for hotfixes.'
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
-  github-tools-repository:
-    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_repository }}
-  github-tools-ref:
-    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_ref }}
 
 runs:
   using: composite
@@ -34,26 +22,32 @@ runs:
     # Step 1: Checkout invoking repository (metamask-mobile | metamask-extension)
     - name: Checkout invoking repository
       uses: actions/checkout@v6
+      env:
+        AI_ANALYZER_LITELLM_KEY: ''
       with:
         fetch-depth: 0
         ref: ${{ inputs.release-branch }}
         token: ${{ inputs.github-token }}
 
-    # Step 2: Checkout github-tools repository
-    - name: Checkout GitHub tools repository
-      uses: actions/checkout@v6
+    - name: Set up Node 24 for release changelog automation
+      uses: actions/setup-node@v6
+      env:
+        AI_ANALYZER_LITELLM_KEY: ''
       with:
-        repository: ${{ inputs.github-tools-repository }}
-        ref: ${{ inputs.github-tools-ref }}
-        path: ./github-tools
+        node-version: '24'
 
-    # Step 3: Setup environment
-    - name: Checkout and setup environment
-      uses: MetaMask/action-checkout-and-setup@v3
-      with:
-        is-high-risk-environment: true
+    # Corepack resolves Yarn from the working directory, so install from the
+    # github-tools root to use its own pinned Yarn and lockfile.
+    - name: Install github-tools dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}/../../..
+      env:
+        AI_ANALYZER_LITELLM_KEY: ''
+      run: |
+        set -euo pipefail
+        corepack enable
+        corepack yarn install --immutable
 
-    # Step 4: Update changelog using shared helper script
     - name: Update changelog branch
       shell: bash
       env:
@@ -63,15 +57,21 @@ runs:
         RELEASE_BRANCH: ${{ inputs.release-branch }}
         PLATFORM: ${{ inputs.platform }}
         REPOSITORY_URL: ${{ inputs.repository-url }}
-        PREVIOUS_VERSION_REF: ${{ inputs.previous-version-ref }}
+        AUTO_CHANGELOG_CLI: ${{ github.action_path }}/../../../node_modules/@metamask/auto-changelog/dist/cli.js
       run: |
         set -euo pipefail
 
-        corepack enable
-        yarn install --immutable
-
-        ./github-tools/.github/scripts/update-release-changelog.sh \
+        node "$GITHUB_ACTION_PATH/../../scripts/update-release-changelog.mts" \
           "$RELEASE_BRANCH" \
           "$PLATFORM" \
-          "$REPOSITORY_URL" \
-          "$PREVIOUS_VERSION_REF"
+          "$REPOSITORY_URL"
+
+    - name: Upload clean-room proofread report
+      if: ${{ always() && hashFiles('.tmp/release-changelog-ai/*.json') != '' }}
+      uses: actions/upload-artifact@v7
+      env:
+        AI_ANALYZER_LITELLM_KEY: ''
+      with:
+        name: release-changelog-ai-report
+        path: .tmp/release-changelog-ai/*.json
+        if-no-files-found: ignore

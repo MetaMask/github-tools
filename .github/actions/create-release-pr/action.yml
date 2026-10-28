@@ -48,14 +48,6 @@ inputs:
   google-application-creds-base64:
     description: 'Google application credentials base64 encoded.'
     required: true
-  github-tools-repository:
-    description: 'The GitHub repository containing the GitHub tools. Defaults to the GitHub tools action repositor, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_repository }}
-  github-tools-ref:
-    description: 'The SHA of the action to use. Defaults to the current action ref, and usually does not need to be changed.'
-    required: false
-    default: ${{ github.action_ref }}
 
 runs:
   using: composite
@@ -68,21 +60,13 @@ runs:
         ref: ${{ inputs.checkout-base-branch }}
         token: ${{ inputs.github-token }}
 
-    # Step 2: Checkout github-tools repository
-    - name: Checkout github-tools repository
-      uses: actions/checkout@v6
-      with:
-        repository: ${{ inputs.github-tools-repository }}
-        ref: ${{ inputs.github-tools-ref }}
-        path: github-tools
-
-    # Step 3: Setup environment
+    # Step 2: Setup environment
     - name: Checkout and setup environment
       uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: true
 
-    # Step 4: Print Input Values
+    # Step 3: Print Input Values
     - name: Print Input Values
       env:
         PLATFORM: ${{ inputs.platform }}
@@ -117,7 +101,7 @@ runs:
         echo "Git User Email: $GIT_USER_EMAIL"
         echo "-------------"
 
-    # Step 5: Create Release PR
+    # Step 4: Create Release PR
     - name: Create Release PR
       id: create-release-pr
       shell: bash
@@ -137,10 +121,11 @@ runs:
         MOBILE_BUILD_VERSION: ${{ inputs.mobile-build-version }}
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        GITHUB_TOOLS_DIR: ${{ github.action_path }}/../../..
       working-directory: ${{ github.workspace }}
       run: |
-        # Execute the script from github-tools
-        ./github-tools/.github/scripts/create-platform-release-pr.sh \
+        # Use the action revision GitHub resolved for this run.
+        "$GITHUB_TOOLS_DIR/.github/scripts/create-platform-release-pr.sh" \
           "$PLATFORM" \
           "$PREVIOUS_VERSION_REF" \
           "$SEMVER_VERSION" \
@@ -148,7 +133,7 @@ runs:
           "$GIT_USER_NAME" \
           "$GIT_USER_EMAIL"
 
-    # Step 6: Upload commits.csv as artifact (if generated)
+    # Step 5: Upload commits.csv as artifact (if generated)
     - name: Upload commits.csv artifact
       if: ${{ hashFiles('commits.csv') != '' }}
       uses: actions/upload-artifact@v7
