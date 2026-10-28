@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.0]
+
+### Added
+
+- Add an AI changelog proofreader to `update-release-changelog` ([#301](https://github.com/MetaMask/github-tools/pull/301))
+  - It runs when `AI_ANALYZER_LITELLM_KEY` is set in the calling workflow's environment.
+  - If it fails or no key is set, the changelog PR is still opened, with the title suffix "AI automation failed, not proofread".
+
+### Changed
+
+- Rebuild release changelogs deterministically from a predecessor release baseline in `update-release-changelog` ([#303](https://github.com/MetaMask/github-tools/pull/303))
+  - Updater commits record the release commit they cover in a `Changelog-Generated-Through` trailer.
+  - `.github/scripts/update-release-changelog.sh` now forwards to the new updater, so existing callers keep working.
+  - The `previous-version-ref` input is no longer used and can be removed from callers.
+- Preserve finalized changelog history when `merge-previous-releases` merges older release branches ([#300](https://github.com/MetaMask/github-tools/pull/300))
+
 ## [1.21.0]
 
 ### Added
@@ -282,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.21.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.0...HEAD
+[1.22.0]: https://github.com/MetaMask/github-tools/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/MetaMask/github-tools/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/MetaMask/github-tools/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/MetaMask/github-tools/compare/v1.18.2...v1.19.0
