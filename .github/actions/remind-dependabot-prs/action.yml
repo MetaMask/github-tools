@@ -50,4 +50,4 @@ runs:
         TOPOLOGY_REF: ${{ inputs.topology-ref }}
       run: |
         set -euo pipefail
-        node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder.mts"
+        node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder/cli.mts"
