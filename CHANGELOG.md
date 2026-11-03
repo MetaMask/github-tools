@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `release-slack-summaries` composite action, a GitHub Actions port of Zapier Zaps 596 and 597 ([#306](https://github.com/MetaMask/github-tools/pull/306))
+  - Jira is read-only. Callers pass short-lived GitHub tokens from `get-token`.
+  - Dry-run defaults to true, and the release PR checklist is rewritten only when `allow-pr-write` is set.
+
 ## [1.22.0]
 
 ### Added

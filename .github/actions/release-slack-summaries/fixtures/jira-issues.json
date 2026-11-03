@@ -1,0 +1,78 @@
+{
+  "regressions": [
+    {
+      "key": "ASSETS-1",
+      "fields": {
+        "summary": "Login crash",
+        "assignee": null,
+        "project": { "key": "ASSETS" },
+        "status": { "statusCategory": { "key": "indeterminate" } }
+      }
+    },
+    {
+      "key": "ASSETS-2",
+      "fields": {
+        "summary": "Icon glitch",
+        "assignee": { "displayName": "Ada" },
+        "project": { "key": "ASSETS" },
+        "status": { "statusCategory": { "key": "indeterminate" } }
+      }
+    },
+    {
+      "key": "DSYS-9",
+      "fields": {
+        "summary": "Token icon blocks sign-off",
+        "assignee": { "displayName": "Bea" },
+        "project": { "key": "DSYS" },
+        "status": { "statusCategory": { "key": "indeterminate" } }
+      }
+    },
+    {
+      "key": "PRED-4",
+      "fields": {
+        "summary": "Unmapped project blocker",
+        "assignee": null,
+        "project": { "key": "PRED" },
+        "status": { "statusCategory": { "key": "new" } }
+      }
+    },
+    {
+      "key": "CEUX-3",
+      "fields": {
+        "summary": "Closed regression",
+        "assignee": { "displayName": "Cy" },
+        "project": { "key": "CEUX" },
+        "status": { "statusCategory": { "key": "done" } }
+      }
+    }
+  ],
+  "blockers": [
+    {
+      "key": "ASSETS-1",
+      "fields": {
+        "summary": "Login crash",
+        "assignee": null,
+        "project": { "key": "ASSETS" },
+        "status": { "statusCategory": { "key": "indeterminate" } }
+      }
+    },
+    {
+      "key": "DSYS-9",
+      "fields": {
+        "summary": "Token icon blocks sign-off",
+        "assignee": { "displayName": "Bea" },
+        "project": { "key": "DSYS" },
+        "status": { "statusCategory": { "key": "indeterminate" } }
+      }
+    },
+    {
+      "key": "PRED-4",
+      "fields": {
+        "summary": "Unmapped project blocker",
+        "assignee": null,
+        "project": { "key": "PRED" },
+        "status": { "statusCategory": { "key": "new" } }
+      }
+    }
+  ]
+}
