@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  buildSlackPayload,
   classifyPullRequests,
   normalizeTeam,
 } from '../dependabot-pr-reminder.mts';
-import type { PullRequest } from '../dependabot-pr-reminder.mts';
+import type { PullRequest, Reminder } from '../dependabot-pr-reminder.mts';
 
 /**
  * Builds a pull request for tests.
@@ -85,5 +86,99 @@ describe('classifyPullRequests', () => {
       fallbackTeam: 'f',
     });
     assert.deepEqual(Object.keys(result.byTeam), ['core']);
+  });
+});
+
+describe('buildSlackPayload', () => {
+  const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
+  const emptyReminder = (): Reminder => ({
+    byTeam: {},
+    fallback: { failingCi: [], readyToMerge: [], needsOwner: [] },
+  });
+  const allText = (payload: { text: string; blocks: unknown[] }): string =>
+    `${payload.text}\n${JSON.stringify(payload.blocks)}`;
+
+  it('returns undefined for an empty reminder', () => {
+    assert.equal(buildSlackPayload(emptyReminder(), {}, options), undefined);
+  });
+
+  it('tags a team using slackHandle.team', () => {
+    const reminder = emptyReminder();
+    reminder.byTeam['core-platform'] = [pr({ number: 7 })];
+    const payload = buildSlackPayload(
+      reminder,
+      {
+        'core-platform': {
+          githubHandle: 'MetaMask/core-platform',
+          slackHandle: { team: 'S123' },
+        },
+      },
+      options,
+    );
+    assert.ok(payload);
+    assert.match(allText(payload), /<!subteam\^S123>/u);
+    assert.match(allText(payload), /#7/u);
+    assert.match(payload.text, /<!subteam\^S123>/u);
+    assert.doesNotMatch(allText(payload), /:dependabot:/u);
+  });
+
+  it('matches githubHandle regardless of case or @ prefix', () => {
+    const reminder = emptyReminder();
+    reminder.byTeam['core-platform'] = [pr()];
+    const payload = buildSlackPayload(
+      reminder,
+      {
+        key: {
+          githubHandle: '@MetaMask/Core-Platform',
+          slackHandle: { team: 'S9' },
+        },
+      },
+      options,
+    );
+    assert.ok(payload);
+    assert.match(allText(payload), /<!subteam\^S9>/u);
+  });
+
+  it('falls back to the plain team name when topology has no match', () => {
+    const reminder = emptyReminder();
+    reminder.byTeam['core-platform'] = [pr()];
+    const payload = buildSlackPayload(reminder, {}, options);
+    assert.ok(payload);
+    assert.match(allText(payload), /core-platform/u);
+    assert.doesNotMatch(allText(payload), /subteam\^/u);
+  });
+
+  it('escapes &, <, > in PR titles', () => {
+    const reminder = emptyReminder();
+    reminder.byTeam.a = [pr({ title: 'Bump <a> & b > c' })];
+    const payload = buildSlackPayload(reminder, {}, options);
+    assert.ok(payload);
+    assert.match(allText(payload), /Bump &lt;a&gt; &amp; b &gt; c/u);
+  });
+
+  it('renders fallback sections under the fallback team', () => {
+    const reminder = emptyReminder();
+    reminder.fallback.failingCi = [pr({ number: 1 })];
+    reminder.fallback.readyToMerge = [pr({ number: 2 })];
+    reminder.fallback.needsOwner = [pr({ number: 3 })];
+    const payload = buildSlackPayload(
+      reminder,
+      {
+        platform: {
+          githubHandle: 'MetaMask/platform',
+          slackHandle: { team: 'SF' },
+        },
+      },
+      options,
+    );
+    assert.ok(payload);
+    const text = allText(payload);
+    assert.match(text, /<!subteam\^SF>/u);
+    assert.match(text, /[Ff]ailing CI/u);
+    assert.match(text, /[Rr]eady to merge/u);
+    assert.match(text, /[Nn]eeds owner/u);
+    assert.match(text, /#1/u);
+    assert.match(text, /#2/u);
+    assert.match(text, /#3/u);
   });
 });

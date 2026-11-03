@@ -76,3 +76,116 @@ export function classifyPullRequests(
 
   return reminder;
 }
+
+export type Topology = Record<
+  string,
+  { githubHandle?: string; slackHandle?: { team?: string } }
+>;
+
+/**
+ * Escapes characters that Slack mrkdwn treats as control characters.
+ *
+ * @param text - The raw text.
+ * @returns The escaped text.
+ */
+function escapeSlack(text: string): string {
+  return text
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;');
+}
+
+/**
+ * Formats pull requests as bulleted Slack links.
+ *
+ * @param pullRequests - The pull requests to list.
+ * @returns The bulleted lines.
+ */
+function formatPullRequests(pullRequests: PullRequest[]): string {
+  return pullRequests
+    .map(
+      ({ url, number, title }) => `• <${url}|#${number} ${escapeSlack(title)}>`,
+    )
+    .join('\n');
+}
+
+/**
+ * Builds the Slack incoming webhook payload for a reminder.
+ *
+ * @param reminder - The classified reminder.
+ * @param topology - The team topology used to look up Slack user groups.
+ * @param options - Payload options.
+ * @param options.fallbackTeam - The team tagged on the fallback sections.
+ * @param options.repository - The repository name shown in the header.
+ * @returns The payload, or undefined when there is nothing to post.
+ */
+export function buildSlackPayload(
+  reminder: Reminder,
+  topology: Topology,
+  options: { fallbackTeam: string; repository: string },
+):
+  | {
+      text: string;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      link_names: boolean;
+      blocks: { type: string; text: { type: string; text: string } }[];
+    }
+  | undefined {
+  const teamEntries = Object.entries(reminder.byTeam).filter(
+    ([, pullRequests]) => pullRequests.length > 0,
+  );
+  const fallbackSections = [
+    { label: 'Failing CI', pullRequests: reminder.fallback.failingCi },
+    { label: 'Ready to merge', pullRequests: reminder.fallback.readyToMerge },
+    { label: 'Needs owner', pullRequests: reminder.fallback.needsOwner },
+  ].filter(({ pullRequests }) => pullRequests.length > 0);
+
+  if (teamEntries.length === 0 && fallbackSections.length === 0) {
+    return undefined;
+  }
+
+  const tag = (team: string): string => {
+    const slug = normalizeTeam(team);
+    const entry = Object.values(topology).find(
+      ({ githubHandle }) =>
+        githubHandle && normalizeTeam(githubHandle) === slug,
+    );
+    const id = entry?.slackHandle?.team;
+    return id ? `<!subteam^${id}>` : slug;
+  };
+
+  const section = (text: string) => ({
+    type: 'section',
+    text: { type: 'mrkdwn', text },
+  });
+
+  const headline = `*[${escapeSlack(options.repository)}] Open Dependabot pull requests*`;
+  const blocks = [section(headline)];
+  const mentions = new Set<string>();
+  const mention = (team: string): string => {
+    const value = tag(team);
+    if (value.startsWith('<!subteam^')) {
+      mentions.add(value);
+    }
+    return value;
+  };
+  for (const [team, pullRequests] of teamEntries) {
+    blocks.push(
+      section(`${mention(team)}\n${formatPullRequests(pullRequests)}`),
+    );
+  }
+  for (const { label, pullRequests } of fallbackSections) {
+    blocks.push(
+      section(
+        `${mention(options.fallbackTeam)} *${label}*\n${formatPullRequests(pullRequests)}`,
+      ),
+    );
+  }
+
+  return {
+    text: [headline, ...mentions].join(' '),
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    link_names: true,
+    blocks,
+  };
+}
