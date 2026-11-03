@@ -15,7 +15,7 @@ This repository holds a collection of scripts which are intended to be run local
 
 ### Dependabot PR reminder
 
-`.github/workflows/remind-dependabot-prs.yml` posts a Slack thread of open Dependabot PRs grouped by owning team. Owners are the teams still requested as reviewers; slack tags come from `MetaMask-planning/topology.json`. PRs with failing CI or no owning team are listed under `fallback-team`. Nothing is posted when no PRs are open.
+`.github/workflows/remind-dependabot-prs.yml` posts a Slack thread of open Dependabot PRs grouped by owning team. Owners are the teams still requested as reviewers; Slack tags come from `MetaMask-planning/topology.json`. PRs with failing CI or no owning team are listed under `fallback-team`. Nothing is posted when no PRs are open.
 
 | Input               | Default         | Description                                                      |
 | ------------------- | --------------- | ---------------------------------------------------------------- |
