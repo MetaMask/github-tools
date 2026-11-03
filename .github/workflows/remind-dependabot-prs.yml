@@ -1,7 +1,9 @@
 name: Remind Dependabot PRs
 
 # Note: the `@v1` references below only resolve after a github-tools release.
-# Before release, smoke-test callers against a branch ref instead of `@v1`.
+# Pointing a caller at a branch ref is not enough for a pre-release smoke test:
+# this workflow also references `get-token@v1` and `remind-dependabot-prs@v1`
+# internally, so temporarily edit those inner `uses:` refs to the branch ref.
 
 on:
   workflow_call:
@@ -34,6 +36,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      checks: read
+      statuses: read
       id-token: write
     steps:
       - name: Get planning token

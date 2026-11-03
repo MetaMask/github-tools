@@ -15,24 +15,24 @@ This repository holds a collection of scripts which are intended to be run local
 
 ### Dependabot PR reminder
 
-The reusable workflow `.github/workflows/remind-dependabot-prs.yml` posts a Slack thread listing open Dependabot PRs, grouped by owning team. Team Slack tags come from `topology.json` in `MetaMask/MetaMask-planning`. Nothing is posted if no Dependabot PRs are open. Draft PRs are skipped. PRs with failing CI and PRs that are ready to merge are listed under the fallback team.
+The reusable workflow `.github/workflows/remind-dependabot-prs.yml` posts a Slack thread listing open Dependabot PRs, grouped by owning team. Team Slack tags come from `topology.json` in `MetaMask/MetaMask-planning`. Nothing is posted if no Dependabot PRs are open. Draft PRs are skipped. PRs with failing CI and PRs that are approved with no owning team left are listed under the fallback team. Owners are identified only by team review requests: if the org auto-assigns individual reviewers (not teams) via code owners or team settings, those PRs are reported under the fallback team as needing an owner.
 
 | Input               | Required | Default         | Description                                                                                 |
 | ------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------- |
 | `owner-teams`       | No       |                 | Comma-separated team slugs that own the repo. If unset, all requested-reviewer teams count. |
-| `fallback-team`     | No       | `core-platform` | Team that gets PRs with no owning team, failing CI, or ready to merge.                      |
+| `fallback-team`     | No       | `core-platform` | Team that gets PRs with no owning team, failing CI, or approved with no owning team left.   |
 | `topology-ref`      | No       | `main`          | Ref of `MetaMask/MetaMask-planning` to read `topology.json` from.                           |
 | `slack-webhook-url` | Yes      |                 | Secret. Each repo passes its own so it can post to its own channel.                         |
 
 Requirements for the calling repo:
 
 - The caller workflow must be named `remind-dependabot-prs.yml` (the token-exchange-service policy matches on the caller's workflow file name).
-- The job permissions must include `id-token: write` and `pull-requests: read`.
+- The job permissions must include `contents: read`, `pull-requests: read`, `checks: read`, `statuses: read` and `id-token: write`.
 - A `default-branch` environment must exist and allow the branch the cron runs on (`main`).
 - The repository variable `TOKEN_EXCHANGE_URL` must be set.
 - A token-exchange-service policy must let the caller read `MetaMask/MetaMask-planning` with `contents: read`.
 
-`@v1` resolves only after a release of this repository.
+`@v1` resolves only after a release of this repository. Pointing a caller at a branch ref is not enough for a pre-release smoke test, because the reusable workflow also references `MetaMask/github-tools/.github/actions/remind-dependabot-prs@v1` and `get-token@v1` internally; temporarily edit those inner `uses:` refs to the branch ref.
 
 Polyrepo (for example `metamask-extension`):
 
@@ -49,6 +49,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      checks: read
+      statuses: read
       id-token: write
     uses: MetaMask/github-tools/.github/workflows/remind-dependabot-prs.yml@v1
     with:
@@ -73,6 +75,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      checks: read
+      statuses: read
       id-token: write
     uses: MetaMask/github-tools/.github/workflows/remind-dependabot-prs.yml@v1
     secrets:
