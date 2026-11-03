@@ -13,6 +13,72 @@ This repository holds a collection of scripts which are intended to be run local
 
 - `yarn segment-schema:draft-pr`: Local CLI for the Segment schema draft. See the [CLI](src/segment-schema-draft-pr/README.md) and the [action](.github/actions/draft-segment-schema-pr/README.md).
 
+### Dependabot PR reminder
+
+The reusable workflow `.github/workflows/remind-dependabot-prs.yml` posts a Slack thread listing open Dependabot PRs, grouped by owning team. Team Slack tags come from `topology.json` in `MetaMask/MetaMask-planning`. Nothing is posted if no Dependabot PRs are open. Draft PRs are skipped. PRs with failing CI and PRs that are ready to merge are listed under the fallback team.
+
+| Input               | Required | Default         | Description                                                                                 |
+| ------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------- |
+| `owner-teams`       | No       |                 | Comma-separated team slugs that own the repo. If unset, all requested-reviewer teams count. |
+| `fallback-team`     | No       | `core-platform` | Team that gets PRs with no owning team, failing CI, or ready to merge.                      |
+| `topology-ref`      | No       | `main`          | Ref of `MetaMask/MetaMask-planning` to read `topology.json` from.                           |
+| `slack-webhook-url` | Yes      |                 | Secret. Each repo passes its own so it can post to its own channel.                         |
+
+Requirements for the calling repo:
+
+- The caller workflow must be named `remind-dependabot-prs.yml` (the token-exchange-service policy matches on the caller's workflow file name).
+- The job permissions must include `id-token: write` and `pull-requests: read`.
+- A `default-branch` environment must exist and allow the branch the cron runs on (`main`).
+- The repository variable `TOKEN_EXCHANGE_URL` must be set.
+- A token-exchange-service policy must let the caller read `MetaMask/MetaMask-planning` with `contents: read`.
+
+`@v1` resolves only after a release of this repository.
+
+Polyrepo (for example `metamask-extension`):
+
+```yaml
+name: Remind Dependabot PRs
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+jobs:
+  remind:
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    uses: MetaMask/github-tools/.github/workflows/remind-dependabot-prs.yml@v1
+    with:
+      owner-teams: extension-platform
+      fallback-team: extension-platform
+    secrets:
+      slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+Monorepo (for example `core`), with no extra inputs:
+
+```yaml
+name: Remind Dependabot PRs
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+jobs:
+  remind:
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    uses: MetaMask/github-tools/.github/workflows/remind-dependabot-prs.yml@v1
+    secrets:
+      slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
 ### Authentication
 
 Some scripts require a GitHub token in order to run fully.
