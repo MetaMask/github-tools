@@ -4,8 +4,9 @@ description: >-
   summary (Zap 597) to Slack. Jira is read-only. The caller passes short-lived
   GitHub tokens from `.github/actions/get-token`; this action does not mint
   tokens. Dry-run defaults to true and writes the message to the job summary.
-  The release PR checklist is rewritten only when allow-pr-write is true and
-  dry-run is false.
+  The release PR checklist is rewritten only when allow-pr-write is true,
+  dry-run is false, and test-channel is empty. A test channel never writes
+  a pull request body.
 
 inputs:
   mode:
@@ -64,7 +65,8 @@ inputs:
     default: jiraProject
   test-channel:
     description: >-
-      When set, post only to this channel. Real release channels are not used.
+      When set, post only to this channel and do not write any release PR body,
+      even if allow-pr-write is true. Real release channels are not used.
     required: false
     default: ''
   dry-run:
@@ -76,7 +78,8 @@ inputs:
   allow-pr-write:
     description: >-
       Default false. Zap 597 rewrites the release PR checklist only when this
-      is true and dry-run is false. Blocker summary never writes.
+      is true, dry-run is false, and test-channel is empty. Blocker summary
+      never writes.
     required: false
     default: 'false'
   github-tools-repository:

@@ -5,6 +5,7 @@
  * Jira is read-only. GitHub tokens are passed in by the caller (get-token);
  * this action does not mint them and does not read a personal access token.
  * Defaults: dry-run, and no pull request write unless `allow-pr-write` is set.
+ * A set test-channel also refuses the pull request write.
  */
 
 import { Octokit } from '@octokit/rest';
@@ -205,6 +206,12 @@ export async function run(config, deps = {}) {
     `OPEN: topology Jira project field "${config.topologyJiraProjectField}" is the PROPOSED name. Teams with a key: ${teamsWithProjects} of ${Object.keys(registry.teams).length}.`,
   );
   openLines.push(...registry.warnings.map((warning) => `OPEN: ${warning}`));
+  if (config.testChannel) {
+    const refusal =
+      'test-channel is set. Refusing pull request body writes even if allow-pr-write is true. Zap 597 still rewrites those bodies during the parallel run.';
+    console.log(refusal);
+    openLines.push(refusal);
+  }
 
   writeSummary(
     [
@@ -422,6 +429,9 @@ function describePrWrite(config, updatedBody) {
   }
   if (!updatedBody) {
     return 'checklist unchanged';
+  }
+  if (config.testChannel) {
+    return 'test-channel is set, not written';
   }
   if (config.dryRun) {
     return 'dry-run, not written';

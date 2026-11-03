@@ -1,8 +1,8 @@
 /**
  * Safe defaults for the shared action.
  * Dry-run posts nothing and writes nothing. A pull request body is written
- * only for release validation, when dry-run is off and allow-pr-write is on.
- * `test-channel` changes the Slack target only (see the action description).
+ * only for release validation, when dry-run is off, allow-pr-write is on,
+ * and test-channel is empty. A test channel never writes a pull request body.
  */
 
 /**
@@ -39,9 +39,18 @@ export function isPrWriteAllowed(value) {
  * @param {string} args.mode - `blocker-summary` or `release-validation`.
  * @param {boolean} args.dryRun - Parsed dry-run flag.
  * @param {boolean} args.allowPrWrite - Parsed allow-pr-write flag.
+ * @param {string} [args.testChannel] - When set, the write is refused.
  * @returns {boolean} Whether this run may PATCH a pull request body.
  */
-export function shouldWriteReleasePr({ mode, dryRun, allowPrWrite }) {
+export function shouldWriteReleasePr({
+  mode,
+  dryRun,
+  allowPrWrite,
+  testChannel,
+}) {
+  if ((testChannel || '').trim()) {
+    return false;
+  }
   return (
     mode === 'release-validation' && dryRun === false && allowPrWrite === true
   );

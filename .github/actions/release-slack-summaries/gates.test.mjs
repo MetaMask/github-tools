@@ -84,6 +84,24 @@ describe('safe defaults', () => {
       }),
       true,
     );
+    assert.equal(
+      shouldWriteReleasePr({
+        mode: 'release-validation',
+        dryRun: false,
+        allowPrWrite: true,
+        testChannel: '#release-summary-test',
+      }),
+      false,
+    );
+    assert.equal(
+      shouldWriteReleasePr({
+        mode: 'release-validation',
+        dryRun: false,
+        allowPrWrite: true,
+        testChannel: '   ',
+      }),
+      true,
+    );
   });
 
   it('posts only to the test channel when one is set', () => {
