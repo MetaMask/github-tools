@@ -1,0 +1,136 @@
+name: Release Slack summaries
+description: >-
+  Posts the daily release blocker summary (Zap 596) or release validation
+  summary (Zap 597) to Slack. Jira is read-only. The caller passes short-lived
+  GitHub tokens from `.github/actions/get-token`; this action does not mint
+  tokens. Dry-run defaults to true and writes the message to the job summary.
+  The release PR checklist is rewritten only when allow-pr-write is true and
+  dry-run is false.
+
+inputs:
+  mode:
+    description: 'blocker-summary (Zap 596) or release-validation (Zap 597).'
+    required: true
+  platform:
+    description: 'extension or mobile.'
+    required: true
+  github-token:
+    description: >-
+      Short-lived token for the client repository (pull_requests: write, or
+      read for blocker-summary). Obtained by the caller via get-token.
+    required: true
+  planning-token:
+    description: >-
+      Short-lived contents: read token for MetaMask/MetaMask-planning
+      (topology.json). Obtained by the caller via get-token.
+    required: true
+  slack-bot-token:
+    description: Existing SLACK_BOT_TOKEN secret. Used only when dry-run is false.
+    required: true
+  jira-base-url:
+    description: Jira site origin. Read-only search.
+    required: false
+    default: https://consensyssoftware.atlassian.net
+  jira-email:
+    description: >-
+      Atlassian account email for the read-only Jira token (POC secret
+      JIRA_EMAIL in the release-notifications environment).
+    required: true
+  jira-api-token:
+    description: >-
+      Read-only Jira API token (POC secret JIRA_API_TOKEN). Never written back
+      to Jira.
+    required: true
+  jira-release-blocker-jql:
+    description: >-
+      Base JQL for release blockers. The saved filter is not created yet: leave
+      this empty and the step logs OPEN and skips the blocker section. Per
+      release the action appends AND cf[14565] = "V".
+    required: false
+    default: ''
+  jira-regression-jql:
+    description: >-
+      Optional base JQL for Found-in regressions. Empty uses the v10 proposal
+      default (issuetype = Bug, project in the §4 list) and the action appends
+      AND cf[16946] = "V". OPEN until the field id and project list are confirmed.
+    required: false
+    default: ''
+  topology-jira-project-field:
+    description: >-
+      topology.json field holding Jira project keys. PROPOSED name jiraProject
+      (array or string). OPEN until the schema change lands. Missing keys do
+      not guess a team.
+    required: false
+    default: jiraProject
+  test-channel:
+    description: >-
+      When set, post only to this channel. Real release channels are not used.
+    required: false
+    default: ''
+  dry-run:
+    description: >-
+      Default true. Build the Slack message and any PR-body diff into the job
+      summary. Post nothing and write nothing.
+    required: false
+    default: 'true'
+  allow-pr-write:
+    description: >-
+      Default false. Zap 597 rewrites the release PR checklist only when this
+      is true and dry-run is false. Blocker summary never writes.
+    required: false
+    default: 'false'
+  github-tools-repository:
+    description: Repository that contains this action. Defaults to the action repository.
+    required: false
+    default: ${{ github.action_repository }}
+  github-tools-ref:
+    description: Git ref of github-tools to check out. Defaults to the current action ref.
+    required: false
+    default: ${{ github.action_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout GitHub tools repository
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.github-tools-repository }}
+        ref: ${{ inputs.github-tools-ref }}
+        path: ./github-tools
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache-dependency-path: ./github-tools/yarn.lock
+        cache: yarn
+
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+      working-directory: ./github-tools
+
+    - name: Install dependencies
+      working-directory: ./github-tools
+      shell: bash
+      run: yarn --immutable
+
+    - name: Post release Slack summaries
+      working-directory: ./github-tools
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        PLATFORM: ${{ inputs.platform }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        PLANNING_TOKEN: ${{ inputs.planning-token }}
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        JIRA_BASE_URL: ${{ inputs.jira-base-url }}
+        JIRA_EMAIL: ${{ inputs.jira-email }}
+        JIRA_API_TOKEN: ${{ inputs.jira-api-token }}
+        JIRA_RELEASE_BLOCKER_JQL: ${{ inputs.jira-release-blocker-jql }}
+        JIRA_REGRESSION_JQL: ${{ inputs.jira-regression-jql }}
+        TOPOLOGY_JIRA_PROJECT_FIELD: ${{ inputs.topology-jira-project-field }}
+        TEST_CHANNEL: ${{ inputs.test-channel }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        ALLOW_PR_WRITE: ${{ inputs.allow-pr-write }}
+      run: node .github/actions/release-slack-summaries/run.mjs

@@ -1,0 +1,42 @@
+{
+  "team-extension-platform": {
+    "name": "Extension Platform team",
+    "slackHandle": {
+      "releaseContact": "@release-contact-extension-platform"
+    },
+    "githubLabel": {
+      "name": "team-extension-platform"
+    },
+    "jiraProject": ["ASSETS"]
+  },
+  "team-mobile-platform": {
+    "name": "Mobile Platform team",
+    "slackHandle": {
+      "releaseContact": "@release-contact-mobile-platform"
+    },
+    "githubLabel": {
+      "name": "team-mobile-platform"
+    },
+    "jiraProject": "MOBILE"
+  },
+  "team-design-system": {
+    "name": "Design System team",
+    "slackHandle": {
+      "releaseContact": "@release-contact-design-system"
+    },
+    "githubLabel": {
+      "name": "team-design-system"
+    },
+    "jiraProject": ["DSYS"]
+  },
+  "team-qa": {
+    "name": "QA Team",
+    "slackHandle": {
+      "releaseContact": "@release-contact-qa"
+    },
+    "githubLabel": {
+      "name": "team-qa"
+    },
+    "jiraProject": ["QA"]
+  }
+}

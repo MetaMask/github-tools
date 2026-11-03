@@ -46,6 +46,15 @@ module.exports = {
     },
 
     {
+      files: ['.github/actions/release-slack-summaries/**/*.mjs'],
+      // The composite action passes inputs through the environment, same as
+      // the scripts under .github/scripts.
+      rules: {
+        'n/no-process-env': 'off',
+      },
+    },
+
+    {
       files: ['.github/scripts/**/*.test.mts'],
       rules: {
         '@typescript-eslint/no-floating-promises': 'off',
