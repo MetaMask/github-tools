@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 
 import {
   buildSlackPayload,
+  buildTopologyPath,
   classifyPullRequests,
+  collectRequestedTeams,
   normalizeTeam,
   parseOwnerTeams,
   toPullRequest,
@@ -12,6 +14,7 @@ import type {
   GraphQlPullRequestNode,
   PullRequest,
   Reminder,
+  Topology,
 } from '../dependabot-pr-reminder.mts';
 
 /**
@@ -203,8 +206,8 @@ function node(
     title: 'Bump foo',
     url: 'https://github.com/MetaMask/example/pull/7',
     isDraft: false,
-    author: { login: 'dependabot[bot]' },
-    reviewRequests: { nodes: [] },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    author: { __typename: 'Bot', login: 'dependabot' },
     latestOpinionatedReviews: { nodes: [] },
     commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
     ...overrides,
@@ -213,22 +216,48 @@ function node(
 
 describe('toPullRequest', () => {
   it('returns undefined for drafts', () => {
-    assert.equal(toPullRequest(node({ isDraft: true })), undefined);
+    assert.equal(toPullRequest(node({ isDraft: true }), []), undefined);
   });
 
   it('returns undefined for non-Dependabot authors', () => {
     assert.equal(
-      toPullRequest(node({ author: { login: 'someone-else' } })),
+      toPullRequest(
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        node({ author: { __typename: 'Bot', login: 'someone-else' } }),
+        [],
+      ),
       undefined,
     );
   });
 
+  it('rejects a User named dependabot', () => {
+    assert.equal(
+      toPullRequest(
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        node({ author: { __typename: 'User', login: 'dependabot' } }),
+        [],
+      ),
+      undefined,
+    );
+  });
+
+  it('accepts a Bot named dependabot[bot]', () => {
+    assert.equal(
+      toPullRequest(
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        node({ author: { __typename: 'Bot', login: 'dependabot[bot]' } }),
+        [],
+      )?.number,
+      7,
+    );
+  });
+
   it('returns undefined when the author is missing', () => {
-    assert.equal(toPullRequest(node({ author: null })), undefined);
+    assert.equal(toPullRequest(node({ author: null }), []), undefined);
   });
 
   it('maps a Dependabot PR', () => {
-    assert.deepEqual(toPullRequest(node()), {
+    assert.deepEqual(toPullRequest(node(), []), {
       number: 7,
       title: 'Bump foo',
       url: 'https://github.com/MetaMask/example/pull/7',
@@ -238,32 +267,26 @@ describe('toPullRequest', () => {
     });
   });
 
-  it('keeps Team reviewers and ignores Users', () => {
-    const result = toPullRequest(
-      node({
-        reviewRequests: {
-          /* eslint-disable @typescript-eslint/naming-convention */
-          nodes: [
-            { requestedReviewer: { __typename: 'User' } },
-            { requestedReviewer: { __typename: 'Team', slug: 'wallet' } },
-            { requestedReviewer: null },
-          ],
-          /* eslint-enable @typescript-eslint/naming-convention */
-        },
-      }),
-    );
-    assert.deepEqual(result?.requestedTeams, ['wallet']);
+  it('uses the given requested teams', () => {
+    assert.deepEqual(toPullRequest(node(), ['wallet'])?.requestedTeams, [
+      'wallet',
+    ]);
   });
 
-  it('sets hasApproval when any latest review is APPROVED', () => {
-    const result = toPullRequest(
-      node({
-        latestOpinionatedReviews: {
-          nodes: [{ state: 'CHANGES_REQUESTED' }, { state: 'APPROVED' }],
-        },
-      }),
-    );
-    assert.equal(result?.hasApproval, true);
+  it('sets hasApproval when approved and nothing requests changes', () => {
+    const result = (states: string[]) =>
+      toPullRequest(
+        node({
+          latestOpinionatedReviews: {
+            nodes: states.map((state) => ({ state })),
+          },
+        }),
+        [],
+      )?.hasApproval;
+    assert.equal(result(['APPROVED']), true);
+    assert.equal(result(['APPROVED', 'CHANGES_REQUESTED']), false);
+    assert.equal(result(['CHANGES_REQUESTED']), false);
+    assert.equal(result([]), false);
   });
 
   it('sets ciFailing only for FAILURE and ERROR', () => {
@@ -276,6 +299,7 @@ describe('toPullRequest', () => {
             ],
           },
         }),
+        [],
       )?.ciFailing;
     assert.equal(rollup('FAILURE'), true);
     assert.equal(rollup('ERROR'), true);
@@ -326,5 +350,65 @@ describe('buildSlackPayload chunking', () => {
     for (const { number } of pullRequests) {
       assert.ok(joined.includes(`#${number} `), `PR #${number} is missing`);
     }
+  });
+});
+
+describe('buildSlackPayload limits and lookup', () => {
+  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
+
+  it('caps blocks at 50 and appends an overflow line', () => {
+    const byTeam: Reminder['byTeam'] = {};
+    for (let index = 0; index < 80; index++) {
+      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
+    }
+    const payload = buildSlackPayload(
+      { byTeam, fallback: { failingCi: [], readyToMerge: [], needsOwner: [] } },
+      {},
+      options,
+    );
+    assert.ok(payload);
+    assert.ok(payload.blocks.length <= 50);
+    const last = payload.blocks[payload.blocks.length - 1];
+    assert.match(last?.text.text ?? '', /…and \d+ more/u);
+  });
+
+  it('does not throw on null topology entries', () => {
+    const payload = buildSlackPayload(
+      {
+        byTeam: { a: [pr()] },
+        fallback: { failingCi: [], readyToMerge: [], needsOwner: [] },
+      },
+      {
+        bad: null,
+        good: { githubHandle: 'MetaMask/a', slackHandle: { team: 'S1' } },
+      } as unknown as Topology,
+      options,
+    );
+    assert.match(payload?.text ?? '', /<!subteam\^S1>/u);
+  });
+});
+
+/* eslint-disable @typescript-eslint/naming-convention */
+describe('collectRequestedTeams', () => {
+  it('maps PR numbers to requested team slugs across pages', () => {
+    const map = collectRequestedTeams([
+      [{ number: 1, requested_teams: [{ slug: 'a' }, { slug: 'b' }] }],
+      [{ number: 2, requested_teams: [] }, { number: 3 }],
+    ]);
+    assert.deepEqual(map.get(1), ['a', 'b']);
+    assert.deepEqual(map.get(2), []);
+    assert.equal(map.get(3), undefined);
+    assert.equal(map.get(4), undefined);
+  });
+});
+
+/* eslint-enable @typescript-eslint/naming-convention */
+
+describe('buildTopologyPath', () => {
+  it('encodes the ref', () => {
+    assert.equal(
+      buildTopologyPath('feat/a b#c'),
+      'repos/MetaMask/MetaMask-planning/contents/topology.json?ref=feat%2Fa%20b%23c',
+    );
   });
 });
