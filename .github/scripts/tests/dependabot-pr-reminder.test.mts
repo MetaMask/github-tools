@@ -5,8 +5,14 @@ import {
   buildSlackPayload,
   classifyPullRequests,
   normalizeTeam,
+  parseOwnerTeams,
+  toPullRequest,
 } from '../dependabot-pr-reminder.mts';
-import type { PullRequest, Reminder } from '../dependabot-pr-reminder.mts';
+import type {
+  GraphQlPullRequestNode,
+  PullRequest,
+  Reminder,
+} from '../dependabot-pr-reminder.mts';
 
 /**
  * Builds a pull request for tests.
@@ -180,5 +186,145 @@ describe('buildSlackPayload', () => {
     assert.match(text, /#1/u);
     assert.match(text, /#2/u);
     assert.match(text, /#3/u);
+  });
+});
+
+/**
+ * Builds a GraphQL node for tests.
+ *
+ * @param overrides - Fields to override.
+ * @returns The node.
+ */
+function node(
+  overrides: Partial<GraphQlPullRequestNode> = {},
+): GraphQlPullRequestNode {
+  return {
+    number: 7,
+    title: 'Bump foo',
+    url: 'https://github.com/MetaMask/example/pull/7',
+    isDraft: false,
+    author: { login: 'dependabot[bot]' },
+    reviewRequests: { nodes: [] },
+    latestOpinionatedReviews: { nodes: [] },
+    commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
+    ...overrides,
+  };
+}
+
+describe('toPullRequest', () => {
+  it('returns undefined for drafts', () => {
+    assert.equal(toPullRequest(node({ isDraft: true })), undefined);
+  });
+
+  it('returns undefined for non-Dependabot authors', () => {
+    assert.equal(
+      toPullRequest(node({ author: { login: 'someone-else' } })),
+      undefined,
+    );
+  });
+
+  it('returns undefined when the author is missing', () => {
+    assert.equal(toPullRequest(node({ author: null })), undefined);
+  });
+
+  it('maps a Dependabot PR', () => {
+    assert.deepEqual(toPullRequest(node()), {
+      number: 7,
+      title: 'Bump foo',
+      url: 'https://github.com/MetaMask/example/pull/7',
+      requestedTeams: [],
+      hasApproval: false,
+      ciFailing: false,
+    });
+  });
+
+  it('keeps Team reviewers and ignores Users', () => {
+    const result = toPullRequest(
+      node({
+        reviewRequests: {
+          /* eslint-disable @typescript-eslint/naming-convention */
+          nodes: [
+            { requestedReviewer: { __typename: 'User' } },
+            { requestedReviewer: { __typename: 'Team', slug: 'wallet' } },
+            { requestedReviewer: null },
+          ],
+          /* eslint-enable @typescript-eslint/naming-convention */
+        },
+      }),
+    );
+    assert.deepEqual(result?.requestedTeams, ['wallet']);
+  });
+
+  it('sets hasApproval when any latest review is APPROVED', () => {
+    const result = toPullRequest(
+      node({
+        latestOpinionatedReviews: {
+          nodes: [{ state: 'CHANGES_REQUESTED' }, { state: 'APPROVED' }],
+        },
+      }),
+    );
+    assert.equal(result?.hasApproval, true);
+  });
+
+  it('sets ciFailing only for FAILURE and ERROR', () => {
+    const rollup = (state: string | null) =>
+      toPullRequest(
+        node({
+          commits: {
+            nodes: [
+              { commit: { statusCheckRollup: state ? { state } : null } },
+            ],
+          },
+        }),
+      )?.ciFailing;
+    assert.equal(rollup('FAILURE'), true);
+    assert.equal(rollup('ERROR'), true);
+    assert.equal(rollup('PENDING'), false);
+    assert.equal(rollup('SUCCESS'), false);
+    assert.equal(rollup(null), false);
+  });
+});
+
+describe('parseOwnerTeams', () => {
+  it('returns undefined for undefined, empty, and whitespace input', () => {
+    assert.equal(parseOwnerTeams(undefined), undefined);
+    assert.equal(parseOwnerTeams(''), undefined);
+    assert.equal(parseOwnerTeams('  \n '), undefined);
+    assert.equal(parseOwnerTeams(' , ,'), undefined);
+  });
+
+  it('splits, trims, and drops empty entries', () => {
+    assert.deepEqual(parseOwnerTeams(' a, b ,,c '), ['a', 'b', 'c']);
+  });
+});
+
+describe('buildSlackPayload chunking', () => {
+  it('splits a long team list into sections under the Slack limit', () => {
+    const pullRequests = Array.from({ length: 60 }, (_, index) =>
+      pr({
+        number: index + 1,
+        title: `Bump some-long-package-name-${index} from 1.0.0 to 1.0.1`,
+        url: `https://github.com/MetaMask/example/pull/${index + 1}`,
+      }),
+    );
+    const reminder: Reminder = {
+      byTeam: { wallet: pullRequests },
+      fallback: { failingCi: [], readyToMerge: [], needsOwner: [] },
+    };
+    const payload = buildSlackPayload(
+      reminder,
+      {},
+      { fallbackTeam: 'f', repository: 'MetaMask/example' },
+    );
+    assert.ok(payload);
+    const texts = payload.blocks.map((block) => block.text.text);
+    assert.ok(texts.length > 3);
+    for (const text of texts) {
+      assert.ok(text.length <= 3000, `section has ${text.length} characters`);
+    }
+    const joined = texts.join('\n');
+    for (const { number } of pullRequests) {
+      assert.ok(joined.includes(`#${number} `), `PR #${number} is missing`);
+    }
   });
 });
