@@ -89,7 +89,7 @@ export function classifyPullRequests(
 
 export type Topology = Record<
   string,
-  { githubHandle?: string; slackHandle?: { team?: string } }
+  { githubHandle?: string; slackHandle?: { team?: string } } | null
 >;
 
 /**
@@ -192,8 +192,9 @@ export function buildSlackPayload(
   const tag = (team: string): string => {
     const slug = normalizeTeam(team);
     const entry = Object.values(topology).find(
-      ({ githubHandle }) =>
-        githubHandle && normalizeTeam(githubHandle) === slug,
+      (candidate) =>
+        typeof candidate?.githubHandle === 'string' &&
+        normalizeTeam(candidate.githubHandle) === slug,
     );
     const id = entry?.slackHandle?.team;
     return id ? `<!subteam^${id}>` : slug;
@@ -231,6 +232,19 @@ export function buildSlackPayload(
     }
   }
 
+  const maxBlocks = 50;
+  if (blocks.length > maxBlocks) {
+    const omitted = blocks.splice(maxBlocks - 1);
+    const omittedCount = omitted.reduce(
+      (total, block) =>
+        total +
+        block.text.text.split('\n').filter((line) => line.startsWith('•'))
+          .length,
+      0,
+    );
+    blocks.push(section(`…and ${omittedCount} more pull request(s) not shown`));
+  }
+
   return {
     text: [headline, ...mentions].join(' '),
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -244,13 +258,8 @@ export type GraphQlPullRequestNode = {
   title: string;
   url: string;
   isDraft: boolean;
-  author: { login: string } | null;
-  reviewRequests: {
-    nodes: {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      requestedReviewer: { __typename: string; slug?: string } | null;
-    }[];
-  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  author: { __typename: string; login: string } | null;
   latestOpinionatedReviews: { nodes: { state: string }[] };
   commits: {
     nodes: { commit: { statusCheckRollup: { state: string } | null } }[];
@@ -261,12 +270,21 @@ export type GraphQlPullRequestNode = {
  * Maps a GraphQL pull request node to a PullRequest.
  *
  * @param node - The GraphQL node.
+ * @param requestedTeams - The team slugs requested for review (from REST).
  * @returns The pull request, or undefined for drafts and non-Dependabot PRs.
  */
 export function toPullRequest(
   node: GraphQlPullRequestNode,
+  requestedTeams: string[],
 ): PullRequest | undefined {
-  if (node.isDraft || node.author?.login !== 'dependabot[bot]') {
+  // GraphQL returns `dependabot` for the Bot actor; REST returns
+  // `dependabot[bot]`. Accept both, but only for Bot actors.
+  if (
+    node.isDraft ||
+    node.author?.__typename !== 'Bot' ||
+    (node.author.login !== 'dependabot' &&
+      node.author.login !== 'dependabot[bot]')
+  ) {
     return undefined;
   }
 
@@ -277,17 +295,52 @@ export function toPullRequest(
     number: node.number,
     title: node.title,
     url: node.url,
-    requestedTeams: node.reviewRequests.nodes.flatMap(
-      ({ requestedReviewer }) =>
-        requestedReviewer?.__typename === 'Team' && requestedReviewer.slug
-          ? [requestedReviewer.slug]
-          : [],
-    ),
-    hasApproval: node.latestOpinionatedReviews.nodes.some(
-      ({ state }) => state === 'APPROVED',
-    ),
+    requestedTeams,
+    hasApproval:
+      node.latestOpinionatedReviews.nodes.some(
+        ({ state }) => state === 'APPROVED',
+      ) &&
+      !node.latestOpinionatedReviews.nodes.some(
+        ({ state }) => state === 'CHANGES_REQUESTED',
+      ),
     ciFailing: rollupState === 'FAILURE' || rollupState === 'ERROR',
   };
+}
+
+/**
+ * Builds a map of PR number to requested team slugs from REST pull request
+ * pages.
+ *
+ * @param pages - The paginated REST responses.
+ * @returns The requested team slugs by PR number.
+ */
+export function collectRequestedTeams(
+  pages: {
+    number: number;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    requested_teams?: { slug: string }[];
+  }[][],
+): Map<number, string[]> {
+  const result = new Map<number, string[]>();
+  for (const restPullRequest of pages.flat()) {
+    if (restPullRequest.requested_teams) {
+      result.set(
+        restPullRequest.number,
+        restPullRequest.requested_teams.map(({ slug }) => slug),
+      );
+    }
+  }
+  return result;
+}
+
+/**
+ * Builds the REST path to read topology.json at a ref.
+ *
+ * @param ref - The git ref.
+ * @returns The `gh api` path.
+ */
+export function buildTopologyPath(ref: string): string {
+  return `repos/MetaMask/MetaMask-planning/contents/topology.json?ref=${encodeURIComponent(ref)}`;
 }
 
 /**
@@ -317,10 +370,7 @@ query($owner: String!, $name: String!, $endCursor: String) {
         title
         url
         isDraft
-        author { login }
-        reviewRequests(first: 20) {
-          nodes { requestedReviewer { __typename ... on Team { slug } } }
-        }
+        author { __typename login }
         latestOpinionatedReviews(first: 20) { nodes { state } }
         commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
       }
@@ -383,9 +433,9 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
       '--slurp',
       '-f',
       `query=${PULL_REQUESTS_QUERY}`,
-      '-F',
+      '-f',
       `owner=${owner}`,
-      '-F',
+      '-f',
       `name=${name}`,
     ],
     undefined,
@@ -394,9 +444,23 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   const pages = JSON.parse(graphqlOutput) as {
     data: { repository: { pullRequests: { nodes: GraphQlPullRequestNode[] } } };
   }[];
+  const restOutput = await ghApi(
+    [
+      '--paginate',
+      '--slurp',
+      `repos/${owner}/${name}/pulls?state=open&per_page=100`,
+    ],
+    undefined,
+    environment,
+  );
+  const requestedTeamsByNumber = collectRequestedTeams(
+    JSON.parse(restOutput) as Parameters<typeof collectRequestedTeams>[0],
+  );
   const pullRequests = pages
     .flatMap((page) => page.data.repository.pullRequests.nodes)
-    .map(toPullRequest)
+    .map((node) =>
+      toPullRequest(node, requestedTeamsByNumber.get(node.number) ?? []),
+    )
     .filter((pullRequest): pullRequest is PullRequest => Boolean(pullRequest));
 
   const ownerTeams = parseOwnerTeams(environment.OWNER_TEAMS);
@@ -407,11 +471,7 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 
   const topology = JSON.parse(
     await ghApi(
-      [
-        '-H',
-        'Accept: application/vnd.github.raw',
-        `repos/MetaMask/MetaMask-planning/contents/topology.json?ref=${ref}`,
-      ],
+      ['-H', 'Accept: application/vnd.github.raw', buildTopologyPath(ref)],
       planningToken,
       environment,
     ),
