@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Leave PRs already cherry-picked onto the baseline release out of the generated section in `update-release-changelog` ([#307](https://github.com/MetaMask/github-tools/pull/307))
+  - While the new release has no section of its own on the release branch, a PR whose cherry-pick is already on the older release's branch is not listed again, even if the older changelog is stale.
+  - Entries a reviewer already approved in the open changelog PR are kept, and an entry that also lists another PR is kept.
+  - The log and the changelog PR body warn about any left-out PR that the older release's changelog does not list.
+- Restore the executable bit on `.github/scripts/update-release-changelog.sh`, which #303 dropped ([#307](https://github.com/MetaMask/github-tools/pull/307))
+
 ## [1.22.0]
 
 ### Added

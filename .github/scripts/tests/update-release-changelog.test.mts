@@ -6,6 +6,8 @@ import test from 'node:test';
 
 import {
   assertReleaseSectionHasEntries,
+  excludePrsCherryPickedOntoBaseline,
+  findPrsMissingFromChangelog,
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
   getAcceptedPrCommits,
@@ -13,7 +15,11 @@ import {
   getChangelogPushArguments,
   getDeletedPrNumbers,
   getChangelogPrPresentation,
+  getCherryPickAliasesByPr,
+  getCherryPickedPrsByCommit,
   getHistoricalSkippedPrNumbers,
+  getPrsCherryPickedOntoBaseline,
+  getUnlistedCherryPicksWarning,
   isReleaseSectionEmpty,
   hasOnlyUpdaterCommits,
   isUntouchedUnproofreadChangelogPr,
@@ -584,4 +590,177 @@ test('rejects generated sections with missing or duplicate PR references', () =>
       true,
     ),
   );
+});
+
+test('collects the canonical PR of each accepted cherry-pick commit', () => {
+  assert.deepEqual(
+    [
+      ...getCherryPickedPrsByCommit(`[auto-changelog] commit=${COMMIT_A} accepted source-pr=1 canonical-pr=1 cherry-pick=false
+[auto-changelog] commit=${COMMIT_B} accepted source-pr=7 canonical-pr=1 cherry-pick=true
+[auto-changelog] commit=${COMMIT_C} accepted source-pr=none canonical-pr=none cherry-pick=true`),
+    ],
+    [[COMMIT_B, '1']],
+  );
+});
+
+test('finds the PRs cherry-picked onto the baseline branch', () => {
+  const cherryPickedPrsByCommit = new Map([
+    [COMMIT_A, '1'],
+    [COMMIT_B, '2'],
+  ]);
+
+  assert.deepEqual(
+    getPrsCherryPickedOntoBaseline({
+      cherryPickedPrsByCommit,
+      baselineRef: 'origin/release/1.0.0',
+      isAncestor: (commit, ref) =>
+        commit === COMMIT_A && ref === 'origin/release/1.0.0',
+    }),
+    new Set(['1']),
+  );
+  assert.deepEqual(
+    getPrsCherryPickedOntoBaseline({
+      cherryPickedPrsByCommit,
+      baselineRef: 'origin/stable',
+      isAncestor: () => false,
+    }),
+    new Set(),
+  );
+});
+
+test('maps each canonical PR to its cherry-pick PR numbers', () => {
+  assert.deepEqual(
+    [
+      ...getCherryPickAliasesByPr(`[auto-changelog] commit=${COMMIT_A} accepted source-pr=1 canonical-pr=1 cherry-pick=false
+[auto-changelog] commit=${COMMIT_B} accepted source-pr=7 canonical-pr=1 cherry-pick=true
+[auto-changelog] commit=${COMMIT_C} accepted source-pr=8 canonical-pr=1 cherry-pick=true`),
+    ],
+    [['1', ['7', '8']]],
+  );
+});
+
+test('reports PRs that no other section lists under any of their numbers', () => {
+  const changelog = [
+    '## [2.0.0]',
+    '',
+    '### Fixed',
+    '',
+    '- Fixed one (#1)',
+    '',
+    '## [1.0.0]',
+    '',
+    '### Fixed',
+    '',
+    '- Fixed two (#2)',
+    '- Fixed three by its cherry-pick (#31)',
+    '',
+  ].join('\n');
+
+  assert.deepEqual(
+    findPrsMissingFromChangelog({
+      changelog,
+      prNumbers: ['1', '2', '3', '4'],
+      aliasesByPr: new Map([['3', ['31']]]),
+      version: '2.0.0',
+      repositoryUrl: 'https://github.com/MetaMask/example',
+    }),
+    ['1', '4'],
+  );
+});
+
+test('words the warning for PRs the earlier changelog lacks', () => {
+  assert.equal(
+    getUnlistedCherryPicksWarning('13.56.0', {
+      baselineVersion: '13.55.0',
+      prNumbers: ['47395', '47400'],
+    }),
+    '> #47395, #47400 were left out of 13.56.0 because their cherry-picks are already on the 13.55.0 branch, but the 13.55.0 changelog does not list them. Add an entry to the right release if one is needed.',
+  );
+  assert.equal(
+    getUnlistedCherryPicksWarning('13.56.0', {
+      baselineVersion: '13.55.0',
+      prNumbers: ['47395'],
+    }),
+    '> #47395 was left out of 13.56.0 because its cherry-pick is already on the 13.55.0 branch, but the 13.55.0 changelog does not list it. Add an entry to the right release if one is needed.',
+  );
+});
+
+const EXCLUSION_SECTION = [
+  '## [2.0.0]',
+  '',
+  '### Fixed',
+  '',
+  '- Fixed one (#1)',
+  '- Fixed two (#2)',
+  '- Fixed three (#3, #7)',
+  '- Fixed the regression from (#4) (#5)',
+  '',
+].join('\n');
+
+test('excludes the entries of PRs already on the baseline branch', () => {
+  const result = excludePrsCherryPickedOntoBaseline({
+    section: EXCLUSION_SECTION,
+    shippedEarlier: new Set(['1', '3']),
+    aliasesByPr: new Map([['3', ['7']]]),
+    reviewedPrNumbers: new Set(),
+  });
+
+  assert.deepEqual(result.excludedPrNumbers, ['1', '3']);
+  assert.equal(
+    result.section,
+    [
+      '## [2.0.0]',
+      '',
+      '### Fixed',
+      '',
+      '- Fixed two (#2)',
+      '- Fixed the regression from (#4) (#5)',
+    ].join('\n'),
+  );
+});
+
+test('keeps an entry that also owns a PR that is not excluded', () => {
+  const result = excludePrsCherryPickedOntoBaseline({
+    section: EXCLUSION_SECTION,
+    shippedEarlier: new Set(['4']),
+    aliasesByPr: new Map(),
+    reviewedPrNumbers: new Set(),
+  });
+
+  assert.equal(result.section, EXCLUSION_SECTION);
+  assert.deepEqual(result.excludedPrNumbers, []);
+});
+
+test('does not report PRs a reviewer already approved in the section', () => {
+  const result = excludePrsCherryPickedOntoBaseline({
+    section: EXCLUSION_SECTION,
+    shippedEarlier: new Set(['1', '2']),
+    aliasesByPr: new Map(),
+    reviewedPrNumbers: new Set(['1']),
+  });
+
+  assert.deepEqual(result.excludedPrNumbers, ['2']);
+});
+
+test('does not report excluded PRs that the section never listed', () => {
+  const result = excludePrsCherryPickedOntoBaseline({
+    section: EXCLUSION_SECTION,
+    shippedEarlier: new Set(['99']),
+    aliasesByPr: new Map(),
+    reviewedPrNumbers: new Set(),
+  });
+
+  assert.equal(result.section, EXCLUSION_SECTION);
+  assert.deepEqual(result.excludedPrNumbers, []);
+});
+
+test('adds the unlisted cherry-pick warning to the PR body', () => {
+  const { body } = getChangelogPrPresentation({
+    version: '2.0.0',
+    changelogBranch: 'release-changelog/2.0.0',
+    proofreadingStatus: 'succeeded',
+    unlistedCherryPicks: { baselineVersion: '1.0.0', prNumbers: ['5'] },
+  });
+
+  assert.match(body, /#5 was left out of 2\.0\.0/u);
 });
