@@ -7,6 +7,7 @@ import {
   mergeCurrentReleaseSection,
   mergeNewReleaseEntries,
   normalizeRepositoryPrLinks,
+  removeReleaseEntries,
   replaceReleaseSection,
   restoreGeneratedCategories,
 } from '../release-section.mts';
@@ -614,5 +615,59 @@ test('ends the oldest release section before the link references', () => {
     changelog
       .replace('### Fixed', '### Added')
       .replace('Fixed an issue (#101)', 'Added a feature (#102)'),
+  );
+});
+
+test('removes the entries owning the given PRs and drops emptied categories', () => {
+  const section = [
+    '## [2.0.0]',
+    '',
+    '### Added',
+    '',
+    '- Added a thing (#1)',
+    '',
+    '### Fixed',
+    '',
+    '- Fixed one (#2)',
+    '  more detail',
+    '- Fixed two (#3)',
+  ].join('\n');
+
+  assert.equal(
+    removeReleaseEntries({ section, prNumbers: new Set(['1', '2']) }),
+    ['## [2.0.0]', '', '### Fixed', '', '- Fixed two (#3)'].join('\n'),
+  );
+  assert.equal(
+    removeReleaseEntries({ section, prNumbers: new Set(['1', '2', '3']) }),
+    '## [2.0.0]',
+  );
+});
+
+test('keeps an entry that owns a PR outside the given PRs', () => {
+  const section = [
+    '## [2.0.0]',
+    '',
+    '### Fixed',
+    '',
+    '- Fixed from (#1) (#2)',
+    '- Fixed together (#3, #4)',
+  ].join('\n');
+
+  assert.equal(
+    removeReleaseEntries({ section, prNumbers: new Set(['1', '3']) }),
+    section,
+  );
+  assert.equal(
+    removeReleaseEntries({ section, prNumbers: new Set(['3', '4']) }),
+    ['## [2.0.0]', '', '### Fixed', '', '- Fixed from (#1) (#2)'].join('\n'),
+  );
+});
+
+test('leaves the section untouched when no entry matches', () => {
+  const section = '## [2.0.0]\n\n### Added\n\n- Added a thing (#1)';
+
+  assert.equal(
+    removeReleaseEntries({ section, prNumbers: new Set(['9']) }),
+    section,
   );
 });

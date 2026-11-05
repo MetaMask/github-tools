@@ -23,6 +23,7 @@ import {
   mergeNewReleaseEntries,
   normalizeRepositoryPrLinks,
   parseReleaseHeadingVersion,
+  removeReleaseEntries,
   replaceReleaseSection,
   restoreGeneratedCategories,
   splitLines,
@@ -47,6 +48,11 @@ type ProofreadingResult = {
 type ChangelogPrPresentation = {
   title: string;
   body: string;
+};
+
+type UnlistedCherryPicks = {
+  baselineVersion: string;
+  prNumbers: readonly string[];
 };
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -548,6 +554,208 @@ export function getAcceptedPrCommits(
 }
 
 /**
+ * Extracts the canonical PR of each cherry-pick commit the generator accepted.
+ *
+ * @param diagnostics - The generator's verbose standard error.
+ * @returns The canonical PR number by cherry-pick commit SHA.
+ */
+export function getCherryPickedPrsByCommit(
+  diagnostics: string,
+): Map<string, string> {
+  return new Map(
+    [
+      ...diagnostics.matchAll(
+        /\[auto-changelog\] commit=([0-9a-f]{40}) accepted source-pr=\S+ canonical-pr=(\d+) cherry-pick=true/gu,
+      ),
+    ].flatMap(([, commit, prNumber]) =>
+      commit && prNumber ? [[commit, prNumber] as const] : [],
+    ),
+  );
+}
+
+/**
+ * Reports whether a commit is reachable from a ref. A Git failure counts as
+ * not reachable, which keeps the PR listed rather than dropping it.
+ *
+ * @param commit - The commit SHA.
+ * @param ref - The ref to search from.
+ * @param cwd - The repository directory.
+ * @returns True when the commit is an ancestor of the ref.
+ */
+export function isCommitReachableFrom(
+  commit: string,
+  ref: string,
+  cwd: string = process.cwd(),
+): boolean {
+  const { status, stderr } = spawnSync(
+    'git',
+    ['merge-base', '--is-ancestor', commit, ref],
+    { cwd, encoding: 'utf8', env: deterministicEnvironment },
+  );
+  // Status 1 is the ordinary "not an ancestor"; anything else is a failure.
+  if (status !== 0 && status !== 1) {
+    console.warn(
+      `Could not tell whether ${commit} is reachable from ${ref}: ${String(stderr ?? '').trim()}`,
+    );
+  }
+  return status === 0;
+}
+
+/**
+ * Finds the PRs already cherry-picked onto the baseline's branch. They ship in
+ * that earlier release, so the merged-in cherry-pick and the original PR must
+ * not be listed again, whether or not the earlier changelog says so yet.
+ *
+ * @param options0 - The options.
+ * @param options0.cherryPickedPrsByCommit - The canonical PR of each
+ * cherry-pick commit in the generator's range.
+ * @param options0.baselineRef - The baseline ref.
+ * @param options0.isAncestor - Reports whether a commit is reachable from the
+ * baseline ref; replaceable in tests.
+ * @returns The PR numbers.
+ */
+export function getPrsCherryPickedOntoBaseline({
+  cherryPickedPrsByCommit,
+  baselineRef,
+  isAncestor = isCommitReachableFrom,
+}: {
+  cherryPickedPrsByCommit: ReadonlyMap<string, string>;
+  baselineRef: string;
+  isAncestor?: (commit: string, ref: string) => boolean;
+}): Set<string> {
+  return new Set(
+    [...cherryPickedPrsByCommit].flatMap(([commit, prNumber]) =>
+      isAncestor(commit, baselineRef) ? [prNumber] : [],
+    ),
+  );
+}
+
+/**
+ * Maps each canonical PR to the cherry-pick PR numbers the generator saw for it.
+ *
+ * @param diagnostics - The generator's verbose standard error.
+ * @returns The cherry-pick PR numbers by canonical PR number.
+ */
+export function getCherryPickAliasesByPr(
+  diagnostics: string,
+): Map<string, string[]> {
+  const aliasesByPr = new Map<string, string[]>();
+  for (const [, sourcePr = '', canonicalPr = ''] of diagnostics.matchAll(
+    /\[auto-changelog\] commit=[0-9a-f]{40} accepted source-pr=(\d+) canonical-pr=(\d+) cherry-pick=true/gu,
+  )) {
+    aliasesByPr.set(canonicalPr, [
+      ...(aliasesByPr.get(canonicalPr) ?? []),
+      sourcePr,
+    ]);
+  }
+  return aliasesByPr;
+}
+
+/**
+ * Finds the PRs that no other release section lists, under their own number or
+ * a cherry-pick's.
+ *
+ * @param options0 - The options.
+ * @param options0.changelog - The full changelog text.
+ * @param options0.prNumbers - The PRs to check.
+ * @param options0.aliasesByPr - The cherry-pick PR numbers by canonical PR.
+ * @param options0.version - The version whose section is ignored.
+ * @param options0.repositoryUrl - The repository's GitHub URL.
+ * @returns The PR numbers that are not listed anywhere else.
+ */
+export function findPrsMissingFromChangelog({
+  changelog,
+  prNumbers,
+  aliasesByPr,
+  version,
+  repositoryUrl,
+}: {
+  changelog: string;
+  prNumbers: readonly string[];
+  aliasesByPr: ReadonlyMap<string, readonly string[]>;
+  version: string;
+  repositoryUrl: string;
+}): string[] {
+  return prNumbers.filter(
+    (prNumber) =>
+      findReleaseVersionsContainingPrs(
+        changelog,
+        [prNumber, ...(aliasesByPr.get(prNumber) ?? [])],
+        version,
+        repositoryUrl,
+      ).length === 0,
+  );
+}
+
+/**
+ * Removes the entries of PRs already cherry-picked onto the baseline's branch.
+ * An entry is removed only when all its PRs are among them.
+ *
+ * @param options0 - The options.
+ * @param options0.section - The current release section.
+ * @param options0.shippedEarlier - The canonical PRs on the baseline's branch.
+ * @param options0.aliasesByPr - The cherry-pick PR numbers by canonical PR.
+ * @param options0.reviewedPrNumbers - The PRs a reviewer already approved in
+ * the section; the updater restores those entries, so they do not count.
+ * @returns The section, and the PRs this removed that nothing restores.
+ */
+export function excludePrsCherryPickedOntoBaseline({
+  section,
+  shippedEarlier,
+  aliasesByPr,
+  reviewedPrNumbers,
+}: {
+  section: string;
+  shippedEarlier: ReadonlySet<string>;
+  aliasesByPr: ReadonlyMap<string, readonly string[]>;
+  reviewedPrNumbers: ReadonlySet<string>;
+}): { section: string; excludedPrNumbers: string[] } {
+  const numbersByPr = new Map(
+    [...shippedEarlier].map((prNumber) => [
+      prNumber,
+      [prNumber, ...(aliasesByPr.get(prNumber) ?? [])],
+    ]),
+  );
+  const updatedSection = removeReleaseEntries({
+    section,
+    prNumbers: new Set([...numbersByPr.values()].flat()),
+  });
+  const before = new Set(getPrNumbers(section));
+  const after = new Set(getPrNumbers(updatedSection));
+  const excludedPrNumbers = [...numbersByPr]
+    .filter(
+      ([, numbers]) =>
+        numbers.some((number) => before.has(number)) &&
+        !numbers.some(
+          (number) => after.has(number) || reviewedPrNumbers.has(number),
+        ),
+    )
+    .map(([prNumber]) => prNumber);
+  return { section: updatedSection, excludedPrNumbers };
+}
+
+/**
+ * Builds the PR warning for PRs left out because an earlier release's branch
+ * has them, when that release's changelog does not list them.
+ *
+ * @param version - The version being released.
+ * @param unlistedCherryPicks - The earlier release and the PRs it lacks.
+ * @returns The warning as a Markdown quote.
+ */
+export function getUnlistedCherryPicksWarning(
+  version: string,
+  unlistedCherryPicks: UnlistedCherryPicks,
+): string {
+  const { baselineVersion, prNumbers } = unlistedCherryPicks;
+  const list = prNumbers.map((prNumber) => `#${prNumber}`).join(', ');
+  const [was, cherryPicks, pronoun] =
+    prNumbers.length === 1
+      ? ['was', 'its cherry-pick is', 'it']
+      : ['were', 'their cherry-picks are', 'them'];
+  return `> ${list} ${was} left out of ${version} because ${cherryPicks} already on the ${baselineVersion} branch, but the ${baselineVersion} changelog does not list ${pronoun}. Add an entry to the right release if one is needed.`;
+}
+
+/**
  * Finds the other released versions whose sections mention any of the PRs.
  *
  * @param changelog - The full changelog text.
@@ -606,7 +814,9 @@ export function isReleaseSectionEmpty(
  * @param options0.repositoryUrl - The GitHub repository URL.
  * @param options0.version - The version being released.
  * @returns The PR numbers the generator skipped because an earlier release
- * lists them, and the commits it accepted for each PR.
+ * lists them, the commits it accepted for each PR, and the canonical PR of
+ * each cherry-pick commit, plus the cherry-pick PR numbers of each canonical
+ * PR.
  */
 function generateChangelog({
   repositoryUrl,
@@ -617,6 +827,8 @@ function generateChangelog({
 }): {
   skippedPrNumbers: string[];
   acceptedCommitsByPr: Map<string, string[]>;
+  cherryPickedPrsByCommit: Map<string, string>;
+  cherryPickAliasesByPr: Map<string, string[]>;
 } {
   const commonArguments = [
     'update',
@@ -640,6 +852,8 @@ function generateChangelog({
   return {
     skippedPrNumbers: getHistoricalSkippedPrNumbers(diagnostics),
     acceptedCommitsByPr: getAcceptedPrCommits(diagnostics),
+    cherryPickedPrsByCommit: getCherryPickedPrsByCommit(diagnostics),
+    cherryPickAliasesByPr: getCherryPickAliasesByPr(diagnostics),
   };
 }
 
@@ -1086,6 +1300,8 @@ export function getDeletedPrNumbers({
  * @param options0.proofreadingStage - The stage that failed, if any.
  * @param options0.presentInVersions - The earlier versions that already list the
  * cherry-picked PRs.
+ * @param options0.unlistedCherryPicks - PRs left out of this release that the
+ * earlier release's changelog does not list.
  * @returns The PR title and body.
  */
 export function getChangelogPrPresentation({
@@ -1094,12 +1310,14 @@ export function getChangelogPrPresentation({
   proofreadingStatus,
   proofreadingStage,
   presentInVersions = [],
+  unlistedCherryPicks,
 }: {
   version: string;
   changelogBranch: string;
   proofreadingStatus: ProofreadingStatus;
   proofreadingStage?: string;
   presentInVersions?: readonly string[];
+  unlistedCherryPicks?: UnlistedCherryPicks;
 }): ChangelogPrPresentation {
   let title = `release: ${changelogBranch}`;
   let body = `This PR updates the change log for ${version}.`;
@@ -1110,6 +1328,9 @@ export function getChangelogPrPresentation({
   if (proofreadingStatus === 'no-new-prs') {
     title = `${title} (no new PRs, manual edit required)`;
     body = `${body}\n\n${getNoNewPrsWarning(version, presentInVersions)}`;
+  }
+  if (unlistedCherryPicks) {
+    body = `${body}\n\n${getUnlistedCherryPicksWarning(version, unlistedCherryPicks)}`;
   }
   return { title, body };
 }
@@ -1305,6 +1526,8 @@ function createOrUpdateChangelogPr({
  * section was generated and its proofreading failed.
  * @param options0.generatedThrough - The release tip the commit was generated
  * from.
+ * @param options0.unlistedCherryPicks - PRs left out of this release that the
+ * earlier release's changelog does not list.
  * @param options0.assertSourcesUnchanged - Throws when a source ref moved during
  * the run.
  */
@@ -1317,6 +1540,7 @@ function commitAndPushChangelog({
   replacesWholeSection,
   markUnproofread,
   generatedThrough,
+  unlistedCherryPicks,
   assertSourcesUnchanged,
 }: {
   version: string;
@@ -1327,6 +1551,7 @@ function commitAndPushChangelog({
   replacesWholeSection: boolean;
   markUnproofread: boolean;
   generatedThrough: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
   assertSourcesUnchanged: () => void;
 }): void {
   const unexpectedChanges = capture('git', [
@@ -1392,6 +1617,7 @@ function commitAndPushChangelog({
       ...(proofreading.presentInVersions
         ? { presentInVersions: proofreading.presentInVersions }
         : {}),
+      ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
     }),
   });
 }
@@ -1541,10 +1767,60 @@ function main(): void {
     );
   }
   console.log(`Generating changelog for ${platform} ${version}.`);
-  const { skippedPrNumbers, acceptedCommitsByPr } = generateChangelog({
-    repositoryUrl,
-    version,
-  });
+  const {
+    skippedPrNumbers,
+    acceptedCommitsByPr,
+    cherryPickedPrsByCommit,
+    cherryPickAliasesByPr,
+  } = generateChangelog({ repositoryUrl, version });
+
+  // The target's own cherry-picks are reachable from the target, not from an
+  // earlier baseline.
+  let unlistedCherryPicks: UnlistedCherryPicks | undefined;
+  if (baseline.kind !== 'target') {
+    const shippedEarlier = getPrsCherryPickedOntoBaseline({
+      cherryPickedPrsByCommit,
+      baselineRef: baseline.ref,
+    });
+    if (shippedEarlier.size > 0) {
+      const { section, excludedPrNumbers } = excludePrsCherryPickedOntoBaseline(
+        {
+          section: readCurrentReleaseSection(),
+          shippedEarlier,
+          aliasesByPr: cherryPickAliasesByPr,
+          reviewedPrNumbers: new Set(
+            getPrNumbers(preservedReviewedSection ?? ''),
+          ),
+        },
+      );
+      writeCurrentReleaseSection(section);
+
+      if (excludedPrNumbers.length > 0) {
+        console.log(
+          `Excluding PRs already cherry-picked onto ${baseline.ref}: ${excludedPrNumbers.join(', ')}`,
+        );
+        skippedPrNumbers.push(...excludedPrNumbers);
+
+        // A PR whose earlier changelog never listed it would vanish from both.
+        const missingPrNumbers = findPrsMissingFromChangelog({
+          changelog: readChangelog(),
+          prNumbers: excludedPrNumbers,
+          aliasesByPr: cherryPickAliasesByPr,
+          version,
+          repositoryUrl,
+        });
+        if (missingPrNumbers.length > 0) {
+          console.warn(
+            `PRs left out of ${version} but missing from the ${baseline.version} changelog: ${missingPrNumbers.join(', ')}`,
+          );
+          unlistedCherryPicks = {
+            baselineVersion: baseline.version,
+            prNumbers: missingPrNumbers,
+          };
+        }
+      }
+    }
+  }
 
   // Lines already on the release branch, or reviewed in the open changelog PR,
   // are never reworded; only newly generated PRs go to the proofreader.
@@ -1664,6 +1940,7 @@ function main(): void {
     markUnproofread:
       proofreading.status === 'failed' && !preservedReviewedSection,
     generatedThrough: targetReleaseSha,
+    ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
     assertSourcesUnchanged,
   });
 }

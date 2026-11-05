@@ -449,6 +449,52 @@ export function getNewReleaseEntriesSection({
   ].join('\n');
 }
 
+/**
+ * Removes the entries whose owning PRs are all among the given PRs, leaving
+ * the other entries and the categories that still have one untouched. An entry
+ * that also owns another PR stays, so that PR is never dropped with it.
+ *
+ * @param options - Options.
+ * @param options.section - A release section.
+ * @param options.prNumbers - The PRs whose entries are removed.
+ * @returns The section without those entries; the same text when none match.
+ */
+export function removeReleaseEntries({
+  section,
+  prNumbers,
+}: {
+  section: string;
+  prNumbers: ReadonlySet<string>;
+}): string {
+  let removedAny = false;
+  const categories = parseReleaseSectionCategories(section)
+    .map(({ heading, entries }) => ({
+      heading,
+      entries: entries.filter(({ lines }) => {
+        const owners = getOwningPrNumbers(lines[0] ?? '');
+        const isRemoved =
+          owners.length > 0 && owners.every((owner) => prNumbers.has(owner));
+        removedAny ||= isRemoved;
+        return !isRemoved;
+      }),
+    }))
+    .filter(({ entries }) => entries.length > 0);
+
+  if (!removedAny) {
+    return section;
+  }
+
+  return [
+    splitLines(section)[0] ?? '',
+    ...categories.flatMap(({ heading, entries }) => [
+      '',
+      heading,
+      '',
+      ...entries.flatMap(({ lines }) => lines),
+    ]),
+  ].join('\n');
+}
+
 const CATEGORY_BY_LEADING_VERB = new Map([
   ['Added', '### Added'],
   ['Changed', '### Changed'],
