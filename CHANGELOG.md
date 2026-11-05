@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.1]
+
 ### Fixed
 
 - Leave PRs already cherry-picked onto the baseline release out of the generated section in `update-release-changelog` ([#307](https://github.com/MetaMask/github-tools/pull/307))
@@ -306,7 +308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.1...HEAD
+[1.22.1]: https://github.com/MetaMask/github-tools/compare/v1.22.0...v1.22.1
 [1.22.0]: https://github.com/MetaMask/github-tools/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/MetaMask/github-tools/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/MetaMask/github-tools/compare/v1.19.0...v1.20.0
