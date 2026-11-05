@@ -13,6 +13,41 @@ This repository holds a collection of scripts which are intended to be run local
 
 - `yarn segment-schema:draft-pr`: Local CLI for the Segment schema draft. See the [CLI](src/segment-schema-draft-pr/README.md) and the [action](.github/actions/draft-segment-schema-pr/README.md).
 
+### Dependabot PR reminder
+
+`.github/workflows/remind-dependabot-prs.yml` posts a Slack thread of open Dependabot PRs grouped by owning team. Owners are the teams still requested as reviewers; Slack tags come from `MetaMask-planning/topology.json`. PRs with failing CI or no owning team are listed under `fallback-team`. Nothing is posted when no PRs are open.
+
+| Input               | Default         | Description                                                      |
+| ------------------- | --------------- | ---------------------------------------------------------------- |
+| `owner-teams`       |                 | Comma-separated team slugs that count as owners. Unset means all |
+| `fallback-team`     | `core-platform` | Team that gets PRs with no owner or failing CI                   |
+| `topology-ref`      | `main`          | Ref of `MetaMask-planning` to read `topology.json` from          |
+| `slack-webhook-url` |                 | Required secret, one per repo and channel                        |
+
+The caller must be named `remind-dependabot-prs.yml`, grant the permissions below, have a `default-branch` environment and a `TOKEN_EXCHANGE_URL` variable, and have a token-exchange-service policy allowing `contents: read` on `MetaMask/MetaMask-planning`. Example for `metamask-extension` (`core` omits `with`):
+
+```yaml
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+jobs:
+  remind:
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      id-token: write
+    uses: MetaMask/github-tools/.github/workflows/remind-dependabot-prs.yml@v1
+    with:
+      owner-teams: extension-platform
+      fallback-team: extension-platform
+    secrets:
+      slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
 ### Authentication
 
 Some scripts require a GitHub token in order to run fully.

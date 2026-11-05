@@ -1,0 +1,82 @@
+name: Remind Dependabot PRs
+
+# Note: the `@v1` references below only resolve after a github-tools release.
+# Pointing a caller at a branch ref is not enough for a pre-release smoke test:
+# this workflow also references `get-token@v1` and `remind-dependabot-prs@v1`
+# internally, so temporarily edit those inner `uses:` refs to the branch ref.
+
+on:
+  workflow_call:
+    inputs:
+      owner-teams:
+        required: false
+        type: string
+        default: ''
+        description: 'Comma-separated team slugs that own the calling repository'
+      fallback-team:
+        required: false
+        type: string
+        default: 'core-platform'
+        description: 'Team slug used for PRs that cannot be attributed to a team'
+      topology-ref:
+        required: false
+        type: string
+        default: 'main'
+        description: 'Git ref of MetaMask-planning to read topology.json from'
+    secrets:
+      slack-webhook-url:
+        required: true
+        description: 'Slack incoming webhook URL'
+
+jobs:
+  remind:
+    name: Remind Dependabot PRs
+    runs-on: ubuntu-latest
+    environment: default-branch
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      id-token: write
+    steps:
+      - name: Get planning token
+        id: planning-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: MetaMask/MetaMask-planning
+          permissions: |
+            contents: read
+
+      - name: Build reminder
+        id: remind
+        uses: MetaMask/github-tools/.github/actions/remind-dependabot-prs@v1
+        with:
+          github-token: ${{ github.token }}
+          planning-token: ${{ steps.planning-token.outputs.token }}
+          owner-teams: ${{ inputs.owner-teams }}
+          fallback-team: ${{ inputs.fallback-team }}
+          topology-ref: ${{ inputs.topology-ref }}
+
+      - name: Read Slack payload
+        if: steps.remind.outputs.has-prs == 'true'
+        id: payload
+        shell: bash
+        env:
+          PAYLOAD_PATH: ${{ steps.remind.outputs.payload-path }}
+        run: |
+          {
+            echo "payload<<PAYLOAD_EOF"
+            cat "$PAYLOAD_PATH"
+            echo
+            echo "PAYLOAD_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: steps.remind.outputs.has-prs == 'true'
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        with:
+          webhook: ${{ secrets.slack-webhook-url }}
+          webhook-type: incoming-webhook
+          payload: ${{ steps.payload.outputs.payload }}
