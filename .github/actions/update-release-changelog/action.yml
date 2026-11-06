@@ -15,6 +15,10 @@ inputs:
   github-token:
     required: true
     description: 'GitHub token with write access to the invoking repository and read access to planning resources.'
+  checkout-filter:
+    required: false
+    default: ''
+    description: 'Partial clone filter for the invoking repository checkout (for example blob:none). Empty fetches everything.'
 
 runs:
   using: composite
@@ -26,6 +30,7 @@ runs:
         AI_ANALYZER_LITELLM_KEY: ''
       with:
         fetch-depth: 0
+        filter: ${{ inputs.checkout-filter }}
         ref: ${{ inputs.release-branch }}
         token: ${{ inputs.github-token }}
 
