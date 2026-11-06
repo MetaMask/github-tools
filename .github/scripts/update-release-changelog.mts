@@ -296,12 +296,12 @@ function getReleaseBranches() {
  *
  * @param changelogBranch - The PR head branch.
  * @param releaseBranch - The PR base branch.
- * @returns The PR number and title, or `undefined` when no PR is open.
+ * @returns The PR number, title and body, or `undefined` when no PR is open.
  */
 function getOpenChangelogPr(
   changelogBranch: string,
   releaseBranch: string,
-): { number: string; title: string } | undefined {
+): { number: string; title: string; body: string } | undefined {
   const output = capture('gh', [
     'pr',
     'list',
@@ -312,18 +312,19 @@ function getOpenChangelogPr(
     '--state',
     'open',
     '--json',
-    'number,title',
+    'number,title,body',
     '--jq',
     '.[0] // empty',
   ]);
   if (!output) {
     return undefined;
   }
-  const { number, title } = JSON.parse(output) as {
+  const { number, title, body } = JSON.parse(output) as {
     number: number;
     title: string;
+    body: string;
   };
-  return { number: String(number), title };
+  return { number: String(number), title, body: body ?? '' };
 }
 
 /**
@@ -916,6 +917,54 @@ export function getUnlistedCherryPicksWarning(
       ? ['was', 'its cherry-pick is', 'it']
       : ['were', 'their cherry-picks are', 'them'];
   return `> ${list} ${was} left out of ${version} because ${cherryPicks} already on the ${baselineVersion} branch, but the ${baselineVersion} changelog does not list ${pronoun}. Add an entry to the right release if one is needed.`;
+}
+
+const GENERATED_WARNING_PATTERNS = [
+  /^> .* left out of .* because .* already on the .* branch, but the .* changelog does not list /u,
+  /^> Restoring the changelog from the .* baseline dropped /u,
+];
+
+/**
+ * Rebuilds the left-out and dropped-entry warnings of an existing PR body from
+ * this run, so a warning that no longer holds is removed.
+ *
+ * @param options0 - The options.
+ * @param options0.existingBody - The open PR's current body.
+ * @param options0.version - The version being released.
+ * @param options0.unlistedCherryPicks - This run's left-out PRs, if any.
+ * @param options0.droppedEntries - This run's dropped entries, if any.
+ * @returns The new body, or `undefined` when it would not change.
+ */
+export function refreshGeneratedWarnings({
+  existingBody,
+  version,
+  unlistedCherryPicks,
+  droppedEntries,
+}: {
+  existingBody: string;
+  version: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
+}): string | undefined {
+  const normalizedBody = existingBody.replace(/\r\n/gu, '\n');
+  const kept = normalizedBody
+    .split('\n\n')
+    .filter(
+      (paragraph) =>
+        !GENERATED_WARNING_PATTERNS.some((pattern) => pattern.test(paragraph)),
+    );
+  const refreshed = [
+    ...kept,
+    ...(unlistedCherryPicks
+      ? [getUnlistedCherryPicksWarning(version, unlistedCherryPicks)]
+      : []),
+    ...(droppedEntries
+      ? [getDroppedEntriesWarning(version, droppedEntries)]
+      : []),
+  ]
+    .join('\n\n')
+    .trimEnd();
+  return refreshed === normalizedBody.trimEnd() ? undefined : refreshed;
 }
 
 /**
@@ -1627,6 +1676,9 @@ export function hasSameChangelogAsRemoteBranch(
  * @param options0.proofreadingStatus - The proofreading outcome of this run.
  * @param options0.replacesWholeSection - Whether this run proofread the whole
  * section again.
+ * @param options0.version - The version being released.
+ * @param options0.unlistedCherryPicks - This run's left-out PRs, if any.
+ * @param options0.droppedEntries - This run's dropped entries, if any.
  */
 function createOrUpdateChangelogPr({
   changelogBranch,
@@ -1634,12 +1686,18 @@ function createOrUpdateChangelogPr({
   presentation,
   proofreadingStatus,
   replacesWholeSection,
+  version,
+  unlistedCherryPicks,
+  droppedEntries,
 }: {
   changelogBranch: string;
   releaseBranch: string;
   presentation: ChangelogPrPresentation;
   proofreadingStatus: ProofreadingStatus;
   replacesWholeSection: boolean;
+  version: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
 }): void {
   const existingPr = getOpenChangelogPr(changelogBranch, releaseBranch);
   if (existingPr) {
@@ -1650,6 +1708,22 @@ function createOrUpdateChangelogPr({
         replacesWholeSection,
       })
     ) {
+      // The kept body may carry warnings this run no longer raises.
+      const refreshedBody = refreshGeneratedWarnings({
+        existingBody: existingPr.body,
+        version,
+        ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+        ...(droppedEntries ? { droppedEntries } : {}),
+      });
+      if (refreshedBody !== undefined) {
+        execute('gh', [
+          'pr',
+          'edit',
+          existingPr.number,
+          '--body',
+          refreshedBody,
+        ]);
+      }
       return;
     }
     execute('gh', [
@@ -1783,6 +1857,9 @@ function commitAndPushChangelog({
     releaseBranch,
     proofreadingStatus: proofreading.status,
     replacesWholeSection,
+    version,
+    ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+    ...(droppedEntries ? { droppedEntries } : {}),
     presentation: getChangelogPrPresentation({
       version,
       changelogBranch,

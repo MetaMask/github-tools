@@ -27,6 +27,7 @@ import {
   hasOnlyUpdaterCommits,
   isUntouchedUnproofreadChangelogPr,
   parseUpdateChangelogArguments,
+  refreshGeneratedWarnings,
   shouldKeepChangelogPrPresentation,
   validateGeneratedReleaseSection,
   writeFailedProofreadingReport,
@@ -910,6 +911,47 @@ test('words the warning for PRs the earlier changelog lacks', () => {
       prNumbers: ['47395'],
     }),
     '> #47395 was left out of 13.56.0 because its cherry-pick is already on the 13.55.0 branch, but the 13.55.0 changelog does not list it. Add an entry to the right release if one is needed.',
+  );
+});
+
+test('removes a left-out warning that no longer holds', () => {
+  const existingBody = `This PR updates the change log for 8.20.0.\r\n\r\n${getUnlistedCherryPicksWarning('8.20.0', { baselineVersion: '8.19.0', prNumbers: ['1'] })}`;
+  assert.equal(
+    refreshGeneratedWarnings({ existingBody, version: '8.20.0' }),
+    'This PR updates the change log for 8.20.0.',
+  );
+});
+
+test('replaces a stale warning and keeps unrelated quotes', () => {
+  const kept = '> AI automation failed, not proofread.';
+  const existingBody = `Intro.\n\n${kept}\n\n${getUnlistedCherryPicksWarning('8.20.0', { baselineVersion: '8.19.0', prNumbers: ['1', '2'] })}`;
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['2'],
+  };
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody,
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    `Intro.\n\n${kept}\n\n${getUnlistedCherryPicksWarning('8.20.0', unlistedCherryPicks)}`,
+  );
+});
+
+test('leaves a body whose warnings still hold', () => {
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['1'],
+  };
+  const existingBody = `Intro.\n\n${getUnlistedCherryPicksWarning('8.20.0', unlistedCherryPicks)}`;
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody,
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    undefined,
   );
 });
 
