@@ -657,6 +657,9 @@ export function getCherryPickAliasesByPr(
  *
  * @param options0 - The options.
  * @param options0.changelog - The full changelog text.
+ * @param options0.pendingSections - Release sections that are not in the
+ * changelog yet, such as the earlier release's section in its open changelog
+ * PR. They count like any other section.
  * @param options0.prNumbers - The PRs to check.
  * @param options0.aliasesByPr - The cherry-pick PR numbers by canonical PR.
  * @param options0.version - The version whose section is ignored.
@@ -665,26 +668,86 @@ export function getCherryPickAliasesByPr(
  */
 export function findPrsMissingFromChangelog({
   changelog,
+  pendingSections = [],
   prNumbers,
   aliasesByPr,
   version,
   repositoryUrl,
 }: {
   changelog: string;
+  pendingSections?: readonly string[];
   prNumbers: readonly string[];
   aliasesByPr: ReadonlyMap<string, readonly string[]>;
   version: string;
   repositoryUrl: string;
 }): string[] {
+  const searchedText = [changelog, ...pendingSections].join('\n\n');
   return prNumbers.filter(
     (prNumber) =>
       findReleaseVersionsContainingPrs(
-        changelog,
+        searchedText,
         [prNumber, ...(aliasesByPr.get(prNumber) ?? [])],
         version,
         repositoryUrl,
       ).length === 0,
   );
+}
+
+/**
+ * Reads the earlier release's section from its open changelog PR. Until that
+ * PR merges, the release branch holds an older section, so an entry the PR
+ * already lists would look missing.
+ *
+ * @param options0 - The options.
+ * @param options0.baseline - The selected baseline.
+ * @param options0.determineBranch - Names the earlier release's changelog
+ * branch; replaceable in tests.
+ * @param options0.getSha - Reads a remote branch tip; replaceable in tests.
+ * @param options0.getOpenPrNumber - Looks up the open PR number; replaceable in
+ * tests.
+ * @param options0.readSection - Reads the release section from the changelog
+ * branch; replaceable in tests.
+ * @returns The section, or `undefined` when no such PR is open or readable.
+ */
+export function getOpenBaselineChangelogSection({
+  baseline,
+  determineBranch = determineChangelogBranch,
+  getSha = getRemoteBranchSha,
+  getOpenPrNumber = getOpenChangelogPrNumber,
+  readSection = (branch, version) => {
+    execute('git', ['fetch', 'origin', branch]);
+    return readReleaseSectionAtRef(`origin/${branch}`, version);
+  },
+}: {
+  baseline: ChangelogBaseline;
+  determineBranch?: typeof determineChangelogBranch;
+  getSha?: typeof getRemoteBranchSha;
+  getOpenPrNumber?: typeof getOpenChangelogPrNumber;
+  readSection?: (branch: string, version: string) => string;
+}): string | undefined {
+  // A baseline on stable or on the target has no open changelog PR to read.
+  if (baseline.kind !== 'release') {
+    return undefined;
+  }
+
+  const changelogBranch = determineBranch(baseline.version);
+  const baselineReleaseBranch = baseline.ref.replace(/^origin\//u, '');
+  if (
+    !getSha(changelogBranch) ||
+    !getOpenPrNumber(changelogBranch, baselineReleaseBranch)
+  ) {
+    return undefined;
+  }
+
+  try {
+    return readSection(changelogBranch, baseline.version);
+  } catch (error) {
+    // The PR is only extra evidence, so a missing section must not stop the run.
+    console.warn(
+      `Could not read ${baseline.version} from open changelog branch ${changelogBranch}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return undefined;
+  }
 }
 
 /**
@@ -1802,8 +1865,12 @@ function main(): void {
         skippedPrNumbers.push(...excludedPrNumbers);
 
         // A PR whose earlier changelog never listed it would vanish from both.
+        const openBaselineSection = getOpenBaselineChangelogSection({
+          baseline,
+        });
         const missingPrNumbers = findPrsMissingFromChangelog({
           changelog: readChangelog(),
+          pendingSections: openBaselineSection ? [openBaselineSection] : [],
           prNumbers: excludedPrNumbers,
           aliasesByPr: cherryPickAliasesByPr,
           version,

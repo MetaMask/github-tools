@@ -18,6 +18,7 @@ import {
   getCherryPickAliasesByPr,
   getCherryPickedPrsByCommit,
   getHistoricalSkippedPrNumbers,
+  getOpenBaselineChangelogSection,
   getPrsCherryPickedOntoBaseline,
   getUnlistedCherryPicksWarning,
   isReleaseSectionEmpty,
@@ -665,6 +666,111 @@ test('reports PRs that no other section lists under any of their numbers', () =>
       repositoryUrl: 'https://github.com/MetaMask/example',
     }),
     ['1', '4'],
+  );
+});
+
+test('counts a pending section of the earlier release as listing a PR', () => {
+  const changelog = ['## [2.0.0]', '', '- Fixed one (#1)', ''].join('\n');
+  const pendingSection = [
+    '## [1.0.0]',
+    '',
+    '- Fixed two (#2)',
+    '- Fixed three by its cherry-pick (#31)',
+  ].join('\n');
+
+  assert.deepEqual(
+    findPrsMissingFromChangelog({
+      changelog,
+      pendingSections: [pendingSection],
+      prNumbers: ['2', '3', '4'],
+      aliasesByPr: new Map([['3', ['31']]]),
+      version: '2.0.0',
+      repositoryUrl: 'https://github.com/MetaMask/example',
+    }),
+    ['4'],
+  );
+});
+
+const RELEASE_BASELINE = {
+  kind: 'release',
+  ref: 'origin/release/1.0.0',
+  version: '1.0.0',
+} as const;
+
+test('reads the earlier release section from its open changelog PR', () => {
+  const lookups: string[][] = [];
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      baseline: RELEASE_BASELINE,
+      determineBranch: (version) => `release-changelog/${version}`,
+      getSha: () => 'abc',
+      getOpenPrNumber: (...branches) => {
+        lookups.push(branches);
+        return '9';
+      },
+      readSection: (branch, version) => `${branch} ${version}`,
+    }),
+    'release-changelog/1.0.0 1.0.0',
+  );
+  assert.deepEqual(lookups, [['release-changelog/1.0.0', 'release/1.0.0']]);
+});
+
+test('ignores the earlier release changelog when no PR is open', () => {
+  const options = {
+    baseline: RELEASE_BASELINE,
+    determineBranch: (version: string) => `release-changelog/${version}`,
+    readSection: () => {
+      throw new Error('must not read');
+    },
+  };
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      ...options,
+      getSha: () => undefined,
+      getOpenPrNumber: () => '9',
+    }),
+    undefined,
+  );
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      ...options,
+      getSha: () => 'abc',
+      getOpenPrNumber: () => undefined,
+    }),
+    undefined,
+  );
+});
+
+test('only reads an open changelog PR for a release baseline', () => {
+  for (const kind of ['stable', 'target'] as const) {
+    assert.equal(
+      getOpenBaselineChangelogSection({
+        baseline: { kind, ref: 'origin/stable', version: '1.0.0' },
+        getSha: () => 'abc',
+        getOpenPrNumber: () => '9',
+        readSection: () => 'section',
+      }),
+      undefined,
+    );
+  }
+});
+
+test('carries on when the open changelog branch lacks the section', (context) => {
+  context.mock.method(console, 'warn', () => undefined);
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      baseline: RELEASE_BASELINE,
+      determineBranch: (version) => `release-changelog/${version}`,
+      getSha: () => 'abc',
+      getOpenPrNumber: () => '9',
+      readSection: () => {
+        throw new Error('Expected exactly one release heading for 1.0.0');
+      },
+    }),
+    undefined,
   );
 });
 
