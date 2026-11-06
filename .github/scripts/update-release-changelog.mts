@@ -55,6 +55,18 @@ type UnlistedCherryPicks = {
   prNumbers: readonly string[];
 };
 
+type DroppedEntryVersion = {
+  version: string;
+  entryCount: number;
+  prNumbers: readonly string[];
+};
+
+type DroppedEntries = {
+  baselineVersion: string;
+  releaseBranch: string;
+  versions: readonly DroppedEntryVersion[];
+};
+
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const CLEANER_PATH = resolve(SCRIPT_DIRECTORY, 'clean-release-changelog.mts');
 const PROMPT_PATH = resolve(
@@ -798,6 +810,94 @@ export function excludePrsCherryPickedOntoBaseline({
 }
 
 /**
+ * Groups the top-level entries of each released version's section.
+ *
+ * @param changelog - The changelog text.
+ * @returns The trimmed entry lines by version. `Unreleased` is not included.
+ */
+function getEntriesByVersion(changelog: string): Map<string, string[]> {
+  const entriesByVersion = new Map<string, string[]>();
+  let entries: string[] | undefined;
+  for (const line of splitLines(changelog)) {
+    const headingVersion = parseReleaseHeadingVersion(line);
+    if (headingVersion) {
+      entries = entriesByVersion.get(headingVersion) ?? [];
+      entriesByVersion.set(headingVersion, entries);
+    } else if (line.startsWith('## [')) {
+      entries = undefined;
+    } else if (entries && line.startsWith('- ')) {
+      entries.push(line.trim());
+    }
+  }
+  return entriesByVersion;
+}
+
+/**
+ * Finds the entries of released versions that the release branch lists but the
+ * changelog restored from the baseline lacks. Restoring replaces the whole
+ * file, so a stale baseline silently reverts them.
+ *
+ * @param options0 - The options.
+ * @param options0.restoredChangelog - The changelog restored from the baseline.
+ * @param options0.releaseChangelog - The release branch's own changelog, without
+ * releases newer than the target.
+ * @returns The lost entries by version, in file order.
+ */
+export function findEntriesDroppedByRestore({
+  restoredChangelog,
+  releaseChangelog,
+}: {
+  restoredChangelog: string;
+  releaseChangelog: string;
+}): DroppedEntryVersion[] {
+  const restoredEntries = getEntriesByVersion(restoredChangelog);
+  return [...getEntriesByVersion(releaseChangelog)].flatMap(
+    ([version, entries]) => {
+      const kept = new Set(restoredEntries.get(version));
+      const dropped = entries.filter((entry) => !kept.has(entry));
+      if (dropped.length === 0) {
+        return [];
+      }
+      return [
+        {
+          version,
+          entryCount: dropped.length,
+          prNumbers: [
+            ...new Set(dropped.flatMap((entry) => getPrNumbers(entry))),
+          ],
+        },
+      ];
+    },
+  );
+}
+
+/**
+ * Builds the PR warning for entries the baseline restore removed.
+ *
+ * @param version - The version being released.
+ * @param droppedEntries - The baseline and the entries it lacks.
+ * @returns The warning as a Markdown quote.
+ */
+export function getDroppedEntriesWarning(
+  version: string,
+  droppedEntries: DroppedEntries,
+): string {
+  const { baselineVersion, releaseBranch, versions } = droppedEntries;
+  const count = (total: number): string =>
+    `${total} ${total === 1 ? 'entry' : 'entries'}`;
+  const total = versions.reduce((sum, { entryCount }) => sum + entryCount, 0);
+  const summary = versions
+    .map(({ version: droppedVersion, entryCount, prNumbers }) => {
+      const shown = prNumbers.slice(0, 3).map((prNumber) => `#${prNumber}`);
+      const more =
+        prNumbers.length > 3 ? [`+${prNumbers.length - 3} more`] : [];
+      return `${droppedVersion} (${count(entryCount)}: ${[...shown, ...more].join(', ')})`;
+    })
+    .join('; ');
+  return `> Restoring the changelog from the ${baselineVersion} baseline dropped ${count(total)} that ${releaseBranch} lists under earlier releases: ${summary}. The ${baselineVersion} changelog may be stale for ${version}; fix it or merge its changelog PR first, then rerun.`;
+}
+
+/**
  * Builds the PR warning for PRs left out because an earlier release's branch
  * has them, when that release's changelog does not list them.
  *
@@ -1365,6 +1465,8 @@ export function getDeletedPrNumbers({
  * cherry-picked PRs.
  * @param options0.unlistedCherryPicks - PRs left out of this release that the
  * earlier release's changelog does not list.
+ * @param options0.droppedEntries - Entries the baseline restore removed from
+ * earlier releases.
  * @returns The PR title and body.
  */
 export function getChangelogPrPresentation({
@@ -1374,6 +1476,7 @@ export function getChangelogPrPresentation({
   proofreadingStage,
   presentInVersions = [],
   unlistedCherryPicks,
+  droppedEntries,
 }: {
   version: string;
   changelogBranch: string;
@@ -1381,6 +1484,7 @@ export function getChangelogPrPresentation({
   proofreadingStage?: string;
   presentInVersions?: readonly string[];
   unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
 }): ChangelogPrPresentation {
   let title = `release: ${changelogBranch}`;
   let body = `This PR updates the change log for ${version}.`;
@@ -1394,6 +1498,9 @@ export function getChangelogPrPresentation({
   }
   if (unlistedCherryPicks) {
     body = `${body}\n\n${getUnlistedCherryPicksWarning(version, unlistedCherryPicks)}`;
+  }
+  if (droppedEntries) {
+    body = `${body}\n\n${getDroppedEntriesWarning(version, droppedEntries)}`;
   }
   return { title, body };
 }
@@ -1591,6 +1698,8 @@ function createOrUpdateChangelogPr({
  * from.
  * @param options0.unlistedCherryPicks - PRs left out of this release that the
  * earlier release's changelog does not list.
+ * @param options0.droppedEntries - Entries the baseline restore removed from
+ * earlier releases.
  * @param options0.assertSourcesUnchanged - Throws when a source ref moved during
  * the run.
  */
@@ -1604,6 +1713,7 @@ function commitAndPushChangelog({
   markUnproofread,
   generatedThrough,
   unlistedCherryPicks,
+  droppedEntries,
   assertSourcesUnchanged,
 }: {
   version: string;
@@ -1615,6 +1725,7 @@ function commitAndPushChangelog({
   markUnproofread: boolean;
   generatedThrough: string;
   unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
   assertSourcesUnchanged: () => void;
 }): void {
   const unexpectedChanges = capture('git', [
@@ -1681,6 +1792,7 @@ function commitAndPushChangelog({
         ? { presentInVersions: proofreading.presentInVersions }
         : {}),
       ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+      ...(droppedEntries ? { droppedEntries } : {}),
     }),
   });
 }
@@ -1820,6 +1932,29 @@ function main(): void {
 
   rebuildChangelogBranch({ changelogBranch, releaseBranch, baseline });
   writeChangelog(removeNewerReleases(readChangelog(), version));
+
+  // The restore replaces the whole file, so a stale baseline reverts entries
+  // that the release branch's own changelog already has.
+  let droppedEntries: DroppedEntries | undefined;
+  if (baseline.kind !== 'target') {
+    const versions = findEntriesDroppedByRestore({
+      restoredChangelog: readChangelog(),
+      releaseChangelog: removeNewerReleases(
+        readChangelogAtRef(`origin/${releaseBranch}`),
+        version,
+      ),
+    });
+    if (versions.length > 0) {
+      droppedEntries = {
+        baselineVersion: baseline.version,
+        releaseBranch,
+        versions,
+      };
+      console.warn(
+        getDroppedEntriesWarning(version, droppedEntries).replace(/^> /u, ''),
+      );
+    }
+  }
   if (preservedReviewedSection) {
     writeChangelog(
       mergeCurrentReleaseSection({
@@ -2008,6 +2143,7 @@ function main(): void {
       proofreading.status === 'failed' && !preservedReviewedSection,
     generatedThrough: targetReleaseSha,
     ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+    ...(droppedEntries ? { droppedEntries } : {}),
     assertSourcesUnchanged,
   });
 }

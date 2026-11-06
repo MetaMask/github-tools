@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   assertReleaseSectionHasEntries,
   excludePrsCherryPickedOntoBaseline,
+  findEntriesDroppedByRestore,
   findPrsMissingFromChangelog,
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
@@ -17,6 +18,7 @@ import {
   getChangelogPrPresentation,
   getCherryPickAliasesByPr,
   getCherryPickedPrsByCommit,
+  getDroppedEntriesWarning,
   getHistoricalSkippedPrNumbers,
   getOpenBaselineChangelogSection,
   getPrsCherryPickedOntoBaseline,
@@ -771,6 +773,126 @@ test('carries on when the open changelog branch lacks the section', (context) =>
       },
     }),
     undefined,
+  );
+});
+
+const RELEASE_BRANCH_CHANGELOG = [
+  '## [Unreleased]',
+  '',
+  '- Unreleased only (#9)',
+  '',
+  '## [2.0.0]',
+  '',
+  '### Fixed',
+  '',
+  '- Fixed one (#1)',
+  '- Fixed two (#2)',
+  '  - A sub-bullet',
+  '',
+  '## [1.0.0]',
+  '',
+  '- Fixed three (#3)',
+  '- Fixed four (#4)',
+  '',
+].join('\n');
+
+test('finds released entries a stale baseline restore drops', () => {
+  const restoredChangelog = [
+    '## [2.0.0]',
+    '',
+    '- Fixed one (#1)',
+    '',
+    '## [1.0.0]',
+    '',
+    '- Fixed three (#3)',
+    '- Fixed four (#4)',
+    '',
+  ].join('\n');
+
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [{ version: '2.0.0', entryCount: 1, prNumbers: ['2'] }],
+  );
+});
+
+test('counts an entry as dropped when only another version lists it', () => {
+  const restoredChangelog = [
+    '## [2.0.0]',
+    '',
+    '- Fixed one (#1)',
+    '- Fixed two (#2)',
+    '- Fixed three (#3)',
+    '',
+    '## [1.0.0]',
+    '',
+    '- Fixed four (#4)',
+    '',
+  ].join('\n');
+
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [{ version: '1.0.0', entryCount: 1, prNumbers: ['3'] }],
+  );
+});
+
+test('reports nothing when the restore keeps every released entry', () => {
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: `${RELEASE_BRANCH_CHANGELOG}\n## [3.0.0]\n\n- New (#5)\n`,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [],
+  );
+});
+
+test('words the warning for entries the restore dropped', () => {
+  assert.equal(
+    getDroppedEntriesWarning('8.20.0', {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [
+        {
+          version: '8.18.0',
+          entryCount: 5,
+          prNumbers: ['1', '2', '3', '4', '5'],
+        },
+        { version: '8.17.0', entryCount: 1, prNumbers: ['6'] },
+      ],
+    }),
+    '> Restoring the changelog from the 8.19.0 baseline dropped 6 entries that release/8.20.0 lists under earlier releases: 8.18.0 (5 entries: #1, #2, #3, +2 more); 8.17.0 (1 entry: #6). The 8.19.0 changelog may be stale for 8.20.0; fix it or merge its changelog PR first, then rerun.',
+  );
+  assert.match(
+    getDroppedEntriesWarning('8.20.0', {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [{ version: '8.18.0', entryCount: 1, prNumbers: ['1'] }],
+    }),
+    /dropped 1 entry that release\/8\.20\.0 lists/u,
+  );
+});
+
+test('adds the dropped entries warning to the PR body', () => {
+  const { body } = getChangelogPrPresentation({
+    version: '8.20.0',
+    changelogBranch: 'release-changelog/8.20.0',
+    proofreadingStatus: 'succeeded',
+    droppedEntries: {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [{ version: '8.18.0', entryCount: 1, prNumbers: ['1'] }],
+    },
+  });
+
+  assert.match(body, /^This PR updates the change log for 8\.20\.0\./u);
+  assert.match(
+    body,
+    /\n\n> Restoring the changelog from the 8\.19\.0 baseline/u,
   );
 });
 
