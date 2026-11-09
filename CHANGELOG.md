@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Count the earlier release's open changelog PR before `update-release-changelog` warns about left-out PRs ([#309](https://github.com/MetaMask/github-tools/pull/309))
+  - A PR that the earlier release branch cherry-picked is no longer reported as missing when the earlier release's open changelog PR already lists it.
+- Warn in the changelog PR when restoring from the baseline drops entries that the release branch lists under earlier releases ([#309](https://github.com/MetaMask/github-tools/pull/309))
+  - An entry counts as kept when the restored version lists any of its PRs, so rewording is not reported.
+- Remove generated "left out" and "dropped entries" warnings from an open changelog PR body once they no longer hold ([#309](https://github.com/MetaMask/github-tools/pull/309))
+  - Only whole lines that match a generated warning are removed; text a reviewer added stays.
+- Stop `update-release-changelog` quietly, instead of failing, when the release branch moved during generation and the push that moved it started its own run ([#309](https://github.com/MetaMask/github-tools/pull/309))
+  - That run publishes the changelog for the new tip. If no such run is found, the run still fails as before.
+- Update the changelog proofreader model from `gpt-5.6-terra` to `gpt-6.1-terra` ([#309](https://github.com/MetaMask/github-tools/pull/309))
+
 ## [1.22.1]
 
 ### Fixed

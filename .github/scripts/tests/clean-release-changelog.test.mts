@@ -656,7 +656,7 @@ test('sends the pinned model with the bearer credential to chat completions', as
     temperature: number;
     messages: { content: string }[];
   };
-  assert.equal(body.model, 'gpt-5.6-terra');
+  assert.equal(body.model, 'gpt-6.1-terra');
   assert.equal(body.temperature, 0);
   assert.match(body.messages[1]?.content ?? '', /<release_section>/u);
   assert.doesNotMatch(JSON.stringify(body), /litellm-key/u);

@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   assertReleaseSectionHasEntries,
   excludePrsCherryPickedOntoBaseline,
+  findEntriesDroppedByRestore,
   findPrsMissingFromChangelog,
   findReleaseVersionsContainingPrs,
   getAutoChangelogCli,
@@ -17,13 +18,18 @@ import {
   getChangelogPrPresentation,
   getCherryPickAliasesByPr,
   getCherryPickedPrsByCommit,
+  getCallingWorkflowPath,
+  getDroppedEntriesWarning,
   getHistoricalSkippedPrNumbers,
+  getOpenBaselineChangelogSection,
   getPrsCherryPickedOntoBaseline,
   getUnlistedCherryPicksWarning,
   isReleaseSectionEmpty,
   hasOnlyUpdaterCommits,
+  hasWorkflowRunForSha,
   isUntouchedUnproofreadChangelogPr,
   parseUpdateChangelogArguments,
+  refreshGeneratedWarnings,
   shouldKeepChangelogPrPresentation,
   validateGeneratedReleaseSection,
   writeFailedProofreadingReport,
@@ -668,6 +674,291 @@ test('reports PRs that no other section lists under any of their numbers', () =>
   );
 });
 
+test('counts a pending section of the earlier release as listing a PR', () => {
+  const changelog = ['## [2.0.0]', '', '- Fixed one (#1)', ''].join('\n');
+  const pendingSection = [
+    '## [1.0.0]',
+    '',
+    '- Fixed two (#2)',
+    '- Fixed three by its cherry-pick (#31)',
+  ].join('\n');
+
+  assert.deepEqual(
+    findPrsMissingFromChangelog({
+      changelog,
+      pendingSections: [pendingSection],
+      prNumbers: ['2', '3', '4'],
+      aliasesByPr: new Map([['3', ['31']]]),
+      version: '2.0.0',
+      repositoryUrl: 'https://github.com/MetaMask/example',
+    }),
+    ['4'],
+  );
+});
+
+const RELEASE_BASELINE = {
+  kind: 'release',
+  ref: 'origin/release/1.0.0',
+  version: '1.0.0',
+} as const;
+
+test('reads the earlier release section from its open changelog PR', () => {
+  const lookups: string[][] = [];
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      baseline: RELEASE_BASELINE,
+      determineBranch: (version) => `release-changelog/${version}`,
+      getSha: () => 'abc',
+      getOpenPrNumber: (...branches) => {
+        lookups.push(branches);
+        return '9';
+      },
+      readSection: (branch, version) => `${branch} ${version}`,
+    }),
+    'release-changelog/1.0.0 1.0.0',
+  );
+  assert.deepEqual(lookups, [['release-changelog/1.0.0', 'release/1.0.0']]);
+});
+
+test('ignores the earlier release changelog when no PR is open', () => {
+  const options = {
+    baseline: RELEASE_BASELINE,
+    determineBranch: (version: string) => `release-changelog/${version}`,
+    readSection: () => {
+      throw new Error('must not read');
+    },
+  };
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      ...options,
+      getSha: () => undefined,
+      getOpenPrNumber: () => '9',
+    }),
+    undefined,
+  );
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      ...options,
+      getSha: () => 'abc',
+      getOpenPrNumber: () => undefined,
+    }),
+    undefined,
+  );
+});
+
+test('only reads an open changelog PR for a release baseline', () => {
+  for (const kind of ['stable', 'target'] as const) {
+    assert.equal(
+      getOpenBaselineChangelogSection({
+        baseline: { kind, ref: 'origin/stable', version: '1.0.0' },
+        getSha: () => 'abc',
+        getOpenPrNumber: () => '9',
+        readSection: () => 'section',
+      }),
+      undefined,
+    );
+  }
+});
+
+test('carries on when the open changelog branch lacks the section', (context) => {
+  context.mock.method(console, 'warn', () => undefined);
+
+  assert.equal(
+    getOpenBaselineChangelogSection({
+      baseline: RELEASE_BASELINE,
+      determineBranch: (version) => `release-changelog/${version}`,
+      getSha: () => 'abc',
+      getOpenPrNumber: () => '9',
+      readSection: () => {
+        throw new Error('Expected exactly one release heading for 1.0.0');
+      },
+    }),
+    undefined,
+  );
+});
+
+const RELEASE_BRANCH_CHANGELOG = [
+  '## [Unreleased]',
+  '',
+  '- Unreleased only (#9)',
+  '',
+  '## [2.0.0]',
+  '',
+  '### Fixed',
+  '',
+  '- Fixed one (#1)',
+  '- Fixed two (#2)',
+  '  - A sub-bullet',
+  '',
+  '## [1.0.0]',
+  '',
+  '- Fixed three (#3)',
+  '- Fixed four (#4)',
+  '',
+].join('\n');
+
+test('finds released entries a stale baseline restore drops', () => {
+  const restoredChangelog = [
+    '## [2.0.0]',
+    '',
+    '- Fixed one (#1)',
+    '',
+    '## [1.0.0]',
+    '',
+    '- Fixed three (#3)',
+    '- Fixed four (#4)',
+    '',
+  ].join('\n');
+
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [{ version: '2.0.0', entryCount: 1, prNumbers: ['2'] }],
+  );
+});
+
+test('counts an entry as dropped when only another version lists it', () => {
+  const restoredChangelog = [
+    '## [2.0.0]',
+    '',
+    '- Fixed one (#1)',
+    '- Fixed two (#2)',
+    '- Fixed three (#3)',
+    '',
+    '## [1.0.0]',
+    '',
+    '- Fixed four (#4)',
+    '',
+  ].join('\n');
+
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [{ version: '1.0.0', entryCount: 1, prNumbers: ['3'] }],
+  );
+});
+
+test('reports nothing when the restore keeps every released entry', () => {
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: `${RELEASE_BRANCH_CHANGELOG}\n## [3.0.0]\n\n- New (#5)\n`,
+      releaseChangelog: RELEASE_BRANCH_CHANGELOG,
+    }),
+    [],
+  );
+});
+
+test('words the warning for entries the restore dropped', () => {
+  assert.equal(
+    getDroppedEntriesWarning('8.20.0', {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [
+        {
+          version: '8.18.0',
+          entryCount: 5,
+          prNumbers: ['1', '2', '3', '4', '5'],
+        },
+        { version: '8.17.0', entryCount: 1, prNumbers: ['6'] },
+      ],
+    }),
+    '> Restoring the changelog from the 8.19.0 baseline dropped 6 entries that release/8.20.0 lists under earlier releases: 8.18.0 (5 entries: #1, #2, #3, +2 more); 8.17.0 (1 entry: #6). The 8.19.0 changelog may be stale for 8.20.0; fix it or merge its changelog PR first, then rerun.',
+  );
+  assert.match(
+    getDroppedEntriesWarning('8.20.0', {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [{ version: '8.18.0', entryCount: 1, prNumbers: ['1'] }],
+    }),
+    /dropped 1 entry that release\/8\.20\.0 lists/u,
+  );
+});
+
+test('does not count a reworded entry as dropped', () => {
+  const releaseChangelog = '## [1.0.0]\n\n- Fixed a crash (#1, #2)\n';
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: '## [1.0.0]\n\n- Fixed the crash on launch (#2)\n',
+      releaseChangelog,
+    }),
+    [],
+  );
+});
+
+test('reads long PR links when comparing dropped entries', () => {
+  const repositoryUrl = 'https://github.com/MetaMask/metamask-mobile';
+  const link = (number: string): string =>
+    `[#${number}](${repositoryUrl}/pull/${number})`;
+  const releaseChangelog = `## [1.0.0]\n\n- Fixed a crash (${link('1')})\n- Fixed a hang (${link('2')})\n`;
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: `## [1.0.0]\n\n- Fixed the crash on launch (${link('1')})\n`,
+      releaseChangelog,
+      repositoryUrl,
+    }),
+    [{ version: '1.0.0', entryCount: 1, prNumbers: ['2'] }],
+  );
+});
+
+test('compares an entry without a PR number by its text', () => {
+  const releaseChangelog = '## [1.0.0]\n\n- Manual note\n';
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: '## [1.0.0]\n\n- Other note\n',
+      releaseChangelog,
+    }),
+    [{ version: '1.0.0', entryCount: 1, prNumbers: [] }],
+  );
+  assert.deepEqual(
+    findEntriesDroppedByRestore({
+      restoredChangelog: releaseChangelog,
+      releaseChangelog,
+    }),
+    [],
+  );
+});
+
+test('lists up to three dropped PRs before summarizing the rest', () => {
+  const warningFor = (prNumbers: string[]): string =>
+    getDroppedEntriesWarning('8.20.0', {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [
+        { version: '8.18.0', entryCount: prNumbers.length, prNumbers },
+      ],
+    });
+  assert.match(warningFor(['1', '2', '3']), /\(3 entries: #1, #2, #3\)/u);
+  assert.match(
+    warningFor(['1', '2', '3', '4']),
+    /\(4 entries: #1, #2, #3, \+1 more\)/u,
+  );
+});
+
+test('adds the dropped entries warning to the PR body', () => {
+  const { body } = getChangelogPrPresentation({
+    version: '8.20.0',
+    changelogBranch: 'release-changelog/8.20.0',
+    proofreadingStatus: 'succeeded',
+    droppedEntries: {
+      baselineVersion: '8.19.0',
+      releaseBranch: 'release/8.20.0',
+      versions: [{ version: '8.18.0', entryCount: 1, prNumbers: ['1'] }],
+    },
+  });
+
+  assert.match(body, /^This PR updates the change log for 8\.20\.0\./u);
+  assert.match(
+    body,
+    /\n\n> Restoring the changelog from the 8\.19\.0 baseline/u,
+  );
+});
+
 test('words the warning for PRs the earlier changelog lacks', () => {
   assert.equal(
     getUnlistedCherryPicksWarning('13.56.0', {
@@ -682,6 +973,192 @@ test('words the warning for PRs the earlier changelog lacks', () => {
       prNumbers: ['47395'],
     }),
     '> #47395 was left out of 13.56.0 because its cherry-pick is already on the 13.55.0 branch, but the 13.55.0 changelog does not list it. Add an entry to the right release if one is needed.',
+  );
+});
+
+test('removes a left-out warning that no longer holds', () => {
+  const existingBody = `This PR updates the change log for 8.20.0.\r\n\r\n${getUnlistedCherryPicksWarning('8.20.0', { baselineVersion: '8.19.0', prNumbers: ['1'] })}`;
+  assert.equal(
+    refreshGeneratedWarnings({ existingBody, version: '8.20.0' }),
+    'This PR updates the change log for 8.20.0.',
+  );
+});
+
+test('replaces a stale warning and keeps unrelated quotes', () => {
+  const kept = '> AI automation failed, not proofread.';
+  const existingBody = `Intro.\n\n${kept}\n\n${getUnlistedCherryPicksWarning('8.20.0', { baselineVersion: '8.19.0', prNumbers: ['1', '2'] })}`;
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['2'],
+  };
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody,
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    `Intro.\n\n${kept}\n\n${getUnlistedCherryPicksWarning('8.20.0', unlistedCherryPicks)}`,
+  );
+});
+
+test('leaves a body whose warnings still hold', () => {
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['1'],
+  };
+  const existingBody = `Intro.\n\n${getUnlistedCherryPicksWarning('8.20.0', unlistedCherryPicks)}`;
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody,
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    undefined,
+  );
+});
+
+const RUN_PATH = '.github/workflows/update-release-changelog.yml';
+
+test('finds the run the moving push triggered', () => {
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => ['.github/workflows/other.yml', RUN_PATH],
+    }),
+    true,
+  );
+});
+
+test('waits for the run of the moving push to appear', () => {
+  const waits: number[] = [];
+  let lookups = 0;
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => {
+        lookups += 1;
+        return lookups < 3 ? [] : [RUN_PATH];
+      },
+      attempts: 5,
+      delayMs: 1000,
+      wait: (milliseconds) => waits.push(milliseconds),
+    }),
+    true,
+  );
+  assert.deepEqual(waits, [1000, 1000]);
+});
+
+test('gives up after the last attempt without a matching run', () => {
+  const waits: number[] = [];
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => [],
+      attempts: 3,
+      delayMs: 1000,
+      wait: (milliseconds) => waits.push(milliseconds),
+    }),
+    false,
+  );
+  assert.deepEqual(waits, [1000, 1000]);
+});
+
+test('does not assume a newer run when none matches or the lookup fails', () => {
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => ['.github/workflows/other.yml'],
+      wait: () => undefined,
+    }),
+    false,
+  );
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => {
+        throw new Error('403');
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: undefined,
+      listRunPaths: () => [RUN_PATH],
+    }),
+    false,
+  );
+});
+
+test('reads the calling workflow path from the workflow ref', () => {
+  assert.equal(
+    getCallingWorkflowPath({
+      GITHUB_REPOSITORY: 'MetaMask/metamask-mobile',
+      GITHUB_WORKFLOW_REF: `MetaMask/metamask-mobile/${RUN_PATH}@refs/heads/release/8.20.0`,
+    }),
+    RUN_PATH,
+  );
+  assert.equal(getCallingWorkflowPath({}), undefined);
+});
+
+const staleWarning = getUnlistedCherryPicksWarning('8.20.0', {
+  baselineVersion: '8.19.0',
+  prNumbers: ['1'],
+});
+
+test('keeps text written on the line after a stale warning', () => {
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody: `Intro.\n\n${staleWarning}\nChecked #1, fine.`,
+      version: '8.20.0',
+    }),
+    'Intro.\n\nChecked #1, fine.',
+  );
+});
+
+test('removes a stale warning separated by extra blank lines', () => {
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody: `Intro.\n\n\n${staleWarning}`,
+      version: '8.20.0',
+    }),
+    'Intro.',
+  );
+});
+
+test('adds a warning to an empty body without leading blank lines', () => {
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['1'],
+  };
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody: '',
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    staleWarning,
+  );
+});
+
+test('leaves a CRLF body whose warning sits mid-body', () => {
+  const unlistedCherryPicks = {
+    baselineVersion: '8.19.0',
+    prNumbers: ['1'],
+  };
+  assert.equal(
+    refreshGeneratedWarnings({
+      existingBody: `Intro.\r\n\r\n${staleWarning}\r\n\r\nTrailing note.`,
+      version: '8.20.0',
+      unlistedCherryPicks,
+    }),
+    undefined,
   );
 });
 
