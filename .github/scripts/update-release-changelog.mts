@@ -251,7 +251,13 @@ export class SupersededRunError extends Error {
  * `.github/workflows/update-release-changelog.yml`.
  * @param options0.listRunPaths - Lists the workflow file paths of the runs for
  * a commit; replaceable in tests.
- * @returns `true` only when such a run is found; `false` when the lookup fails.
+ * @param options0.attempts - How many lookups to make. A run appears a few
+ * seconds after its push, so the first lookup can miss it.
+ * @param options0.delayMs - The wait between lookups.
+ * @param options0.wait - Blocks for a number of milliseconds; replaceable in
+ * tests.
+ * @returns `true` only when such a run is found; `false` when none appears
+ * or the lookup fails.
  */
 export function hasWorkflowRunForSha({
   sha,
@@ -263,19 +269,35 @@ export function hasWorkflowRunForSha({
       '--jq',
       '.workflow_runs[].path',
     ]).split(/\r?\n/u),
+  attempts = 10,
+  delayMs = 3000,
+  wait = (milliseconds) =>
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
 }: {
   sha: string;
   workflowPath: string | undefined;
   listRunPaths?: (sha: string) => string[];
+  attempts?: number;
+  delayMs?: number;
+  wait?: (milliseconds: number) => unknown;
 }): boolean {
   if (!workflowPath) {
     return false;
   }
-  try {
-    return listRunPaths(sha).some((path) => path.startsWith(workflowPath));
-  } catch {
-    return false;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      if (listRunPaths(sha).some((path) => path.startsWith(workflowPath))) {
+        return true;
+      }
+    } catch {
+      // A failed lookup, such as a token without read access, will not improve.
+      return false;
+    }
+    if (attempt < attempts) {
+      wait(delayMs);
+    }
   }
+  return false;
 }
 
 /**

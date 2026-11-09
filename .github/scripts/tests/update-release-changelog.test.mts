@@ -1030,6 +1030,42 @@ test('finds the run the moving push triggered', () => {
   );
 });
 
+test('waits for the run of the moving push to appear', () => {
+  const waits: number[] = [];
+  let lookups = 0;
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => {
+        lookups += 1;
+        return lookups < 3 ? [] : [RUN_PATH];
+      },
+      attempts: 5,
+      delayMs: 1000,
+      wait: (milliseconds) => waits.push(milliseconds),
+    }),
+    true,
+  );
+  assert.deepEqual(waits, [1000, 1000]);
+});
+
+test('gives up after the last attempt without a matching run', () => {
+  const waits: number[] = [];
+  assert.equal(
+    hasWorkflowRunForSha({
+      sha: 'abc',
+      workflowPath: RUN_PATH,
+      listRunPaths: () => [],
+      attempts: 3,
+      delayMs: 1000,
+      wait: (milliseconds) => waits.push(milliseconds),
+    }),
+    false,
+  );
+  assert.deepEqual(waits, [1000, 1000]);
+});
+
 test('does not assume a newer run when none matches or the lookup fails', () => {
   assert.equal(
     hasWorkflowRunForSha({
