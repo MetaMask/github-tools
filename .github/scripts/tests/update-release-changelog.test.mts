@@ -1072,6 +1072,7 @@ test('does not assume a newer run when none matches or the lookup fails', () => 
       sha: 'abc',
       workflowPath: RUN_PATH,
       listRunPaths: () => ['.github/workflows/other.yml'],
+      wait: () => undefined,
     }),
     false,
   );
