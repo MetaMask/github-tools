@@ -17,7 +17,7 @@ import { getEnvironmentWithoutAiKey } from './shared/environment.mts';
 import { writeReport } from './shared/report.mts';
 import { retry } from './shared/retry.mts';
 
-const MODEL = 'gpt-5.6-terra';
+const MODEL = 'gpt-6.1-terra';
 const DEFAULT_BASE_URL = 'https://litellm.consensys.info';
 const DEFAULT_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 2;

@@ -55,6 +55,18 @@ type UnlistedCherryPicks = {
   prNumbers: readonly string[];
 };
 
+type DroppedEntryVersion = {
+  version: string;
+  entryCount: number;
+  prNumbers: readonly string[];
+};
+
+type DroppedEntries = {
+  baselineVersion: string;
+  releaseBranch: string;
+  versions: readonly DroppedEntryVersion[];
+};
+
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const CLEANER_PATH = resolve(SCRIPT_DIRECTORY, 'clean-release-changelog.mts');
 const PROMPT_PATH = resolve(
@@ -208,6 +220,80 @@ function getRemoteRefSha(ref: string): string | undefined {
   return getRemoteBranchSha(branch);
 }
 
+/** A remote ref moved after the run read it. */
+export class RemoteRefMovedError extends Error {
+  readonly currentSha: string | undefined;
+
+  constructor(message: string, currentSha: string | undefined) {
+    super(message);
+    this.name = 'RemoteRefMovedError';
+    this.currentSha = currentSha;
+  }
+}
+
+/** A newer run of this workflow publishes the changelog instead. */
+export class SupersededRunError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SupersededRunError';
+  }
+}
+
+/**
+ * Reports whether a run of the calling workflow already exists for a commit.
+ * The push that moved the release branch triggers it, so it publishes the
+ * changelog for that tip. A push made with `GITHUB_TOKEN` triggers no run, so
+ * nothing would publish and the caller must not treat this run as superseded.
+ *
+ * @param options0 - The options.
+ * @param options0.sha - The branch tip the push created.
+ * @param options0.workflowPath - The calling workflow's file path, such as
+ * `.github/workflows/update-release-changelog.yml`.
+ * @param options0.listRunPaths - Lists the workflow file paths of the runs for
+ * a commit; replaceable in tests.
+ * @returns `true` only when such a run is found; `false` when the lookup fails.
+ */
+export function hasWorkflowRunForSha({
+  sha,
+  workflowPath,
+  listRunPaths = (commitSha) =>
+    capture('gh', [
+      'api',
+      `repos/${process.env.GITHUB_REPOSITORY ?? ''}/actions/runs?head_sha=${commitSha}&per_page=100`,
+      '--jq',
+      '.workflow_runs[].path',
+    ]).split(/\r?\n/u),
+}: {
+  sha: string;
+  workflowPath: string | undefined;
+  listRunPaths?: (sha: string) => string[];
+}): boolean {
+  if (!workflowPath) {
+    return false;
+  }
+  try {
+    return listRunPaths(sha).some((path) => path.startsWith(workflowPath));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads the calling workflow's file path from `GITHUB_WORKFLOW_REF`.
+ *
+ * @param env - The environment; replaceable in tests.
+ * @returns The path, or `undefined` outside GitHub Actions.
+ */
+export function getCallingWorkflowPath(
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  const [workflowFile] = (env.GITHUB_WORKFLOW_REF ?? '').split('@');
+  const prefix = `${env.GITHUB_REPOSITORY ?? ''}/`;
+  return env.GITHUB_REPOSITORY && workflowFile?.startsWith(prefix)
+    ? workflowFile.slice(prefix.length)
+    : undefined;
+}
+
 /**
  * Throws when a remote ref moved since it was read, so stale output is never
  * published.
@@ -228,8 +314,9 @@ export function assertRemoteRefUnchanged({
 }): void {
   const currentSha = getRemoteRefSha(ref);
   if (currentSha !== expectedSha) {
-    throw new Error(
+    throw new RemoteRefMovedError(
       `${description} ${ref} changed during changelog generation; refusing to publish stale output`,
+      currentSha,
     );
   }
 }
@@ -284,12 +371,12 @@ function getReleaseBranches() {
  *
  * @param changelogBranch - The PR head branch.
  * @param releaseBranch - The PR base branch.
- * @returns The PR number and title, or `undefined` when no PR is open.
+ * @returns The PR number, title and body, or `undefined` when no PR is open.
  */
 function getOpenChangelogPr(
   changelogBranch: string,
   releaseBranch: string,
-): { number: string; title: string } | undefined {
+): { number: string; title: string; body: string } | undefined {
   const output = capture('gh', [
     'pr',
     'list',
@@ -300,18 +387,19 @@ function getOpenChangelogPr(
     '--state',
     'open',
     '--json',
-    'number,title',
+    'number,title,body',
     '--jq',
     '.[0] // empty',
   ]);
   if (!output) {
     return undefined;
   }
-  const { number, title } = JSON.parse(output) as {
+  const { number, title, body } = JSON.parse(output) as {
     number: number;
     title: string;
+    body: string | null;
   };
-  return { number: String(number), title };
+  return { number: String(number), title, body: body ?? '' };
 }
 
 /**
@@ -657,6 +745,9 @@ export function getCherryPickAliasesByPr(
  *
  * @param options0 - The options.
  * @param options0.changelog - The full changelog text.
+ * @param options0.pendingSections - Release sections that are not in the
+ * changelog yet, such as the earlier release's section in its open changelog
+ * PR. They count like any other section.
  * @param options0.prNumbers - The PRs to check.
  * @param options0.aliasesByPr - The cherry-pick PR numbers by canonical PR.
  * @param options0.version - The version whose section is ignored.
@@ -665,26 +756,85 @@ export function getCherryPickAliasesByPr(
  */
 export function findPrsMissingFromChangelog({
   changelog,
+  pendingSections = [],
   prNumbers,
   aliasesByPr,
   version,
   repositoryUrl,
 }: {
   changelog: string;
+  pendingSections?: readonly string[];
   prNumbers: readonly string[];
   aliasesByPr: ReadonlyMap<string, readonly string[]>;
   version: string;
   repositoryUrl: string;
 }): string[] {
+  const searchedText = [changelog, ...pendingSections].join('\n\n');
   return prNumbers.filter(
     (prNumber) =>
       findReleaseVersionsContainingPrs(
-        changelog,
+        searchedText,
         [prNumber, ...(aliasesByPr.get(prNumber) ?? [])],
         version,
         repositoryUrl,
       ).length === 0,
   );
+}
+
+/**
+ * Reads the earlier release's section from its open changelog PR. Until that
+ * PR merges, the release branch holds an older section, so an entry the PR
+ * already lists would look missing.
+ *
+ * @param options0 - The options.
+ * @param options0.baseline - The selected baseline.
+ * @param options0.determineBranch - Names the earlier release's changelog
+ * branch; replaceable in tests.
+ * @param options0.getSha - Reads a remote branch tip; replaceable in tests.
+ * @param options0.getOpenPrNumber - Looks up the open PR number; replaceable in
+ * tests.
+ * @param options0.readSection - Reads the release section from the changelog
+ * branch; replaceable in tests.
+ * @returns The section, or `undefined` when no such PR is open or readable.
+ */
+export function getOpenBaselineChangelogSection({
+  baseline,
+  determineBranch = determineChangelogBranch,
+  getSha = getRemoteBranchSha,
+  getOpenPrNumber = getOpenChangelogPrNumber,
+  readSection = (branch, version) => {
+    execute('git', ['fetch', 'origin', branch]);
+    return readReleaseSectionAtRef(`origin/${branch}`, version);
+  },
+}: {
+  baseline: ChangelogBaseline;
+  determineBranch?: typeof determineChangelogBranch;
+  getSha?: typeof getRemoteBranchSha;
+  getOpenPrNumber?: typeof getOpenChangelogPrNumber;
+  readSection?: (branch: string, version: string) => string;
+}): string | undefined {
+  // A baseline on stable or on the target has no open changelog PR to read.
+  if (baseline.kind !== 'release') {
+    return undefined;
+  }
+
+  const changelogBranch = determineBranch(baseline.version);
+  const baselineReleaseBranch = baseline.ref.replace(/^origin\//u, '');
+  try {
+    if (
+      !getSha(changelogBranch) ||
+      !getOpenPrNumber(changelogBranch, baselineReleaseBranch)
+    ) {
+      return undefined;
+    }
+    return readSection(changelogBranch, baseline.version);
+  } catch (error) {
+    // The PR is only extra evidence, so a failed lookup must not stop the run.
+    console.warn(
+      `Could not read ${baseline.version} from open changelog branch ${changelogBranch}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return undefined;
+  }
 }
 
 /**
@@ -735,6 +885,111 @@ export function excludePrsCherryPickedOntoBaseline({
 }
 
 /**
+ * Groups the top-level entries of each released version's section.
+ *
+ * @param changelog - The changelog text.
+ * @returns The trimmed entry lines by version. `Unreleased` is not included.
+ */
+function getEntriesByVersion(changelog: string): Map<string, string[]> {
+  const entriesByVersion = new Map<string, string[]>();
+  let entries: string[] | undefined;
+  for (const line of splitLines(changelog)) {
+    const headingVersion = parseReleaseHeadingVersion(line);
+    if (headingVersion) {
+      entries = entriesByVersion.get(headingVersion) ?? [];
+      entriesByVersion.set(headingVersion, entries);
+    } else if (line.startsWith('## [')) {
+      entries = undefined;
+    } else if (entries && line.startsWith('- ')) {
+      entries.push(line.trim());
+    }
+  }
+  return entriesByVersion;
+}
+
+/**
+ * Finds the entries of released versions that the release branch lists but the
+ * changelog restored from the baseline lacks. Restoring replaces the whole
+ * file, so a stale baseline silently reverts them. An entry counts as kept
+ * when the restored version lists any of its PRs, so rewording is not a loss;
+ * an entry without a PR number must match exactly.
+ *
+ * @param options0 - The options.
+ * @param options0.restoredChangelog - The changelog restored from the baseline.
+ * @param options0.releaseChangelog - The release branch's own changelog, without
+ * releases newer than the target.
+ * @param options0.repositoryUrl - The repository's GitHub URL, so its long PR
+ * links count as references.
+ * @returns The lost entries by version, in file order.
+ */
+export function findEntriesDroppedByRestore({
+  restoredChangelog,
+  releaseChangelog,
+  repositoryUrl,
+}: {
+  restoredChangelog: string;
+  releaseChangelog: string;
+  repositoryUrl?: string;
+}): DroppedEntryVersion[] {
+  const normalize = (changelog: string): string =>
+    repositoryUrl
+      ? normalizeRepositoryPrLinks(changelog, repositoryUrl)
+      : changelog;
+  const restoredEntries = getEntriesByVersion(normalize(restoredChangelog));
+  return [...getEntriesByVersion(normalize(releaseChangelog))].flatMap(
+    ([version, entries]) => {
+      const keptEntries = restoredEntries.get(version) ?? [];
+      const keptTexts = new Set(keptEntries);
+      const keptPrNumbers = new Set(keptEntries.flatMap(getPrNumbers));
+      const dropped = entries.filter((entry) => {
+        const prNumbers = getPrNumbers(entry);
+        return prNumbers.length > 0
+          ? !prNumbers.some((prNumber) => keptPrNumbers.has(prNumber))
+          : !keptTexts.has(entry);
+      });
+      if (dropped.length === 0) {
+        return [];
+      }
+      return [
+        {
+          version,
+          entryCount: dropped.length,
+          prNumbers: [
+            ...new Set(dropped.flatMap((entry) => getPrNumbers(entry))),
+          ],
+        },
+      ];
+    },
+  );
+}
+
+/**
+ * Builds the PR warning for entries the baseline restore removed.
+ *
+ * @param version - The version being released.
+ * @param droppedEntries - The baseline and the entries it lacks.
+ * @returns The warning as a Markdown quote.
+ */
+export function getDroppedEntriesWarning(
+  version: string,
+  droppedEntries: DroppedEntries,
+): string {
+  const { baselineVersion, releaseBranch, versions } = droppedEntries;
+  const count = (total: number): string =>
+    `${total} ${total === 1 ? 'entry' : 'entries'}`;
+  const total = versions.reduce((sum, { entryCount }) => sum + entryCount, 0);
+  const summary = versions
+    .map(({ version: droppedVersion, entryCount, prNumbers }) => {
+      const shown = prNumbers.slice(0, 3).map((prNumber) => `#${prNumber}`);
+      const more =
+        prNumbers.length > 3 ? [`+${prNumbers.length - 3} more`] : [];
+      return `${droppedVersion} (${count(entryCount)}: ${[...shown, ...more].join(', ')})`;
+    })
+    .join('; ');
+  return `> Restoring the changelog from the ${baselineVersion} baseline dropped ${count(total)} that ${releaseBranch} lists under earlier releases: ${summary}. The ${baselineVersion} changelog may be stale for ${version}; fix it or merge its changelog PR first, then rerun.`;
+}
+
+/**
  * Builds the PR warning for PRs left out because an earlier release's branch
  * has them, when that release's changelog does not list them.
  *
@@ -753,6 +1008,69 @@ export function getUnlistedCherryPicksWarning(
       ? ['was', 'its cherry-pick is', 'it']
       : ['were', 'their cherry-picks are', 'them'];
   return `> ${list} ${was} left out of ${version} because ${cherryPicks} already on the ${baselineVersion} branch, but the ${baselineVersion} changelog does not list ${pronoun}. Add an entry to the right release if one is needed.`;
+}
+
+const GENERATED_WARNING_PATTERNS = [
+  /^> .* left out of .* because .* already on the .* branch, but the .* changelog does not list /u,
+  /^> Restoring the changelog from the .* baseline dropped /u,
+];
+
+/**
+ * Rebuilds the left-out and dropped-entry warnings of an existing PR body from
+ * this run, so a warning that no longer holds is removed. Only whole lines
+ * that match a generated warning are touched; other text stays as written.
+ *
+ * @param options0 - The options.
+ * @param options0.existingBody - The open PR's current body.
+ * @param options0.version - The version being released.
+ * @param options0.unlistedCherryPicks - This run's left-out PRs, if any.
+ * @param options0.droppedEntries - This run's dropped entries, if any.
+ * @returns The new body, or `undefined` when it would not change.
+ */
+export function refreshGeneratedWarnings({
+  existingBody,
+  version,
+  unlistedCherryPicks,
+  droppedEntries,
+}: {
+  existingBody: string;
+  version: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
+}): string | undefined {
+  const wanted = [
+    ...(unlistedCherryPicks
+      ? [getUnlistedCherryPicksWarning(version, unlistedCherryPicks)]
+      : []),
+    ...(droppedEntries
+      ? [getDroppedEntriesWarning(version, droppedEntries)]
+      : []),
+  ];
+  const lines = existingBody.replace(/\r\n/gu, '\n').split('\n');
+  const present: string[] = [];
+  const keptLines: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] as string;
+    if (
+      GENERATED_WARNING_PATTERNS.some((pattern) => pattern.test(line.trim()))
+    ) {
+      present.push(line.trim());
+      // Drop the blank line that separated the warning from what follows.
+      if (lines[index + 1] === '') {
+        index += 1;
+      }
+    } else {
+      keptLines.push(line);
+    }
+  }
+  if (
+    present.length === wanted.length &&
+    present.every((warning, index) => warning === wanted[index])
+  ) {
+    return undefined;
+  }
+  const keptText = keptLines.join('\n').trimEnd();
+  return [...(keptText ? [keptText] : []), ...wanted].join('\n\n');
 }
 
 /**
@@ -1302,6 +1620,8 @@ export function getDeletedPrNumbers({
  * cherry-picked PRs.
  * @param options0.unlistedCherryPicks - PRs left out of this release that the
  * earlier release's changelog does not list.
+ * @param options0.droppedEntries - Entries the baseline restore removed from
+ * earlier releases.
  * @returns The PR title and body.
  */
 export function getChangelogPrPresentation({
@@ -1311,6 +1631,7 @@ export function getChangelogPrPresentation({
   proofreadingStage,
   presentInVersions = [],
   unlistedCherryPicks,
+  droppedEntries,
 }: {
   version: string;
   changelogBranch: string;
@@ -1318,6 +1639,7 @@ export function getChangelogPrPresentation({
   proofreadingStage?: string;
   presentInVersions?: readonly string[];
   unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
 }): ChangelogPrPresentation {
   let title = `release: ${changelogBranch}`;
   let body = `This PR updates the change log for ${version}.`;
@@ -1331,6 +1653,9 @@ export function getChangelogPrPresentation({
   }
   if (unlistedCherryPicks) {
     body = `${body}\n\n${getUnlistedCherryPicksWarning(version, unlistedCherryPicks)}`;
+  }
+  if (droppedEntries) {
+    body = `${body}\n\n${getDroppedEntriesWarning(version, droppedEntries)}`;
   }
   return { title, body };
 }
@@ -1457,6 +1782,9 @@ export function hasSameChangelogAsRemoteBranch(
  * @param options0.proofreadingStatus - The proofreading outcome of this run.
  * @param options0.replacesWholeSection - Whether this run proofread the whole
  * section again.
+ * @param options0.version - The version being released.
+ * @param options0.unlistedCherryPicks - This run's left-out PRs, if any.
+ * @param options0.droppedEntries - This run's dropped entries, if any.
  */
 function createOrUpdateChangelogPr({
   changelogBranch,
@@ -1464,12 +1792,18 @@ function createOrUpdateChangelogPr({
   presentation,
   proofreadingStatus,
   replacesWholeSection,
+  version,
+  unlistedCherryPicks,
+  droppedEntries,
 }: {
   changelogBranch: string;
   releaseBranch: string;
   presentation: ChangelogPrPresentation;
   proofreadingStatus: ProofreadingStatus;
   replacesWholeSection: boolean;
+  version: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
 }): void {
   const existingPr = getOpenChangelogPr(changelogBranch, releaseBranch);
   if (existingPr) {
@@ -1480,6 +1814,22 @@ function createOrUpdateChangelogPr({
         replacesWholeSection,
       })
     ) {
+      // The kept body may carry warnings this run no longer raises.
+      const refreshedBody = refreshGeneratedWarnings({
+        existingBody: existingPr.body,
+        version,
+        ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+        ...(droppedEntries ? { droppedEntries } : {}),
+      });
+      if (refreshedBody !== undefined) {
+        execute('gh', [
+          'pr',
+          'edit',
+          existingPr.number,
+          '--body',
+          refreshedBody,
+        ]);
+      }
       return;
     }
     execute('gh', [
@@ -1528,6 +1878,8 @@ function createOrUpdateChangelogPr({
  * from.
  * @param options0.unlistedCherryPicks - PRs left out of this release that the
  * earlier release's changelog does not list.
+ * @param options0.droppedEntries - Entries the baseline restore removed from
+ * earlier releases.
  * @param options0.assertSourcesUnchanged - Throws when a source ref moved during
  * the run.
  */
@@ -1541,6 +1893,7 @@ function commitAndPushChangelog({
   markUnproofread,
   generatedThrough,
   unlistedCherryPicks,
+  droppedEntries,
   assertSourcesUnchanged,
 }: {
   version: string;
@@ -1552,6 +1905,7 @@ function commitAndPushChangelog({
   markUnproofread: boolean;
   generatedThrough: string;
   unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
   assertSourcesUnchanged: () => void;
 }): void {
   const unexpectedChanges = capture('git', [
@@ -1609,6 +1963,9 @@ function commitAndPushChangelog({
     releaseBranch,
     proofreadingStatus: proofreading.status,
     replacesWholeSection,
+    version,
+    ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+    ...(droppedEntries ? { droppedEntries } : {}),
     presentation: getChangelogPrPresentation({
       version,
       changelogBranch,
@@ -1618,6 +1975,7 @@ function commitAndPushChangelog({
         ? { presentInVersions: proofreading.presentInVersions }
         : {}),
       ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+      ...(droppedEntries ? { droppedEntries } : {}),
     }),
   });
 }
@@ -1757,6 +2115,30 @@ function main(): void {
 
   rebuildChangelogBranch({ changelogBranch, releaseBranch, baseline });
   writeChangelog(removeNewerReleases(readChangelog(), version));
+
+  // The restore replaces the whole file, so a stale baseline reverts entries
+  // that the release branch's own changelog already has.
+  let droppedEntries: DroppedEntries | undefined;
+  if (baseline.kind !== 'target') {
+    const versions = findEntriesDroppedByRestore({
+      restoredChangelog: readChangelog(),
+      releaseChangelog: removeNewerReleases(
+        readChangelogAtRef(`origin/${releaseBranch}`),
+        version,
+      ),
+      repositoryUrl,
+    });
+    if (versions.length > 0) {
+      droppedEntries = {
+        baselineVersion: baseline.version,
+        releaseBranch,
+        versions,
+      };
+      console.warn(
+        getDroppedEntriesWarning(version, droppedEntries).replace(/^> /u, ''),
+      );
+    }
+  }
   if (preservedReviewedSection) {
     writeChangelog(
       mergeCurrentReleaseSection({
@@ -1802,8 +2184,12 @@ function main(): void {
         skippedPrNumbers.push(...excludedPrNumbers);
 
         // A PR whose earlier changelog never listed it would vanish from both.
+        const openBaselineSection = getOpenBaselineChangelogSection({
+          baseline,
+        });
         const missingPrNumbers = findPrsMissingFromChangelog({
           changelog: readChangelog(),
+          pendingSections: openBaselineSection ? [openBaselineSection] : [],
           prNumbers: excludedPrNumbers,
           aliasesByPr: cherryPickAliasesByPr,
           version,
@@ -1902,11 +2288,27 @@ function main(): void {
   runChangelogValidation(proofreading, version);
 
   const assertSourcesUnchanged = () => {
-    assertRemoteRefUnchanged({
-      ref: `origin/${releaseBranch}`,
-      expectedSha: targetReleaseSha,
-      description: 'Target release branch',
-    });
+    try {
+      assertRemoteRefUnchanged({
+        ref: `origin/${releaseBranch}`,
+        expectedSha: targetReleaseSha,
+        description: 'Target release branch',
+      });
+    } catch (error) {
+      if (
+        error instanceof RemoteRefMovedError &&
+        error.currentSha &&
+        hasWorkflowRunForSha({
+          sha: error.currentSha,
+          workflowPath: getCallingWorkflowPath(),
+        })
+      ) {
+        throw new SupersededRunError(
+          `${releaseBranch} moved to ${error.currentSha} during changelog generation. The run for that push publishes the changelog, so this run stops without publishing.`,
+        );
+      }
+      throw error;
+    }
     assertRemoteRefUnchanged({
       ref: baseline.ref,
       expectedSha: baselineSha,
@@ -1921,28 +2323,36 @@ function main(): void {
     }
   };
 
-  if (dryRun) {
-    // Preflight the same source snapshots used for publication, but leave all
-    // commits, remote branches, and pull requests unchanged.
-    assertSourcesUnchanged();
-    console.log(
-      `Dry run passed for ${releaseBranch}; no commit, push, or PR update was performed.`,
-    );
-    return;
+  try {
+    if (dryRun) {
+      // Preflight the same source snapshots used for publication, but leave all
+      // commits, remote branches, and pull requests unchanged.
+      assertSourcesUnchanged();
+      console.log(
+        `Dry run passed for ${releaseBranch}; no commit, push, or PR update was performed.`,
+      );
+      return;
+    }
+    commitAndPushChangelog({
+      version,
+      changelogBranch,
+      releaseBranch,
+      expectedRemoteSha: changelogBranchSha,
+      proofreading,
+      replacesWholeSection: regenerateWholeSection,
+      markUnproofread:
+        proofreading.status === 'failed' && !preservedReviewedSection,
+      generatedThrough: targetReleaseSha,
+      ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+      ...(droppedEntries ? { droppedEntries } : {}),
+      assertSourcesUnchanged,
+    });
+  } catch (error) {
+    if (!(error instanceof SupersededRunError)) {
+      throw error;
+    }
+    console.log(`::notice::${error.message}`);
   }
-  commitAndPushChangelog({
-    version,
-    changelogBranch,
-    releaseBranch,
-    expectedRemoteSha: changelogBranchSha,
-    proofreading,
-    replacesWholeSection: regenerateWholeSection,
-    markUnproofread:
-      proofreading.status === 'failed' && !preservedReviewedSection,
-    generatedThrough: targetReleaseSha,
-    ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
-    assertSourcesUnchanged,
-  });
 }
 
 // Run only when executed directly, not when the tests import this module.
