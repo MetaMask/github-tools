@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.2]
+
 ### Changed
 
 - Count the earlier release's open changelog PR before `update-release-changelog` warns about left-out PRs ([#309](https://github.com/MetaMask/github-tools/pull/309))
@@ -320,7 +322,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.2...HEAD
+[1.22.2]: https://github.com/MetaMask/github-tools/compare/v1.22.1...v1.22.2
 [1.22.1]: https://github.com/MetaMask/github-tools/compare/v1.22.0...v1.22.1
 [1.22.0]: https://github.com/MetaMask/github-tools/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/MetaMask/github-tools/compare/v1.20.0...v1.21.0
