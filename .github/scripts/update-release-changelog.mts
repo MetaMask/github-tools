@@ -1795,6 +1795,41 @@ export function hasSameChangelogAsRemoteBranch(
 }
 
 /**
+ * Edits an open changelog PR's body so its generated warnings match this run,
+ * keeping everything else. The body may carry warnings this run no longer
+ * raises.
+ *
+ * @param options0 - The options.
+ * @param options0.existingPr - The open changelog PR.
+ * @param options0.existingPr.number - Its number.
+ * @param options0.existingPr.body - Its body.
+ * @param options0.version - The version being released.
+ * @param options0.unlistedCherryPicks - This run's left-out PRs, if any.
+ * @param options0.droppedEntries - This run's dropped entries, if any.
+ */
+function refreshPrBodyWarnings({
+  existingPr,
+  version,
+  unlistedCherryPicks,
+  droppedEntries,
+}: {
+  existingPr: { number: string; body: string };
+  version: string;
+  unlistedCherryPicks?: UnlistedCherryPicks;
+  droppedEntries?: DroppedEntries;
+}): void {
+  const refreshedBody = refreshGeneratedWarnings({
+    existingBody: existingPr.body,
+    version,
+    ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+    ...(droppedEntries ? { droppedEntries } : {}),
+  });
+  if (refreshedBody !== undefined) {
+    execute('gh', ['pr', 'edit', existingPr.number, '--body', refreshedBody]);
+  }
+}
+
+/**
  * Edits the open changelog PR, or creates a draft one when none is open.
  *
  * @param options0 - The options.
@@ -1836,22 +1871,12 @@ function createOrUpdateChangelogPr({
         replacesWholeSection,
       })
     ) {
-      // The kept body may carry warnings this run no longer raises.
-      const refreshedBody = refreshGeneratedWarnings({
-        existingBody: existingPr.body,
+      refreshPrBodyWarnings({
+        existingPr,
         version,
         ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
         ...(droppedEntries ? { droppedEntries } : {}),
       });
-      if (refreshedBody !== undefined) {
-        execute('gh', [
-          'pr',
-          'edit',
-          existingPr.number,
-          '--body',
-          refreshedBody,
-        ]);
-      }
       return;
     }
     execute('gh', [
@@ -1966,6 +1991,16 @@ function commitAndPushChangelog({
     ]);
   } else {
     console.log('Changelog branch and release branch are already in sync.');
+    // An open PR may still carry warnings that no longer hold.
+    const openPr = getOpenChangelogPr(changelogBranch, releaseBranch);
+    if (openPr) {
+      refreshPrBodyWarnings({
+        existingPr: openPr,
+        version,
+        ...(unlistedCherryPicks ? { unlistedCherryPicks } : {}),
+        ...(droppedEntries ? { droppedEntries } : {}),
+      });
+    }
     return;
   }
 
