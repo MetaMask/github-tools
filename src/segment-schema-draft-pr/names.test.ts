@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { toKebabSlug, toSnakeCase, uniqueKebabSlug } from './names';
 
 describe('names', () => {
