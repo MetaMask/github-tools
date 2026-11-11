@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { expect, test } from 'vitest';
 
 import { retry } from '../shared/retry.mts';
 
@@ -22,32 +21,31 @@ test('retries an operation with increasing delays', async () => {
     },
   );
 
-  assert.equal(result, 'recovered');
-  assert.equal(attempts, 3);
-  assert.deepEqual(delays, [100, 200]);
+  expect(result).toBe('recovered');
+  expect(attempts).toBe(3);
+  expect(delays).toStrictEqual([100, 200]);
 });
 
 test('does not retry a rejected error category', async () => {
   let attempts = 0;
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       retry(
         async () => {
           attempts += 1;
           throw new Error('Permanent failure');
         },
         { shouldRetry: () => false },
-      ),
-    /Permanent failure/u,
-  );
+      ))(),
+  ).rejects.toThrow(/Permanent failure/u);
 
-  assert.equal(attempts, 1);
+  expect(attempts).toBe(1);
 });
 
 test('reports retry details before delaying', async () => {
   const retries: { attempt: number; delayMilliseconds: number }[] = [];
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       retry(
         async () => {
           throw new Error('Transient failure');
@@ -59,9 +57,8 @@ test('reports retry details before delaying', async () => {
           },
           sleep: async () => undefined,
         },
-      ),
-    /Transient failure/u,
-  );
+      ))(),
+  ).rejects.toThrow(/Transient failure/u);
 
-  assert.deepEqual(retries, [{ attempt: 1, delayMilliseconds: 1_000 }]);
+  expect(retries).toStrictEqual([{ attempt: 1, delayMilliseconds: 1_000 }]);
 });

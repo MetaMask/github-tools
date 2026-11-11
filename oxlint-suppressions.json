@@ -31,6 +31,12 @@
   ".github/actions/playwright-test-health-report/lib/report-health.test.mjs": {
     "require-unicode-regexp": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
+    },
+    "vitest/prefer-to-have-length": {
+      "count": 3
     }
   },
   ".github/actions/playwright-test-health-report/lib/slack-test-health-blocks.mjs": {
@@ -299,13 +305,10 @@
       "count": 12
     },
     "typescript/explicit-function-return-type": {
-      "count": 5
+      "count": 13
     },
     "typescript/no-base-to-string": {
       "count": 2
-    },
-    "typescript/no-floating-promises": {
-      "count": 35
     },
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
@@ -313,11 +316,20 @@
     "typescript/return-await": {
       "count": 9
     },
+    "vitest/consistent-test-it": {
+      "count": 35
+    },
     "vitest/no-conditional-in-test": {
       "count": 7
     },
-    "vitest/no-import-node-test": {
+    "vitest/prefer-to-be": {
       "count": 1
+    },
+    "vitest/prefer-to-have-length": {
+      "count": 9
+    },
+    "vitest/require-top-level-describe": {
+      "count": 34
     }
   },
   ".github/scripts/tests/git-test-environment.mts": {
@@ -338,47 +350,62 @@
     "typescript/explicit-function-return-type": {
       "count": 3
     },
-    "typescript/no-floating-promises": {
+    "vitest/consistent-test-it": {
       "count": 4
     },
-    "vitest/no-import-node-test": {
-      "count": 1
+    "vitest/require-top-level-describe": {
+      "count": 5
     }
   },
   ".github/scripts/tests/release-section.test.mts": {
     "typescript/explicit-function-return-type": {
       "count": 1
     },
-    "typescript/no-floating-promises": {
+    "vitest/consistent-test-it": {
       "count": 29
     },
     "vitest/no-conditional-in-test": {
       "count": 1
     },
-    "vitest/no-import-node-test": {
-      "count": 1
+    "vitest/no-restricted-matchers": {
+      "count": 3
+    },
+    "vitest/prefer-to-be": {
+      "count": 4
+    },
+    "vitest/prefer-to-contain": {
+      "count": 2
+    },
+    "vitest/require-top-level-describe": {
+      "count": 29
     }
   },
   ".github/scripts/tests/release-version-utils.test.mts": {
-    "typescript/no-floating-promises": {
+    "vitest/consistent-test-it": {
       "count": 4
     },
-    "vitest/no-import-node-test": {
-      "count": 1
+    "vitest/prefer-to-be": {
+      "count": 3
+    },
+    "vitest/require-top-level-describe": {
+      "count": 4
     }
   },
   ".github/scripts/tests/retry.test.mts": {
-    "typescript/no-floating-promises": {
-      "count": 3
+    "typescript/explicit-function-return-type": {
+      "count": 2
     },
     "typescript/return-await": {
       "count": 2
     },
+    "vitest/consistent-test-it": {
+      "count": 3
+    },
     "vitest/no-conditional-in-test": {
       "count": 1
     },
-    "vitest/no-import-node-test": {
-      "count": 1
+    "vitest/require-top-level-describe": {
+      "count": 3
     }
   },
   ".github/scripts/tests/update-release-changelog-baseline.test.mts": {
@@ -388,36 +415,36 @@
     "typescript/explicit-function-return-type": {
       "count": 1
     },
-    "typescript/no-floating-promises": {
+    "vitest/consistent-test-it": {
       "count": 9
     },
-    "vitest/no-import-node-test": {
+    "vitest/prefer-to-contain": {
+      "count": 2
+    },
+    "vitest/prefer-to-have-length": {
       "count": 1
+    },
+    "vitest/require-top-level-describe": {
+      "count": 9
     }
   },
   ".github/scripts/tests/update-release-changelog-git.test.mts": {
     "node/no-sync": {
       "count": 14
     },
-    "typescript/no-floating-promises": {
-      "count": 30
-    },
     "vitest/no-conditional-in-test": {
-      "count": 2
+      "count": 3
     },
-    "vitest/no-import-node-test": {
+    "vitest/prefer-to-be": {
+      "count": 4
+    },
+    "vitest/require-to-throw-message": {
       "count": 1
     }
   },
   ".github/scripts/tests/update-release-changelog-reachability.test.mts": {
     "node/no-sync": {
       "count": 3
-    },
-    "typescript/no-floating-promises": {
-      "count": 4
-    },
-    "vitest/no-import-node-test": {
-      "count": 1
     }
   },
   ".github/scripts/tests/update-release-changelog.test.mts": {
@@ -430,14 +457,17 @@
     "typescript/explicit-function-return-type": {
       "count": 3
     },
-    "typescript/no-floating-promises": {
+    "vitest/consistent-test-it": {
       "count": 61
     },
     "vitest/no-conditional-in-test": {
       "count": 2
     },
-    "vitest/no-import-node-test": {
-      "count": 1
+    "vitest/prefer-to-be": {
+      "count": 8
+    },
+    "vitest/require-top-level-describe": {
+      "count": 61
     }
   },
   ".github/scripts/update-release-changelog-baseline.mts": {

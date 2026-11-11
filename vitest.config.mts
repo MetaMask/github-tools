@@ -10,12 +10,6 @@ export default defineConfig({
     // explicitly enabled with `yarn test:watch`.
     watch: false,
 
-    // The files to include in the test run.
-    include: ['src/**/*.test.ts'],
-
-    // Reduce the default test timeout from 5s to 2.5s
-    testTimeout: 2500,
-
     // Reset mocks between tests, so a mocked implementation cannot leak from
     // one test into the next.
     mockReset: true,
@@ -23,13 +17,45 @@ export default defineConfig({
 
     passWithNoTests: true,
 
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'src',
+
+          // The files to include in the test run.
+          include: ['src/**/*.test.ts'],
+
+          // Reduce the default test timeout from 5s to 2.5s
+          testTimeout: 2500,
+        },
+      },
+
+      {
+        extends: true,
+        test: {
+          name: 'workflow-scripts',
+
+          // The scripts run by workflows, which are plain `.mts` files that
+          // Node.js runs directly.
+          include: ['.github/**/*.test.{mjs,mts}'],
+
+          // Many of these tests build real git repositories in temporary
+          // directories and shell out to `git`, which is slower than the
+          // default.
+          testTimeout: 30_000,
+        },
+      },
+    ],
+
     coverage: {
       // Enabled with `--coverage`, see the `test` script.
       enabled: false,
 
       provider: 'v8',
 
-      // The files to include in the coverage report.
+      // Only `src` counts towards the coverage thresholds. The scripts under
+      // `.github` are not part of the coverage report.
       include: ['src/**/*.ts'],
 
       // The files to exclude from the coverage report.

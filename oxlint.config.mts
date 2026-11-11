@@ -44,7 +44,7 @@ export default createConfig({
     },
 
     {
-      files: ['src/**/*.test.ts', '.github/scripts/**/*.test.mts'],
+      files: ['src/**/*.test.ts', '.github/**/*.test.{mjs,mts}'],
       extends: [nodejs, vitest],
     },
   ],
