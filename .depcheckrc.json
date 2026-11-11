@@ -9,6 +9,8 @@
     "@lavamoat/preinstall-always-fail",
     "@types/*",
     "@yarnpkg/types",
+    "eslint-plugin-n",
+    "oxlint-tsgolint",
     "prettier-plugin-packagejson",
     "@swc/cli",
     "@swc/core",
