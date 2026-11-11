@@ -29,14 +29,20 @@ jobs:
           fi
 
   test:
+    name: Test (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['22', '24', '26']
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
 
-      - run: yarn test
+      - run: yarn test --reporter default --reporter github-actions
 
       - name: Require clean working directory
         shell: bash
