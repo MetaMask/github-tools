@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { extractAnalyticsModel } from './analytics-model';
 import { getPlatformConfig } from './config';
 

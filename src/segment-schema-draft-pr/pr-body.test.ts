@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   AGREEMENT_PHRASE,
   BODY_END_MARKER,

@@ -13,11 +13,12 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2020",
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "include": [
     "src",
     "oxlint.config.mts",
+    "vitest.config.mts",
     "yarn.config.cjs",
     ".github/scripts/**/*.mts"
   ],

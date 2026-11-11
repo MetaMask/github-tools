@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   getFileAtRef,
@@ -14,7 +15,7 @@ const REPO = { owner: 'MetaMask', repo: 'metamask-mobile' };
 
 describe('loadPullRequestTsDiff', () => {
   it('keeps non-test TypeScript paths from the PR file list', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         filename: 'app/Home.ts',
         patch: '+createEventBuilder(MetaMetricsEvents.APP_OPENED)',
@@ -41,7 +42,7 @@ describe('loadPullRequestTsDiff', () => {
   });
 
   it('includes previous_filename so a rename is visible at both SHAs', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         filename: 'app/track.tsx',
         [PREVIOUS_FILENAME]: 'app/old-track.tsx',
@@ -57,7 +58,7 @@ describe('loadPullRequestTsDiff', () => {
   });
 
   it('treats an omitted patch on a TypeScript file as an analytics hit', async () => {
-    const paginate = jest.fn().mockResolvedValue([{ filename: 'app/Home.ts' }]);
+    const paginate = vi.fn().mockResolvedValue([{ filename: 'app/Home.ts' }]);
     const octokit = { paginate } as unknown as Octokit;
 
     const diff = await loadPullRequestTsDiff(octokit, REPO, 12);
@@ -67,7 +68,7 @@ describe('loadPullRequestTsDiff', () => {
   });
 
   it('does not treat unrelated TypeScript patches as analytics hits', async () => {
-    const paginate = jest
+    const paginate = vi
       .fn()
       .mockResolvedValue([
         { filename: 'app/Home.ts', patch: '+const x = 1;\n' },
@@ -80,7 +81,7 @@ describe('loadPullRequestTsDiff', () => {
   });
 
   it('treats addSensitiveProperties as an analytics hit', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         filename: 'app/Home.ts',
         patch: '+.addSensitiveProperties({ secret: true })',
@@ -123,7 +124,7 @@ describe('hasAnalyticsDiff', () => {
 
 describe('getFileAtRef', () => {
   it('decodes base64 file contents', async () => {
-    const getContent = jest.fn().mockResolvedValue({
+    const getContent = vi.fn().mockResolvedValue({
       data: {
         content: Buffer.from('enum EVENT_NAME {}', 'utf8').toString('base64'),
       },
@@ -149,7 +150,7 @@ describe('getFileAtRef', () => {
   it('returns null on 404', async () => {
     const error = new Error('Not Found') as Error & { status: number };
     error.status = 404;
-    const getContent = jest.fn().mockRejectedValue(error);
+    const getContent = vi.fn().mockRejectedValue(error);
     const octokit = { repos: { getContent } } as unknown as Octokit;
 
     expect(await getFileAtRef(octokit, REPO, 'app/gone.ts', 'abc')).toBeNull();

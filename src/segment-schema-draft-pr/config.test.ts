@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getPlatformConfig, botBranchName } from './config';
 
 describe('config', () => {
