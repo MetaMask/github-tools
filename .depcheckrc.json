@@ -8,6 +8,7 @@
     "@lavamoat/allow-scripts",
     "@lavamoat/preinstall-always-fail",
     "@types/*",
+    "@yarnpkg/types",
     "prettier-plugin-packagejson",
     "@swc/cli",
     "@swc/core",
