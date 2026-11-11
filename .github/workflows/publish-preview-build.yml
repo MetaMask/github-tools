@@ -27,6 +27,10 @@ on:
         description: 'Days to retain build artifacts'
         type: number
         required: true
+    outputs:
+      is-fork:
+        description: 'Whether the pull request is from a fork. The build is skipped when it is.'
+        value: ${{ jobs.is-fork-pull-request.outputs.IS_FORK }}
     secrets:
       BUILD_ENV:
         description: 'JSON object of environment variables to pass to the build step.'

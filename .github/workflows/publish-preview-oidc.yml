@@ -70,6 +70,7 @@ jobs:
   publish-preview:
     name: Publish preview
     needs: build
+    if: ${{ needs.build.outputs.is-fork == 'false' }}
     permissions:
       contents: read
       id-token: write
