@@ -22,7 +22,7 @@
     "lint:tsc": "tsc",
     "segment-schema:draft-pr": "ts-node src/segment-schema-draft-pr/cli.ts",
     "slack:release-testing": "node .github/scripts/slack-release-testing.mjs",
-    "test": "vitest run --coverage && node --test '.github/**/*.test.{mjs,mts}'",
+    "test": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },

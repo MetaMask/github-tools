@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict';
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,7 +7,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   assertRemoteRefUnchanged,
@@ -155,18 +154,15 @@ describe('release changelog Git behavior', () => {
         baseline: STABLE_BASELINE,
       });
 
-      assert.equal(git(work, 'branch', '--show-current'), CHANGELOG_BRANCH);
-      assert.equal(
-        git(work, 'rev-parse', 'HEAD'),
+      expect(git(work, 'branch', '--show-current')).toBe(CHANGELOG_BRANCH);
+      expect(git(work, 'rev-parse', 'HEAD')).toBe(
         git(work, 'rev-parse', `origin/${TARGET}`),
       );
-      assert.equal(
-        readFileSync(join(work, 'CHANGELOG.md'), 'utf8'),
+      expect(readFileSync(join(work, 'CHANGELOG.md'), 'utf8')).toBe(
         stableChangelog,
       );
-      assert.equal(readFileSync(join(work, 'code.txt'), 'utf8'), 'target\n');
-      assert.equal(
-        git(work, 'status', '--porcelain', '--untracked-files=no'),
+      expect(readFileSync(join(work, 'code.txt'), 'utf8')).toBe('target\n');
+      expect(git(work, 'status', '--porcelain', '--untracked-files=no')).toBe(
         'M  CHANGELOG.md',
       );
     });
@@ -179,7 +175,7 @@ describe('release changelog Git behavior', () => {
         CHANGELOG_BRANCH,
         `origin/${CHANGELOG_BRANCH}`,
       );
-      assert.equal(readFileSync(join(work, 'code.txt'), 'utf8'), 'stale\n');
+      expect(readFileSync(join(work, 'code.txt'), 'utf8')).toBe('stale\n');
 
       rebuildChangelogBranch({
         changelogBranch: CHANGELOG_BRANCH,
@@ -187,7 +183,7 @@ describe('release changelog Git behavior', () => {
         baseline: STABLE_BASELINE,
       });
 
-      assert.equal(readFileSync(join(work, 'code.txt'), 'utf8'), 'target\n');
+      expect(readFileSync(join(work, 'code.txt'), 'utf8')).toBe('target\n');
     });
 
     it('does not leave the rebuilt branch tracking the remote', () => {
@@ -197,25 +193,23 @@ describe('release changelog Git behavior', () => {
         baseline: STABLE_BASELINE,
       });
 
-      assert.throws(() =>
+      expect(() =>
         git(work, 'config', '--get', `branch.${CHANGELOG_BRANCH}.remote`),
-      );
+      ).toThrow();
     });
 
     it('fails when the baseline has no CHANGELOG.md', () => {
-      assert.throws(
-        () =>
-          rebuildChangelogBranch({
-            changelogBranch: CHANGELOG_BRANCH,
-            releaseBranch: TARGET,
-            baseline: {
-              kind: 'release',
-              ref: 'origin/no-changelog',
-              version: '13.50.0',
-            },
-          }),
-        /does not contain CHANGELOG\.md/u,
-      );
+      expect(() =>
+        rebuildChangelogBranch({
+          changelogBranch: CHANGELOG_BRANCH,
+          releaseBranch: TARGET,
+          baseline: {
+            kind: 'release',
+            ref: 'origin/no-changelog',
+            version: '13.50.0',
+          },
+        }),
+      ).toThrow(/does not contain CHANGELOG\.md/u);
     });
   });
 
@@ -227,7 +221,7 @@ describe('release changelog Git behavior', () => {
     };
 
     it('returns undefined on a first run', () => {
-      assert.equal(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: undefined,
@@ -235,32 +229,28 @@ describe('release changelog Git behavior', () => {
             throw new Error('must not query PRs on a first run');
           },
         }),
-        undefined,
-      );
+      ).toBe(undefined);
     });
 
     it('refuses a stale changelog branch that has no open PR', () => {
-      assert.throws(
-        () =>
-          getReviewedCurrentReleaseSection({
-            ...input,
-            changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
-            getOpenPrNumber: () => undefined,
-          }),
-        /exists without an open PR/u,
-      );
+      expect(() =>
+        getReviewedCurrentReleaseSection({
+          ...input,
+          changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
+          getOpenPrNumber: () => undefined,
+        }),
+      ).toThrow(/exists without an open PR/u);
     });
 
     it('regenerates a branch without an open PR when only the updater committed to it', () => {
-      assert.equal(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           isUpdaterOnlyBranch: () => true,
           getOpenPrNumber: () => undefined,
         }),
-        undefined,
-      );
+      ).toBe(undefined);
     });
 
     it('strips trailing whitespace from a reviewed section', () => {
@@ -273,72 +263,66 @@ describe('release changelog Git behavior', () => {
         { from: TARGET },
       );
       git(work, 'fetch', 'origin', CHANGELOG_BRANCH);
-      assert.doesNotMatch(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           getOpenPrNumber: () => '7',
         }) ?? '',
-        /[ \t]$/mu,
-      );
+      ).not.toMatch(/[ \t]$/mu);
     });
 
     it('ignores a branch without an open PR when the target already has the section', () => {
-      assert.equal(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           allowMissingOpenPr: true,
           getOpenPrNumber: () => undefined,
         }),
-        undefined,
-      );
+      ).toBe(undefined);
     });
 
     it('still preserves an open PR when the target already has the section', () => {
       git(work, 'fetch', 'origin', CHANGELOG_BRANCH);
-      assert.match(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           allowMissingOpenPr: true,
           getOpenPrNumber: () => '7',
         }) ?? '',
-        /Added a reviewed feature \(#101\)/u,
-      );
+      ).toMatch(/Added a reviewed feature \(#101\)/u);
     });
 
     it('refuses an open changelog branch that lacks the current heading', () => {
-      assert.throws(
-        () =>
-          getReviewedCurrentReleaseSection({
-            ...input,
-            version: '13.52.0',
-            changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
-            getOpenPrNumber: () => '7',
-          }),
-        /lacks 13\.52\.0/u,
-      );
+      expect(() =>
+        getReviewedCurrentReleaseSection({
+          ...input,
+          version: '13.52.0',
+          changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
+          getOpenPrNumber: () => '7',
+        }),
+      ).toThrow(/lacks 13\.52\.0/u);
     });
 
     it('returns the reviewed section from an open changelog branch', () => {
       git(work, 'fetch', 'origin', CHANGELOG_BRANCH);
-      assert.equal(
+      expect(
         getReviewedCurrentReleaseSection({
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           getOpenPrNumber: (head, base) => {
-            assert.equal(head, CHANGELOG_BRANCH);
-            assert.equal(base, TARGET);
+            expect(head).toBe(CHANGELOG_BRANCH);
+            expect(base).toBe(TARGET);
             return '7';
           },
         }),
-        `## [13.51.0]
+      ).toBe(`## [13.51.0]
 
 ### Added
 
-- Added a reviewed feature (#101)`,
-      );
+- Added a reviewed feature (#101)`);
     });
   });
 
@@ -362,15 +346,13 @@ describe('release changelog Git behavior', () => {
       const movedSha = getRemoteBranchSha(CHANGELOG_BRANCH);
       startLocalBranch();
 
-      assert.throws(
-        () =>
-          pushChangelogBranch({
-            changelogBranch: CHANGELOG_BRANCH,
-            expectedRemoteSha: leasedSha,
-          }),
-        /changed after this run began/u,
-      );
-      assert.equal(getRemoteBranchSha(CHANGELOG_BRANCH), movedSha);
+      expect(() =>
+        pushChangelogBranch({
+          changelogBranch: CHANGELOG_BRANCH,
+          expectedRemoteSha: leasedSha,
+        }),
+      ).toThrow(/changed after this run began/u);
+      expect(getRemoteBranchSha(CHANGELOG_BRANCH)).toBe(movedSha);
     });
 
     it('rewrites the branch when the lease still matches', () => {
@@ -382,8 +364,7 @@ describe('release changelog Git behavior', () => {
         expectedRemoteSha: leasedSha,
       });
 
-      assert.equal(
-        getRemoteBranchSha(CHANGELOG_BRANCH),
+      expect(getRemoteBranchSha(CHANGELOG_BRANCH)).toBe(
         git(work, 'rev-parse', 'HEAD'),
       );
     });
@@ -399,20 +380,17 @@ describe('release changelog Git behavior', () => {
         changelogBranch: newBranch,
         expectedRemoteSha: undefined,
       });
-      assert.equal(
-        getRemoteBranchSha(newBranch),
+      expect(getRemoteBranchSha(newBranch)).toBe(
         git(work, 'rev-parse', 'HEAD'),
       );
 
       git(work, 'commit', '--allow-empty', '-m', 'second');
-      assert.throws(
-        () =>
-          pushChangelogBranch({
-            changelogBranch: newBranch,
-            expectedRemoteSha: undefined,
-          }),
-        /may have been created concurrently/u,
-      );
+      expect(() =>
+        pushChangelogBranch({
+          changelogBranch: newBranch,
+          expectedRemoteSha: undefined,
+        }),
+      ).toThrow(/may have been created concurrently/u);
     });
   });
 
@@ -430,8 +408,7 @@ describe('release changelog Git behavior', () => {
       writeFileSync(join(work, 'code.txt'), 'release moved\n');
       git(work, 'commit', '-am', 'same changelog, other file moved');
 
-      assert.equal(
-        hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha),
+      expect(hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha)).toBe(
         true,
       );
     });
@@ -448,9 +425,8 @@ describe('release changelog Git behavior', () => {
       );
       git(work, 'commit', '--amend', '-m', 'rebuilt with a new hash');
 
-      assert.notEqual(git(work, 'rev-parse', 'HEAD'), remoteSha);
-      assert.equal(
-        hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha),
+      expect(git(work, 'rev-parse', 'HEAD')).not.toBe(remoteSha);
+      expect(hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha)).toBe(
         true,
       );
     });
@@ -466,15 +442,13 @@ describe('release changelog Git behavior', () => {
         `origin/${CHANGELOG_BRANCH}`,
       );
 
-      assert.equal(
+      expect(
         hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, 'f'.repeat(40)),
-        false,
-      );
+      ).toBe(false);
 
       writeFileSync(join(work, 'CHANGELOG.md'), 'edited\n');
       git(work, 'commit', '-am', 'edit');
-      assert.equal(
-        hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha),
+      expect(hasSameChangelogAsRemoteBranch(CHANGELOG_BRANCH, remoteSha)).toBe(
         false,
       );
     });
@@ -503,23 +477,23 @@ describe('release changelog Git behavior', () => {
         'Changelog-Proofread: failed',
       );
 
-      assert.deepEqual(
+      expect(
         getChangelogBranchCommits(CHANGELOG_BRANCH, TARGET).map(
           ({ subject, unproofread }) => ({ subject, unproofread }),
         ),
-        [{ subject: 'update changelog for 13.51.0', unproofread: true }],
-      );
+      ).toStrictEqual([
+        { subject: 'update changelog for 13.51.0', unproofread: true },
+      ]);
     });
 
     it('reports no marker on a commit without the trailer', () => {
       pushCommit('-m', 'update changelog for 13.51.0');
 
-      assert.deepEqual(
+      expect(
         getChangelogBranchCommits(CHANGELOG_BRANCH, TARGET).map(
           ({ unproofread }) => unproofread,
         ),
-        [false],
-      );
+      ).toStrictEqual([false]);
     });
 
     it('reads the release tip a run generated through, next to the other trailer', () => {
@@ -531,15 +505,14 @@ describe('release changelog Git behavior', () => {
         `Changelog-Generated-Through: ${tip}\nChangelog-Proofread: failed`,
       );
 
-      assert.deepEqual(
+      expect(
         getChangelogBranchCommits(CHANGELOG_BRANCH, TARGET).map(
           ({ generatedThrough, unproofread }) => ({
             generatedThrough,
             unproofread,
           }),
         ),
-        [{ generatedThrough: tip, unproofread: true }],
-      );
+      ).toStrictEqual([{ generatedThrough: tip, unproofread: true }]);
     });
 
     it('ignores a generated-through value that is not a commit SHA', () => {
@@ -550,39 +523,38 @@ describe('release changelog Git behavior', () => {
         'Changelog-Generated-Through: not-a-sha',
       );
 
-      assert.equal(
+      expect(
         getChangelogBranchCommits(CHANGELOG_BRANCH, TARGET)[0]
           ?.generatedThrough,
-        undefined,
-      );
+      ).toBe(undefined);
     });
   });
 
   describe('assertRemoteRefUnchanged', () => {
     it('accepts an unchanged ref and rejects a moved one', () => {
       const sha = getRemoteBranchSha(TARGET);
-      assert.ok(sha);
-      assert.doesNotThrow(() =>
+      if (sha === undefined) {
+        throw new Error('Expected the target release branch to exist');
+      }
+      expect(() =>
         assertRemoteRefUnchanged({
           ref: `origin/${TARGET}`,
           expectedSha: sha,
           description: 'Target release branch',
         }),
-      );
+      ).not.toThrow();
 
       git(seed, 'checkout', TARGET);
       git(seed, 'commit', '--allow-empty', '-m', 'move target');
       git(seed, 'push', 'origin', TARGET);
 
-      assert.throws(
-        () =>
-          assertRemoteRefUnchanged({
-            ref: `origin/${TARGET}`,
-            expectedSha: sha,
-            description: 'Target release branch',
-          }),
-        /changed during changelog generation/u,
-      );
+      expect(() =>
+        assertRemoteRefUnchanged({
+          ref: `origin/${TARGET}`,
+          expectedSha: sha,
+          description: 'Target release branch',
+        }),
+      ).toThrow(/changed during changelog generation/u);
     });
   });
 });

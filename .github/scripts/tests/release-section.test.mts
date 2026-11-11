@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { expect, test } from 'vitest';
 
 import {
   extractReleaseSection,
@@ -16,8 +15,7 @@ test('finds the heading line even when its text appears earlier', () => {
   const changelog =
     '<!-- ## [1.0.0] -->\n\n## [1.0.0]\n\n- Real entry (#1)\n\n## [0.9.0]\n';
 
-  assert.equal(
-    extractReleaseSection(changelog, '1.0.0').section,
+  expect(extractReleaseSection(changelog, '1.0.0').section).toBe(
     '## [1.0.0]\n\n- Real entry (#1)',
   );
 });
@@ -25,10 +23,9 @@ test('finds the heading line even when its text appears earlier', () => {
 test('writes a replacement in the changelog line endings', () => {
   const changelog = '## [1.0.0]\r\n\r\n- Old (#1)\r\n\r\n## [0.9.0]\r\n';
 
-  assert.equal(
+  expect(
     replaceReleaseSection(changelog, '1.0.0', '## [1.0.0]\n\n- New (#1)'),
-    '## [1.0.0]\r\n\r\n- New (#1)\r\n\r\n## [0.9.0]\r\n',
-  );
+  ).toBe('## [1.0.0]\r\n\r\n- New (#1)\r\n\r\n## [0.9.0]\r\n');
 });
 
 test('isolates newly generated entries without changing the existing release section', () => {
@@ -58,21 +55,18 @@ test('isolates newly generated entries without changing the existing release sec
     version: '13.51.0',
   });
 
-  assert.equal(
-    newEntriesSection,
-    `## [13.51.0]
+  expect(newEntriesSection).toBe(`## [13.51.0]
 
 ### Added
 
-- Added a new feature (#103)`,
-  );
-  assert.equal(
+- Added a new feature (#103)`);
+  expect(
     mergeNewReleaseEntries({
       existingSection,
       newEntriesSection: newEntriesSection ?? '',
       version: '13.51.0',
     }),
-    `## [13.51.0]
+  ).toBe(`## [13.51.0]
 
 ### Added
 
@@ -81,8 +75,7 @@ test('isolates newly generated entries without changing the existing release sec
 
 ### Fixed
 
-- Fixed an existing issue (#102)`,
-  );
+- Fixed an existing issue (#102)`);
 });
 
 test('merges new entries into matching categories and inserts missing ones in canonical order', () => {
@@ -97,7 +90,7 @@ test('merges new entries into matching categories and inserts missing ones in ca
 - Fixed an existing issue (#102)
   with a continuation line`;
 
-  assert.equal(
+  expect(
     mergeNewReleaseEntries({
       existingSection,
       newEntriesSection: `## [13.51.0]
@@ -115,7 +108,7 @@ test('merges new entries into matching categories and inserts missing ones in ca
 - Hardened a thing (#105)`,
       version: '13.51.0',
     }),
-    `## [13.51.0]
+  ).toBe(`## [13.51.0]
 
 ### Added
 
@@ -133,35 +126,36 @@ test('merges new entries into matching categories and inserts missing ones in ca
 
 ### Security
 
-- Hardened a thing (#105)`,
-  );
+- Hardened a thing (#105)`);
 });
 
 test('restores the generator category when the proofread wording has no known verb', () => {
-  assert.equal(
+  expect(
     restoreGeneratedCategories({
       generatedSection: `## [1.0.0]\n\n### Added\n\n- Added a (#1)\n\n### Fixed\n\n- Fixed b (#2)\n\n### Uncategorized\n\n- Did c (#3)\n\n### Fixed\n\n- Fixed d (#4)`,
       cleanedSection: `## [1.0.0]\n\n### Changed\n\n- Improved a (#1)\n- Improved c (#3)\n- Merged d and b (#2, #4)`,
       version: '1.0.0',
     }),
+  ).toBe(
     `## [1.0.0]\n\n### Added\n\n- Improved a (#1)\n\n### Changed\n\n- Improved c (#3)\n\n### Fixed\n\n- Merged d and b (#2, #4)`,
   );
 });
 
 test('files an entry under the category its wording implies', () => {
-  assert.equal(
+  expect(
     restoreGeneratedCategories({
       generatedSection: `## [1.0.0]\n\n### Removed\n\n- Removed a bar (#1)\n\n### Fixed\n\n- Fixed a crash (#2)`,
       cleanedSection: `## [1.0.0]\n\n### Removed\n\n- Fixed the bar layout (#1)\n\n### Fixed\n\n- Added support for X (#2)`,
       version: '1.0.0',
     }),
+  ).toBe(
     `## [1.0.0]\n\n### Added\n\n- Added support for X (#2)\n\n### Fixed\n\n- Fixed the bar layout (#1)`,
   );
 });
 
 test("shortens only this repository's long PR links", () => {
   const repositoryUrl = 'https://github.com/MetaMask/metamask-mobile';
-  assert.equal(
+  expect(
     normalizeRepositoryPrLinks(
       [
         '- Own link ([#1](https://github.com/MetaMask/metamask-mobile/pull/1))',
@@ -172,6 +166,7 @@ test("shortens only this repository's long PR links", () => {
       ].join('\r\n'),
       repositoryUrl,
     ),
+  ).toBe(
     [
       '- Own link (#1)',
       '- Two links (#2, #3)',
@@ -183,30 +178,28 @@ test("shortens only this repository's long PR links", () => {
 });
 
 test('treats a long-link entry in the existing section as documented', () => {
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection: `## [1.0.0]\n\n### Added\n\n- Added a ([#1](https://github.com/MetaMask/metamask-mobile/pull/1))`,
       generatedSection: `## [1.0.0]\n\n### Added\n\n- Added a (#1)\n- Added b (#2)`,
       version: '1.0.0',
       repositoryUrl: 'https://github.com/MetaMask/metamask-mobile',
     }),
-    `## [1.0.0]\n\n### Added\n\n- Added b (#2)`,
-  );
+  ).toBe(`## [1.0.0]\n\n### Added\n\n- Added b (#2)`);
 });
 
 test('matches an existing entry that has trailing whitespace', () => {
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection: '## [1.0.0]\n\n### Added\n\n- Added a  \n',
       generatedSection: '## [1.0.0]\n\n### Added\n\n- Added a\n- Added b (#2)',
       version: '1.0.0',
     }),
-    '## [1.0.0]\n\n### Added\n\n- Added b (#2)',
-  );
+  ).toBe('## [1.0.0]\n\n### Added\n\n- Added b (#2)');
 });
 
 test('leaves out a PR a reviewer deleted', () => {
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection: '## [1.0.0]\n\n### Added\n\n- Added a (#1)',
       generatedSection:
@@ -214,23 +207,23 @@ test('leaves out a PR a reviewer deleted', () => {
       version: '1.0.0',
       deletedPrNumbers: new Set(['2']),
     }),
-    '## [1.0.0]\n\n### Added\n\n- Added c (#3)',
-  );
+  ).toBe('## [1.0.0]\n\n### Added\n\n- Added c (#3)');
 });
 
 test('keeps the existing line ending when merging new entries', () => {
-  assert.equal(
+  expect(
     mergeNewReleaseEntries({
       existingSection: '## [1.0.0]\r\n\r\n### Fixed\r\n\r\n- Old (#1)\r\n',
       newEntriesSection: '## [1.0.0]\n\n### Added\n\n- New (#2)',
       version: '1.0.0',
     }),
+  ).toBe(
     '## [1.0.0]\r\n\r\n### Added\r\n\r\n- New (#2)\r\n\r\n### Fixed\r\n\r\n- Old (#1)',
   );
 });
 
 test('finds no new release entries when every generated PR is already documented', () => {
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection: `## [13.51.0]
 
@@ -244,8 +237,7 @@ test('finds no new release entries when every generated PR is already documented
 - Reworded existing issue (#101)`,
       version: '13.51.0',
     }),
-    undefined,
-  );
+  ).toBe(undefined);
 });
 
 test('judges a generated entry by its last PR reference and demotes earlier mentions', () => {
@@ -255,7 +247,7 @@ test('judges a generated entry by its last PR reference and demotes earlier ment
 
 - Fixed an existing issue (#101)`;
 
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: `## [13.51.0]
@@ -266,14 +258,13 @@ test('judges a generated entry by its last PR reference and demotes earlier ment
   see also #101`,
       version: '13.51.0',
     }),
-    `## [13.51.0]
+  ).toBe(`## [13.51.0]
 
 ### Fixed
 
 - Fixed a regression from PR 101 and PR 100 (#102)
-  see also PR 101`,
-  );
-  assert.equal(
+  see also PR 101`);
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: `## [13.51.0]
@@ -283,8 +274,7 @@ test('judges a generated entry by its last PR reference and demotes earlier ment
 - Reworded a documented PR that mentions (#102) (#101)`,
       version: '13.51.0',
     }),
-    undefined,
-  );
+  ).toBe(undefined);
 });
 
 test('keeps a multi-PR group intact and demotes mentions before it', () => {
@@ -300,7 +290,7 @@ test('keeps a multi-PR group intact and demotes mentions before it', () => {
 
 ${entry}`;
 
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: generatedSection(
@@ -308,9 +298,8 @@ ${entry}`;
       ),
       version: '13.51.0',
     }),
-    generatedSection('- Fixed a regression from PR 100 (#102, #103)'),
-  );
-  assert.equal(
+  ).toBe(generatedSection('- Fixed a regression from PR 100 (#102, #103)'));
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: generatedSection(
@@ -318,34 +307,31 @@ ${entry}`;
       ),
       version: '13.51.0',
     }),
-    generatedSection('- Fixed legacy groups (#102), (#103)'),
-  );
+  ).toBe(generatedSection('- Fixed legacy groups (#102), (#103)'));
 });
 
 test('skips a grouped generated entry when any PR in its group is documented', () => {
   const existingSection = `## [13.51.0]\n\n### Fixed\n\n- Fixed an existing issue (#101)`;
 
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: `## [13.51.0]\n\n### Fixed\n\n- Fixed an issue (#101, #102)`,
       version: '13.51.0',
     }),
-    undefined,
-  );
-  assert.equal(
+  ).toBe(undefined);
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection: `## [13.51.0]\n\n### Fixed\n\n- Fixed an issue (#102, #103)`,
       version: '13.51.0',
       deletedPrNumbers: new Set(['103']),
     }),
-    undefined,
-  );
+  ).toBe(undefined);
 });
 
 test('preserves the reviewed release section above historical predecessor history', () => {
-  assert.equal(
+  expect(
     mergeCurrentReleaseSection({
       changelog: `# Changelog
 
@@ -362,7 +348,7 @@ test('preserves the reviewed release section above historical predecessor histor
 - Added a current release feature (#101)`,
       version: '13.51.0',
     }),
-    `# Changelog
+  ).toBe(`# Changelog
 
 ## [13.51.0]
 
@@ -375,12 +361,11 @@ test('preserves the reviewed release section above historical predecessor histor
 ### Fixed
 
 - Fixed an earlier issue (#100)
-`,
-  );
+`);
 });
 
 test('inserts the reviewed release section after the preamble and Unreleased heading', () => {
-  assert.equal(
+  expect(
     mergeCurrentReleaseSection({
       changelog: `# Changelog
 
@@ -401,7 +386,7 @@ All notable changes to this project will be documented in this file.
 - Added a current release feature (#101)`,
       version: '13.51.0',
     }),
-    `# Changelog
+  ).toBe(`# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -418,8 +403,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fixed an earlier issue (#100)
-`,
-  );
+`);
 });
 
 const stableShapedChangelog = `# Changelog
@@ -461,19 +445,21 @@ test('merges into a stable-shaped changelog without disturbing history or link r
     version: '13.51.0',
   });
 
-  assert.equal(
-    merged,
+  expect(merged).toBe(
     stableShapedChangelog.replace(
       '## [13.50.0]',
       `${reviewedSection}\n\n## [13.50.0]`,
     ),
   );
-  assert.equal(
-    extractReleaseSection(merged, '13.51.0').section,
+  expect(extractReleaseSection(merged, '13.51.0').section).toBe(
     reviewedSection,
   );
-  assert.ok(merged.indexOf('## [Unreleased]') < merged.indexOf('## [13.51.0]'));
-  assert.ok(merged.indexOf('## [13.51.0]') < merged.indexOf('## [13.50.0]'));
+  expect(
+    merged.indexOf('## [Unreleased]') < merged.indexOf('## [13.51.0]'),
+  ).toBeTruthy();
+  expect(
+    merged.indexOf('## [13.51.0]') < merged.indexOf('## [13.50.0]'),
+  ).toBeTruthy();
 });
 
 test('keeps CRLF line endings when merging into a CRLF changelog', () => {
@@ -483,8 +469,8 @@ test('keeps CRLF line endings when merging into a CRLF changelog', () => {
     version: '13.51.0',
   });
 
-  assert.equal(merged.replaceAll('\r\n', '').includes('\n'), false);
-  assert.ok(merged.includes('## [13.51.0]\r\n\r\n### Added'));
+  expect(merged.replaceAll('\r\n', '').includes('\n')).toBe(false);
+  expect(merged.includes('## [13.51.0]\r\n\r\n### Added')).toBeTruthy();
 });
 
 test('replaces an existing current heading instead of duplicating it', () => {
@@ -499,9 +485,9 @@ test('replaces an existing current heading instead of duplicating it', () => {
     version: '13.51.0',
   });
 
-  assert.equal(twice.match(/^## \[13\.51\.0\]$/gmu)?.length, 1);
-  assert.match(twice, /\(#102\)/u);
-  assert.doesNotMatch(twice, /\(#101\)/u);
+  expect(twice.match(/^## \[13\.51\.0\]$/gmu)?.length).toBe(1);
+  expect(twice).toMatch(/\(#102\)/u);
+  expect(twice).not.toMatch(/\(#101\)/u);
 });
 
 test('appends the reviewed section when the changelog has no releases yet', () => {
@@ -511,10 +497,7 @@ test('appends the reviewed section when the changelog has no releases yet', () =
     version: '13.51.0',
   });
 
-  assert.equal(
-    merged,
-    `# Changelog\n\n## [Unreleased]\n\n${reviewedSection}\n`,
-  );
+  expect(merged).toBe(`# Changelog\n\n## [Unreleased]\n\n${reviewedSection}\n`);
 });
 
 test('does not double carriage returns when inserting a CRLF section into a CRLF changelog', () => {
@@ -525,9 +508,8 @@ test('does not double carriage returns when inserting a CRLF section into a CRLF
     version: '13.51.0',
   });
 
-  assert.equal(merged.includes('\r\r'), false);
-  assert.equal(
-    merged,
+  expect(merged.includes('\r\r')).toBe(false);
+  expect(merged).toBe(
     '# Changelog\r\n\r\n## [Unreleased]\r\n\r\n## [13.51.0]\r\n\r\n### Added\r\n\r\n- Added it (#1)\r\n\r\n## [13.50.0]\r\n',
   );
 });
@@ -550,39 +532,34 @@ test('keeps a reviewer entry without a PR reference out of the new entries', () 
     '- Added a thing (#1)\n- Added another thing (#2)',
   );
 
-  assert.equal(
+  expect(
     getNewReleaseEntriesSection({
       existingSection,
       generatedSection,
       version: '1.0.0',
     }),
-    '## [1.0.0]\n\n### Added\n\n- Added another thing (#2)',
-  );
+  ).toBe('## [1.0.0]\n\n### Added\n\n- Added another thing (#2)');
 });
 
 test('still rejects a generated entry without a PR reference', () => {
-  assert.throws(
-    () =>
-      getNewReleaseEntriesSection({
-        existingSection: '## [1.0.0]\n\n### Added\n\n- Added a thing (#1)',
-        generatedSection:
-          '## [1.0.0]\n\n### Added\n\n- Added a thing (#1)\n- Mystery entry',
-        version: '1.0.0',
-      }),
-    /lacks a PR reference/u,
-  );
+  expect(() =>
+    getNewReleaseEntriesSection({
+      existingSection: '## [1.0.0]\n\n### Added\n\n- Added a thing (#1)',
+      generatedSection:
+        '## [1.0.0]\n\n### Added\n\n- Added a thing (#1)\n- Mystery entry',
+      version: '1.0.0',
+    }),
+  ).toThrow(/lacks a PR reference/u);
 });
 
 test('rejects a changelog without the Changelog heading', () => {
-  assert.throws(
-    () =>
-      mergeCurrentReleaseSection({
-        changelog: '## [13.50.0]\n',
-        currentReleaseSection: reviewedSection,
-        version: '13.51.0',
-      }),
-    /must begin with a Changelog heading/u,
-  );
+  expect(() =>
+    mergeCurrentReleaseSection({
+      changelog: '## [13.50.0]\n',
+      currentReleaseSection: reviewedSection,
+      version: '13.51.0',
+    }),
+  ).toThrow(/must begin with a Changelog heading/u);
 });
 
 test('ends the oldest release section before the link references', () => {
@@ -602,16 +579,16 @@ test('ends the oldest release section before the link references', () => {
     '',
   ].join('\n');
 
-  assert.equal(
-    extractReleaseSection(changelog, '13.51.0').section,
+  expect(extractReleaseSection(changelog, '13.51.0').section).toBe(
     '## [13.51.0]\n\n### Fixed\n\n- Fixed an issue (#101)',
   );
-  assert.equal(
+  expect(
     replaceReleaseSection(
       changelog,
       '13.51.0',
       '## [13.51.0]\n\n### Added\n\n- Added a feature (#102)',
     ),
+  ).toBe(
     changelog
       .replace('### Fixed', '### Added')
       .replace('Fixed an issue (#101)', 'Added a feature (#102)'),
@@ -633,14 +610,12 @@ test('removes the entries owning the given PRs and drops emptied categories', ()
     '- Fixed two (#3)',
   ].join('\n');
 
-  assert.equal(
+  expect(
     removeReleaseEntries({ section, prNumbers: new Set(['1', '2']) }),
-    ['## [2.0.0]', '', '### Fixed', '', '- Fixed two (#3)'].join('\n'),
-  );
-  assert.equal(
+  ).toBe(['## [2.0.0]', '', '### Fixed', '', '- Fixed two (#3)'].join('\n'));
+  expect(
     removeReleaseEntries({ section, prNumbers: new Set(['1', '2', '3']) }),
-    '## [2.0.0]',
-  );
+  ).toBe('## [2.0.0]');
 });
 
 test('keeps an entry that owns a PR outside the given PRs', () => {
@@ -653,12 +628,12 @@ test('keeps an entry that owns a PR outside the given PRs', () => {
     '- Fixed together (#3, #4)',
   ].join('\n');
 
-  assert.equal(
+  expect(
     removeReleaseEntries({ section, prNumbers: new Set(['1', '3']) }),
-    section,
-  );
-  assert.equal(
+  ).toBe(section);
+  expect(
     removeReleaseEntries({ section, prNumbers: new Set(['3', '4']) }),
+  ).toBe(
     ['## [2.0.0]', '', '### Fixed', '', '- Fixed from (#1) (#2)'].join('\n'),
   );
 });
@@ -666,8 +641,7 @@ test('keeps an entry that owns a PR outside the given PRs', () => {
 test('leaves the section untouched when no entry matches', () => {
   const section = '## [2.0.0]\n\n### Added\n\n- Added a thing (#1)';
 
-  assert.equal(
-    removeReleaseEntries({ section, prNumbers: new Set(['9']) }),
+  expect(removeReleaseEntries({ section, prNumbers: new Set(['9']) })).toBe(
     section,
   );
 });
