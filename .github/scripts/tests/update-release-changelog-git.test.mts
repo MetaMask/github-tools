@@ -10,7 +10,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { git } from './git-test-environment.mts';
 import {
   assertRemoteRefUnchanged,
   getRemoteBranchSha,
@@ -20,6 +19,7 @@ import {
   pushChangelogBranch,
   rebuildChangelogBranch,
 } from '../update-release-changelog.mts';
+import { git } from './git-test-environment.mts';
 
 const TARGET = 'release/13.51.0';
 const CHANGELOG_BRANCH = 'release-changelog/13.51.0';

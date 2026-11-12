@@ -1,8 +1,7 @@
+import { Octokit } from '@octokit/rest';
+import axios from 'axios';
 import fs from 'fs';
 import simpleGit from 'simple-git';
-import { Octokit } from '@octokit/rest';
-
-import axios from 'axios';
 
 // "GITHUB_TOKEN" is an automatically generated, repository-specific access token provided by GitHub Actions.
 const githubToken = process.env.GITHUB_TOKEN;
@@ -50,14 +49,17 @@ async function getTeam(repository, prNumber) {
         return teamKey;
       }
       // Check if author is pm, em, or tl
-      if (teamData.pm === author || teamData.em === author || teamData.tl === author) {
+      if (
+        teamData.pm === author ||
+        teamData.em === author ||
+        teamData.tl === author
+      ) {
         return teamKey;
       }
     }
 
     // Return undefined if author not found in any team
     return undefined;
-
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
@@ -70,7 +72,6 @@ async function getTeam(repository, prNumber) {
 // Function to filter commits based on unique commit messages and group by teams
 // Input parameters refA and refB can be a branch name, a tag or a commit hash (e.g., release/7.7.0, v7.7.0, or 76fbc500034db9779e9ff7ce637ac5be1da0493d)
 async function filterCommitsByTeam(platform, refA, refB) {
-
   const MAX_COMMITS = 500; // Limit the number of commits to process
   console.log('Filtering commits by team...');
 
@@ -103,11 +104,11 @@ async function filterCommitsByTeam(platform, refA, refB) {
     const log = await git.log(logOptions);
 
     console.log(`Total commits between ${refA} and ${refB}: ${log.total}`);
-    console.log(`Processing up to ${Math.min(log.all.length, MAX_COMMITS)} commits...`);
+    console.log(
+      `Processing up to ${Math.min(log.all.length, MAX_COMMITS)} commits...`,
+    );
 
     const commitsByTeam = {};
-
-
 
     for (const commit of log.all) {
       const { author, message, hash } = commit;
@@ -122,7 +123,7 @@ async function filterCommitsByTeam(platform, refA, refB) {
         const prLink = prMatch
           ? `https://github.com/MetaMask/${repository}/pull/${prMatch[1]}`
           : '';
-        const team = await getTeam(repository, prMatch) || 'none';
+        const team = (await getTeam(repository, prMatch)) || 'none';
 
         // Initialize the team's commits array if it doesn't exist
         if (!commitsByTeam[team]) {
@@ -139,13 +140,14 @@ async function filterCommitsByTeam(platform, refA, refB) {
     }
 
     // Count total processed commits after the loop
-    const totalProcessed = Object.values(commitsByTeam)
-      .reduce((sum, commits) => sum + commits.length, 0);
+    const totalProcessed = Object.values(commitsByTeam).reduce(
+      (sum, commits) => sum + commits.length,
+      0,
+    );
 
     console.log(`Total commits eligible for commits.csv : ${totalProcessed}`);
-    
-    return commitsByTeam;
 
+    return commitsByTeam;
   } catch (error) {
     console.error(error);
     return {};
@@ -213,9 +215,7 @@ async function main() {
   const fileTitle = 'commits.csv';
 
   if (args.length !== 4) {
-    console.error(
-      'Usage: node generate-rc-commits.mjs platform refA refB',
-    );
+    console.error('Usage: node generate-rc-commits.mjs platform refA refB');
     console.error('Received:', args, ' with length:', args.length);
     process.exit(1);
   }

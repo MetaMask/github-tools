@@ -10,7 +10,6 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-import { getGitTestEnvironment } from './git-test-environment.mts';
 import {
   assertPrEvidenceAvailable,
   getLocalEvidenceLogArguments,
@@ -33,6 +32,7 @@ import {
   replaceReleaseSection,
 } from '../release-section.mts';
 import { getEnvironmentWithoutAiKey } from '../shared/environment.mts';
+import { getGitTestEnvironment } from './git-test-environment.mts';
 
 const generatedSection = `## [13.51.0]
 

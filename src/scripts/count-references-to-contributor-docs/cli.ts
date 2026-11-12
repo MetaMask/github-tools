@@ -1,8 +1,8 @@
 import ora from 'ora';
 
+import { log } from '../../logging-utils';
 import { tallyCommentsWithReferencesToContributorDocsByQuarter } from './utils';
 import type { TalliedQuarter } from './utils';
-import { log } from '../../logging-utils';
 
 /**
  * The repositories we want to scan.

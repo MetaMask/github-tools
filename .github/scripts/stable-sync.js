@@ -24,12 +24,15 @@ async function runGitCommands() {
   const baseBranch = process.env.BASE_BRANCH || 'stable';
 
   // Check if CREATE_BRANCH environment variable exists and is set to true
-  const shouldPushBranch = (process.env.CREATE_BRANCH || 'false').toLowerCase() === 'true';
+  const shouldPushBranch =
+    (process.env.CREATE_BRANCH || 'false').toLowerCase() === 'true';
 
   try {
     try {
       // Check if the branch already exists
-      const { stdout: branchExists } = await exec(`git ls-remote origin ${branchName}`);
+      const { stdout: branchExists } = await exec(
+        `git ls-remote origin ${branchName}`,
+      );
       if (branchExists.trim()) {
         // Branch exists, check it out
         await exec(`git checkout ${branchName}`);
@@ -37,7 +40,9 @@ async function runGitCommands() {
         console.log(`Checked out branch: ${branchName}`);
       } else {
         // Branch doesn't exist, create it
-        console.warn(`Branch does not exist, creating new ${branchName} branch.`);
+        console.warn(
+          `Branch does not exist, creating new ${branchName} branch.`,
+        );
         await exec(`git checkout -b ${branchName}`);
         console.log(`Created and checked out branch: ${branchName}`);
       }
@@ -88,10 +93,16 @@ async function runGitCommands() {
 
       // Preserve these files from main to avoid showing them as changes in the PR
       await exec(`git checkout origin/main -- android/app/build.gradle`);
-      console.log(`Executed: git checkout origin/main -- android/app/build.gradle`);
+      console.log(
+        `Executed: git checkout origin/main -- android/app/build.gradle`,
+      );
 
-      await exec(`git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`);
-      console.log(`Executed: git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`);
+      await exec(
+        `git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`,
+      );
+      console.log(
+        `Executed: git checkout origin/main -- ios/MetaMask.xcodeproj/project.pbxproj`,
+      );
 
       await exec(`git checkout origin/main -- package.json`);
       console.log(`Executed: git checkout origin/main -- package.json`);
@@ -112,7 +123,9 @@ async function runGitCommands() {
         return;
       }
 
-      await exec(`git commit -m "Merge origin/main into ${branchName}" --no-verify`);
+      await exec(
+        `git commit -m "Merge origin/main into ${branchName}" --no-verify`,
+      );
       console.log('Executed: git commit');
     } catch (error) {
       console.error(`Error: ${error.message}`);
@@ -125,14 +138,20 @@ async function runGitCommands() {
     if (shouldPushBranch) {
       try {
         console.log(`Checking if branch ${branchName} exists remotely...`);
-        const { stdout: remoteBranches } = await exec('git ls-remote --heads origin');
-        const branchExists = remoteBranches.includes(`refs/heads/${branchName}`);
+        const { stdout: remoteBranches } = await exec(
+          'git ls-remote --heads origin',
+        );
+        const branchExists = remoteBranches.includes(
+          `refs/heads/${branchName}`,
+        );
 
         if (branchExists) {
           console.log(`Branch ${branchName} exists remotely, updating...`);
           await exec(`git push origin ${branchName}`);
         } else {
-          console.log(`Branch ${branchName} does not exist remotely, creating...`);
+          console.log(
+            `Branch ${branchName} does not exist remotely, creating...`,
+          );
           await exec(`git push --set-upstream origin ${branchName}`);
         }
         console.log(`Successfully pushed branch ${branchName} to remote`);

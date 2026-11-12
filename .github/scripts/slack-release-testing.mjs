@@ -1,6 +1,6 @@
-import { google } from 'googleapis';
-import { WebClient } from '@slack/web-api';
 import { Octokit } from '@octokit/rest';
+import { WebClient } from '@slack/web-api';
+import { google } from 'googleapis';
 
 // Clients
 const sheets = google.sheets('v4');
@@ -312,15 +312,12 @@ async function fmtSlackHandle(team) {
 
   // Check if slackTeamId is not found in the map
   if (!slackTeamId) {
-    console.log(
-      `Slack team ID not found for handle: ${team.slackHandle}`,
-    );
+    console.log(`Slack team ID not found for handle: ${team.slackHandle}`);
     return '';
   }
 
   return shouldNotify ? ` - <!subteam^${slackTeamId}|team>` : '';
 }
-
 
 /**
  * Publishes the testing status for a release to the appropriate Slack channel

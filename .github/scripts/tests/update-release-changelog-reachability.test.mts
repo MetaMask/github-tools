@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
-import { git } from './git-test-environment.mts';
 import { isCommitReachableFrom } from '../update-release-changelog.mts';
+import { git } from './git-test-environment.mts';
 
 describe('isCommitReachableFrom', () => {
   let directory: string;
