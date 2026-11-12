@@ -165,8 +165,13 @@ runs:
           core.info(`Created signed commit ${commit.sha} on "${branch}".`);
           core.setOutput('commit-sha', commit.sha);
 
-          // Move the local checkout onto the signed commit, so that later steps
-          // do not see the committed changes as pending. A mixed reset leaves
-          // any unstaged changes in the working tree.
-          await exec.exec('git', ['fetch', 'origin', commit.sha]);
-          await exec.exec('git', ['reset', commit.sha]);
+    - name: Update local checkout
+      if: ${{ steps.commit.outputs.commit-sha != '' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPOSITORY: ${{ github.repository }}
+        COMMIT_SHA: ${{ steps.commit.outputs.commit-sha }}
+      run: |
+        git fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "${COMMIT_SHA}"
+        git reset "${COMMIT_SHA}"
