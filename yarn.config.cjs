@@ -1,8 +1,8 @@
 /* @ts-check */
 
 // This file is used to define, among other configuration, rules that Yarn will
-// execute when you run `yarn constraints`. These rules check the manifest of
-// the package to ensure it follows a standard format.
+// execute when you run `yarn constraints`. These rules primarily check the
+// manifest of the package to ensure it follows a standard format.
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
@@ -17,17 +17,13 @@ const { defineConfig } = require('@yarnpkg/types');
 module.exports = defineConfig({
   async constraints({ Yarn }) {
     for (const workspace of Yarn.workspaces()) {
-      // The package must have a name and a description.
+      // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
-      expectWorkspaceField(workspace, 'description');
 
-      // The description cannot end with a period.
-      const description = workspace.manifest.description;
-      if (typeof description === 'string' && description.endsWith('.')) {
-        workspace.set('description', description.slice(0, -1));
-      }
+      // All packages must have a description that does not end in a period.
+      expectWorkspaceDescription(workspace);
 
-      // The package must specify a minimum Node version of 22.18, which is
+      // All packages must specify a minimum Node version of 22.18, which is
       // needed to run `.mts` scripts directly.
       workspace.set('engines.node', '>=22.18.0');
 
@@ -52,14 +48,34 @@ module.exports = defineConfig({
 });
 
 /**
- * Expect that the workspace has the given field set to a non-empty value.
+ * Expect that the workspace has the given field, and that it is not null or an
+ * empty string. If the field is not present, this will log an error, and
+ * cause the constraint to fail.
  *
  * @param {Workspace} workspace - The workspace to check.
- * @param {string} fieldName - The name of the manifest field.
+ * @param {string} fieldName - The field to check.
  */
 function expectWorkspaceField(workspace, fieldName) {
   const value = workspace.manifest[fieldName];
   if (value === undefined || value === null || value === '') {
     workspace.error(`Missing required field \`${fieldName}\`.`);
+  }
+}
+
+/**
+ * Expect that the workspace has a description, and that it is a non-empty
+ * string. If the description is not present, or is null, this will log an
+ * error, and cause the constraint to fail.
+ *
+ * This will also verify that the description does not end with a period.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectWorkspaceDescription(workspace) {
+  expectWorkspaceField(workspace, 'description');
+
+  const { description } = workspace.manifest;
+  if (typeof description === 'string' && description.endsWith('.')) {
+    workspace.set('description', description.slice(0, -1));
   }
 }
