@@ -17,6 +17,7 @@
   },
   "include": [
     "src",
+    "knip.config.mts",
     "oxlint.config.mts",
     "vitest.config.mts",
     "yarn.config.cjs",
