@@ -30,21 +30,35 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const fs = require('fs');
+          const { execFileSync } = require('child_process');
 
           const { BRANCH: branch, COMMIT_MESSAGE: message } = process.env;
           const { owner, repo } = context.repo;
 
-          // Like `git commit`, only commit what the workflow has staged. Renames
-          // are disabled so that both the old and new path are listed.
+          // Like `git commit`, only commit what the workflow has staged.
+          // Renames are disabled so that both the old and new path are
+          // listed.
           const staged = await exec.getExecOutput(
             'git',
-            ['diff', '--cached', '--name-only', '-z', '--no-renames', 'HEAD'],
+            [
+              'diff',
+              '--cached',
+              '--raw',
+              '-z',
+              '--no-abbrev',
+              '--no-renames',
+              'HEAD',
+            ],
             { silent: true },
           );
-          const paths = new Set(staged.stdout.split('\0').filter(Boolean));
 
-          if (paths.size === 0) {
+          const changes = [
+            ...staged.stdout.matchAll(
+              /:\d+ (?<mode>\d+) [0-9a-f]+ (?<sha>[0-9a-f]+) (?<status>[A-Z])\0(?<path>[^\0]+)\0/gu,
+            ),
+          ];
+
+          if (changes.length === 0) {
             core.info('No changes to commit.');
             core.setOutput('commit-sha', '');
             return;
@@ -82,44 +96,32 @@ runs:
           }
 
           const tree = [];
-          for (const path of [...paths].sort()) {
-            let stat;
-            try {
-              stat = fs.lstatSync(path);
-            } catch (error) {
-              if (error.code !== 'ENOENT') {
-                throw error;
-              }
-
-              // The file was deleted.
+          for (const {
+            groups: { path, mode, sha, status },
+          } of changes) {
+            if (status === 'D') {
               tree.push({ path, mode: '100644', type: 'blob', sha: null });
               continue;
             }
 
-            if (stat.isDirectory()) {
+            if (mode === '160000') {
               throw new Error(`Cannot commit "${path}": Submodules are not supported.`);
             }
 
-            const isSymlink = stat.isSymbolicLink();
+            // The blob in the index is the content git would commit. This also
+            // covers symlinks, whose blob is the link target.
+            const content = execFileSync('git', ['cat-file', 'blob', sha], {
+              maxBuffer: 100 * 1024 * 1024,
+            });
+
             const { data: blob } = await github.rest.git.createBlob({
               owner,
               repo,
-              content: isSymlink
-                ? fs.readlinkSync(path)
-                : fs.readFileSync(path).toString('base64'),
-              encoding: isSymlink ? 'utf-8' : 'base64',
+              content: content.toString('base64'),
+              encoding: 'base64',
             });
 
-            tree.push({
-              path,
-              mode: isSymlink
-                ? '120000'
-                : stat.mode & 0o111
-                  ? '100755'
-                  : '100644',
-              type: 'blob',
-              sha: blob.sha,
-            });
+            tree.push({ path, mode, type: 'blob', sha: blob.sha });
           }
 
           const { data: parent } = await github.rest.git.getCommit({
