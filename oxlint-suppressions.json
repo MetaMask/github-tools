@@ -1,9 +1,4 @@
 {
-  ".eslintrc.js": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   ".github/actions/draft-segment-schema-pr/gate.test.mjs": {
     "node/no-sync": {
       "count": 1
@@ -747,9 +742,6 @@
   },
   "yarn.config.cjs": {
     "import/unambiguous": {
-      "count": 1
-    },
-    "prefer-destructuring": {
       "count": 1
     }
   }
