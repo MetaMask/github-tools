@@ -36,7 +36,11 @@ function extractFirstFailureError(test) {
   if (!firstFailure) {
     return 'No error details';
   }
-  return firstFailure?.error?.message ?? firstFailure?.errors?.[0]?.message ?? 'No error details';
+  return (
+    firstFailure?.error?.message ??
+    firstFailure?.errors?.[0]?.message ??
+    'No error details'
+  );
 }
 
 function extractInfraError(error) {

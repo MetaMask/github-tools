@@ -54,7 +54,7 @@ a diff, or any text outside the corrected Markdown.
   - `TextFieldSearch` -> `the updated search field`, unless it is
     user-facing terminology
 - Do not use vague fragments such as `UI updates`, `Assets unify balance and
-traces`, `Local bridge activity label`, or `Bump controller`.
+  traces`, `Local bridge activity label`, or `Bump controller`.
 - Treat the supplied PR title as evidence for the matching trailing PR
   reference. It can clarify a vague generated entry, but it is not permission
   to infer functionality beyond what the title states.
@@ -84,7 +84,7 @@ traces`, `Local bridge activity label`, or `Bump controller`.
 - Remove internal rollout, experiment-treatment, implementation, and service
   names when the supported behavior can be stated without them. For example,
   write `Reduced unnecessary requests during wallet unlock`, not `Reduced
-requests for the treatment discovery layout`. Retain a rollout distinction
+  requests for the treatment discovery layout`. Retain a rollout distinction
   only when it is necessary to avoid incorrectly claiming that a feature was
   enabled for users.
 - Do not include Markdown links inside entry descriptions. Preserve only the
@@ -97,7 +97,7 @@ requests for the treatment discovery layout`. Retain a rollout distinction
 - Do not consolidate entries merely because their wording is similar. Keep
   distinct user-facing changes separate.
 - A raw release-automation subject such as `Cherry-picking commits ... for PR
-#12345 (#12345)` is still a distinct input PR reference. Resolve its
+  #12345 (#12345)` is still a distinct input PR reference. Resolve its
   original PR to improve the wording, but retain that exact trailing PR
   reference in the output; do not substitute a different PR merely because it
   is also a release-automation or related change.

@@ -1,0 +1,739 @@
+{
+  ".github/actions/draft-segment-schema-pr/gate.test.mjs": {
+    "node/no-sync": {
+      "count": 1
+    }
+  },
+  ".github/actions/playwright-test-health-report/create-playwright-test-health-report.mjs": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 12
+    }
+  },
+  ".github/actions/playwright-test-health-report/lib/classify-report-buckets.mjs": {
+    "prefer-const": {
+      "count": 4
+    }
+  },
+  ".github/actions/playwright-test-health-report/lib/normalize-repo-file-path.mjs": {
+    "jsdoc/require-param-description": {
+      "count": 2
+    },
+    "jsdoc/require-returns-description": {
+      "count": 1
+    },
+    "require-unicode-regexp": {
+      "count": 9
+    }
+  },
+  ".github/actions/playwright-test-health-report/lib/report-health.test.mjs": {
+    "require-unicode-regexp": {
+      "count": 2
+    }
+  },
+  ".github/actions/playwright-test-health-report/lib/slack-test-health-blocks.mjs": {
+    "no-useless-escape": {
+      "count": 1
+    },
+    "require-unicode-regexp": {
+      "count": 3
+    }
+  },
+  ".github/scripts/clean-release-changelog.mts": {
+    "node/no-process-env": {
+      "count": 3
+    },
+    "node/no-sync": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/return-await": {
+      "count": 3
+    }
+  },
+  ".github/scripts/create-flaky-test-report.mjs": {
+    "curly": {
+      "count": 1
+    },
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 11
+    },
+    "object-shorthand": {
+      "count": 4
+    },
+    "prefer-template": {
+      "count": 5
+    },
+    "radix": {
+      "count": 1
+    },
+    "require-unicode-regexp": {
+      "count": 4
+    }
+  },
+  ".github/scripts/generate-rc-commits.mjs": {
+    "curly": {
+      "count": 4
+    },
+    "import/no-named-as-default": {
+      "count": 1
+    },
+    "no-shadow": {
+      "count": 1
+    },
+    "no-sparse-arrays": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "no-var": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 2
+    },
+    "node/no-sync": {
+      "count": 1
+    },
+    "require-unicode-regexp": {
+      "count": 2
+    },
+    "unicorn/no-process-exit": {
+      "count": 2
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  ".github/scripts/merge-previous-release-changelog.mts": {
+    "node/no-sync": {
+      "count": 3
+    }
+  },
+  ".github/scripts/post-merge-validation-tracker.mjs": {
+    "curly": {
+      "count": 23
+    },
+    "id-denylist": {
+      "count": 2
+    },
+    "id-length": {
+      "count": 27
+    },
+    "no-eq-null": {
+      "count": 1
+    },
+    "no-negated-condition": {
+      "count": 1
+    },
+    "no-plusplus": {
+      "count": 2
+    },
+    "no-shadow": {
+      "count": 10
+    },
+    "no-unused-vars": {
+      "count": 2
+    },
+    "node/no-process-env": {
+      "count": 6
+    },
+    "object-shorthand": {
+      "count": 2
+    },
+    "prefer-const": {
+      "count": 2
+    },
+    "prefer-destructuring": {
+      "count": 1
+    },
+    "radix": {
+      "count": 2
+    },
+    "require-unicode-regexp": {
+      "count": 18
+    },
+    "unicorn/no-process-exit": {
+      "count": 1
+    }
+  },
+  ".github/scripts/post-relay-subsidy-balance.mjs": {
+    "id-length": {
+      "count": 2
+    },
+    "import/unambiguous": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 3
+    }
+  },
+  ".github/scripts/remove-rca-needed-label-sheets.ts": {
+    "no-eq-null": {
+      "count": 1
+    },
+    "no-negated-condition": {
+      "count": 1
+    },
+    "no-plusplus": {
+      "count": 4
+    },
+    "no-useless-return": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 5
+    },
+    "object-shorthand": {
+      "count": 1
+    },
+    "prefer-destructuring": {
+      "count": 3
+    },
+    "require-unicode-regexp": {
+      "count": 1
+    },
+    "typescript/ban-ts-comment": {
+      "count": 10
+    },
+    "typescript/consistent-type-definitions": {
+      "count": 5
+    },
+    "typescript/no-explicit-any": {
+      "count": 6
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 4
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 12
+    },
+    "typescript/no-unsafe-call": {
+      "count": 14
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 21
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 6
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  ".github/scripts/shared/environment.mts": {
+    "node/no-process-env": {
+      "count": 1
+    }
+  },
+  ".github/scripts/shared/report.mts": {
+    "node/no-sync": {
+      "count": 2
+    }
+  },
+  ".github/scripts/slack-release-testing.mjs": {
+    "id-denylist": {
+      "count": 4
+    },
+    "jsdoc/require-param-description": {
+      "count": 1
+    },
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "no-else-return": {
+      "count": 2
+    },
+    "no-unused-vars": {
+      "count": 2
+    },
+    "no-var": {
+      "count": 2
+    },
+    "node/no-process-env": {
+      "count": 6
+    },
+    "object-shorthand": {
+      "count": 3
+    },
+    "prefer-const": {
+      "count": 2
+    },
+    "radix": {
+      "count": 2
+    },
+    "require-unicode-regexp": {
+      "count": 4
+    }
+  },
+  ".github/scripts/stable-sync.js": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "n/hashbang": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 3
+    }
+  },
+  ".github/scripts/tests/clean-release-changelog.test.mts": {
+    "node/no-process-env": {
+      "count": 4
+    },
+    "node/no-sync": {
+      "count": 12
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    },
+    "typescript/no-base-to-string": {
+      "count": 2
+    },
+    "typescript/no-floating-promises": {
+      "count": 35
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/return-await": {
+      "count": 9
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/git-test-environment.mts": {
+    "node/no-process-env": {
+      "count": 1
+    },
+    "node/no-sync": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/merge-previous-releases.test.mts": {
+    "node/no-process-env": {
+      "count": 1
+    },
+    "node/no-sync": {
+      "count": 10
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/release-section.test.mts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 29
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/release-version-utils.test.mts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/retry.test.mts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    },
+    "typescript/return-await": {
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/update-release-changelog-baseline.test.mts": {
+    "import/consistent-type-specifier-style": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-floating-promises": {
+      "count": 9
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/update-release-changelog-git.test.mts": {
+    "node/no-sync": {
+      "count": 14
+    },
+    "typescript/no-floating-promises": {
+      "count": 30
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/update-release-changelog-reachability.test.mts": {
+    "node/no-sync": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/tests/update-release-changelog.test.mts": {
+    "node/no-process-env": {
+      "count": 5
+    },
+    "node/no-sync": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/no-floating-promises": {
+      "count": 61
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    },
+    "vitest/no-import-node-test": {
+      "count": 1
+    }
+  },
+  ".github/scripts/update-release-changelog-baseline.mts": {
+    "import/consistent-type-specifier-style": {
+      "count": 1
+    }
+  },
+  ".github/scripts/update-release-changelog.mts": {
+    "import/consistent-type-specifier-style": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 12
+    },
+    "node/no-sync": {
+      "count": 17
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    }
+  },
+  ".github/scripts/update-release-sheet.mjs": {
+    "curly": {
+      "count": 1
+    },
+    "id-denylist": {
+      "count": 4
+    },
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 2
+    },
+    "no-var": {
+      "count": 1
+    },
+    "node/no-process-env": {
+      "count": 1
+    },
+    "node/no-sync": {
+      "count": 1
+    },
+    "object-shorthand": {
+      "count": 1
+    },
+    "require-unicode-regexp": {
+      "count": 4
+    },
+    "unicorn/no-process-exit": {
+      "count": 1
+    }
+  },
+  "jest.config.js": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "src/cache-utils.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "src/changelog-check.mts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/env-utils.test.ts": {
+    "no-undef": {
+      "count": 6
+    },
+    "typescript/no-unsafe-call": {
+      "count": 9
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "src/error-utils.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "src/fs-utils.ts": {
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "src/get-review-metrics.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "src/github/octokit.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "src/scripts/count-references-to-contributor-docs/cli.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "src/segment-schema-draft-pr/analytics-model.test.ts": {
+    "no-undef": {
+      "count": 23
+    },
+    "typescript/no-unsafe-call": {
+      "count": 38
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 15
+    }
+  },
+  "src/segment-schema-draft-pr/analytics-model.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "src/segment-schema-draft-pr/apply-changes.test.ts": {
+    "no-undef": {
+      "count": 42
+    },
+    "typescript/no-unsafe-call": {
+      "count": 72
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 31
+    }
+  },
+  "src/segment-schema-draft-pr/apply-changes.ts": {
+    "import/consistent-type-specifier-style": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "src/segment-schema-draft-pr/cli.ts": {
+    "import/consistent-type-specifier-style": {
+      "count": 1
+    }
+  },
+  "src/segment-schema-draft-pr/client-diff.test.ts": {
+    "no-undef": {
+      "count": 33
+    },
+    "typescript/no-unsafe-call": {
+      "count": 54
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 28
+    }
+  },
+  "src/segment-schema-draft-pr/config.test.ts": {
+    "no-undef": {
+      "count": 7
+    },
+    "typescript/no-unsafe-call": {
+      "count": 10
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "src/segment-schema-draft-pr/diff-models.test.ts": {
+    "no-undef": {
+      "count": 15
+    },
+    "typescript/no-unsafe-call": {
+      "count": 25
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 10
+    }
+  },
+  "src/segment-schema-draft-pr/diff-models.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 6
+    }
+  },
+  "src/segment-schema-draft-pr/generate.test.ts": {
+    "no-undef": {
+      "count": 8
+    },
+    "typescript/no-unsafe-call": {
+      "count": 14
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 8
+    },
+    "typescript/return-await": {
+      "count": 2
+    }
+  },
+  "src/segment-schema-draft-pr/github-api.test.ts": {
+    "no-undef": {
+      "count": 45
+    },
+    "typescript/no-unsafe-call": {
+      "count": 80
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 51
+    }
+  },
+  "src/segment-schema-draft-pr/github-output.test.ts": {
+    "no-undef": {
+      "count": 6
+    },
+    "typescript/no-unsafe-call": {
+      "count": 10
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "src/segment-schema-draft-pr/github-output.ts": {
+    "node/no-sync": {
+      "count": 1
+    }
+  },
+  "src/segment-schema-draft-pr/names.test.ts": {
+    "no-undef": {
+      "count": 16
+    },
+    "typescript/no-unsafe-call": {
+      "count": 27
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 11
+    }
+  },
+  "src/segment-schema-draft-pr/parse-args.test.ts": {
+    "no-undef": {
+      "count": 12
+    },
+    "typescript/no-unsafe-call": {
+      "count": 21
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 9
+    }
+  },
+  "src/segment-schema-draft-pr/pr-body.test.ts": {
+    "no-undef": {
+      "count": 26
+    },
+    "typescript/no-unsafe-call": {
+      "count": 46
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 20
+    }
+  },
+  "src/segment-schema-draft-pr/publish.test.ts": {
+    "no-undef": {
+      "count": 24
+    },
+    "typescript/no-unsafe-call": {
+      "count": 37
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 24
+    }
+  },
+  "src/segment-schema-draft-pr/schema-index.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "yarn.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  }
+}

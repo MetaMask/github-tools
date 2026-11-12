@@ -1,5 +1,6 @@
-import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
 import {
   allocateBucketSlots,
   formatWatchHistory,
@@ -80,11 +81,19 @@ describe('partitionSummary', () => {
 
 describe('allocateBucketSlots', () => {
   it('gives spare capacity to watch when nothing is currently broken', () => {
-    const slots = allocateBucketSlots(15, { broken: 0, flaky: 0, watch: 13, infra: 0 });
+    const slots = allocateBucketSlots(15, {
+      broken: 0,
+      flaky: 0,
+      watch: 13,
+      infra: 0,
+    });
 
     assert.equal(slots.maxBroken, 0);
     assert.equal(slots.maxWatch, 13);
-    assert.equal(slots.maxBroken + slots.maxFlaky + slots.maxWatch + slots.maxInfra, 13);
+    assert.equal(
+      slots.maxBroken + slots.maxFlaky + slots.maxWatch + slots.maxInfra,
+      13,
+    );
   });
 });
 
@@ -104,9 +113,12 @@ describe('formatWatchHistory', () => {
 describe('normalizeRepoFilePath', () => {
   it('prefixes testDir-relative paths', () => {
     assert.equal(
-      normalizeRepoFilePath('accounts/account-syncing-settings-toggle.spec.ts', {
-        prefix: 'tests/smoke-appium',
-      }),
+      normalizeRepoFilePath(
+        'accounts/account-syncing-settings-toggle.spec.ts',
+        {
+          prefix: 'tests/smoke-appium',
+        },
+      ),
       'tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
     );
   });
@@ -139,7 +151,10 @@ describe('normalizeRepoFilePath', () => {
   });
 
   it('returns relative paths unchanged when no prefix is set', () => {
-    assert.equal(normalizeRepoFilePath('accounts/foo.spec.ts'), 'accounts/foo.spec.ts');
+    assert.equal(
+      normalizeRepoFilePath('accounts/foo.spec.ts'),
+      'accounts/foo.spec.ts',
+    );
   });
 });
 
@@ -160,7 +175,8 @@ describe('createSlackBlocks path links', () => {
           infraCount: 0,
           totalRuns: 1,
           lastBrokenError: 'timeout',
-          lastBrokenRunUrl: 'https://github.com/MetaMask/metamask-mobile/actions/runs/1',
+          lastBrokenRunUrl:
+            'https://github.com/MetaMask/metamask-mobile/actions/runs/1',
         },
       ],
       '2026-06-24',
@@ -180,9 +196,11 @@ describe('createSlackBlocks path links', () => {
     );
 
     const link = blocks
-      .flatMap(block => block.elements || [])
-      .flatMap(element => element.elements || [])
-      .find(element => element.type === 'link' && element.text === 'toggles sync');
+      .flatMap((block) => block.elements || [])
+      .flatMap((element) => element.elements || [])
+      .find(
+        (element) => element.type === 'link' && element.text === 'toggles sync',
+      );
 
     assert.equal(
       link?.url,
