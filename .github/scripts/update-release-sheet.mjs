@@ -1,7 +1,6 @@
-import { google } from 'googleapis';
-
-import fs from 'fs';
 import { parse } from 'csv-parse/sync';
+import fs from 'fs';
+import { google } from 'googleapis';
 
 // Clients
 const sheets = google.sheets('v4');
@@ -336,15 +335,14 @@ function determineTemplateId(
 
 // Function to parse a CSV file into a 2D array with specific modifications
 function parseCSVv2(filePath) {
-
   // List of authors to exclude
   const excludedAuthors = ['github-actions[bot]', 'runway-github[bot]'];
 
-   // Regex patterns to exclude certain commit messages
+  // Regex patterns to exclude certain commit messages
   // Regex patterns to exclude certain commit messages
   const excludedCommitRegex = [
-    /cherry-pick/,           // Matches any occurrence of "cherry-pick"
-    /cp-\d+\.\d+\.\d+/       // Matches patterns like "cp-1.0.0"
+    /cherry-pick/, // Matches any occurrence of "cherry-pick"
+    /cp-\d+\.\d+\.\d+/, // Matches patterns like "cp-1.0.0"
   ];
 
   try {
@@ -384,12 +382,15 @@ function parseCSVv2(filePath) {
       }
 
       // Check if the commit message matches any excluded patterns
-      const isExcludedMessage = excludedCommitRegex.some(pattern => pattern.test(commitMessage));
+      const isExcludedMessage = excludedCommitRegex.some((pattern) =>
+        pattern.test(commitMessage),
+      );
       if (isExcludedMessage) {
-        console.log(`Excluding commit due to message pattern: ${commitMessage}`);
-            continue; // Skip this commit
+        console.log(
+          `Excluding commit due to message pattern: ${commitMessage}`,
+        );
+        continue; // Skip this commit
       }
-
 
       // Add this row to the 2D array
       data2D.push(modifiedColumns);

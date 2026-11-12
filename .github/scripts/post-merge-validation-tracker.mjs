@@ -1,17 +1,19 @@
-import { google } from 'googleapis';
 import { Octokit } from '@octokit/rest';
+import { google } from 'googleapis';
 
 const githubToken = process.env.GITHUB_TOKEN;
 // can be found in the excel url e.g. https://docs.google.com/spreadsheets/d/1uSERA-Mczy0pjlrr1vv../
 const spreadsheetId = process.env.SHEET_ID; // 1uSERA-Mczy0pjlrr1vv...
 // GOOGLE_APPLICATION_CREDENTIALS_BASE64 can be found in MM QA 1pasword vault
-const googleApplicationCredentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
-const repo = process.env.REPO || "MetaMask/metamask-extension";
+const googleApplicationCredentialsBase64 =
+  process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+const repo = process.env.REPO || 'MetaMask/metamask-extension';
 const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
 const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
 
 const START_MINUTE_UTC = 0;
-const RELEVANT_TITLE_REGEX = /^(feat|perf|fix|chore|refactor)\s*(\(|:|!|\/)|\bbump\b/i;
+const RELEVANT_TITLE_REGEX =
+  /^(feat|perf|fix|chore|refactor)\s*(\(|:|!|\/)|\bbump\b/i;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
 const AUTOMATED_TEST_PATTERNS = [
@@ -20,7 +22,7 @@ const AUTOMATED_TEST_PATTERNS = [
   /\.(test|spec)\.(js|ts|tsx)\.snap$/,
   /(^|\/)test\//,
   /(^|\/)e2e\//,
-  /(^|\/)wdio\//
+  /(^|\/)wdio\//,
 ];
 const SKIP_RELEASE_VALIDATION_LABEL = 'skip-release-validation';
 
@@ -34,7 +36,9 @@ const octokit = new Octokit({ auth: githubToken });
 const sheets = google.sheets('v4');
 
 async function getGoogleAuth() {
-  const credentials = JSON.parse(Buffer.from(googleApplicationCredentialsBase64, 'base64').toString('utf8'));
+  const credentials = JSON.parse(
+    Buffer.from(googleApplicationCredentialsBase64, 'base64').toString('utf8'),
+  );
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -44,7 +48,10 @@ async function getGoogleAuth() {
 
 function parseRepo() {
   const [owner, repoName] = repo.split('/');
-  if (!owner || !repoName) throw new Error(`Invalid repo format "${repo}". Expected format: "owner/repo"`);
+  if (!owner || !repoName)
+    throw new Error(
+      `Invalid repo format "${repo}". Expected format: "owner/repo"`,
+    );
   return { owner, repo: repoName };
 }
 
@@ -93,26 +100,51 @@ async function ensureSheetExists(authClient, title, platformType) {
 
   // First, try to find the exact title (with "pre-" prefix)
   let existing = sheetsList.find((s) => s.properties?.title === title);
-  if (existing) return { sheetId: existing.properties.sheetId, actualTitle: title, isNew: false };
+  if (existing)
+    return {
+      sheetId: existing.properties.sheetId,
+      actualTitle: title,
+      isNew: false,
+    };
 
   // If not found and title starts with "pre-", try without the "pre-" prefix
   if (title.startsWith('pre-')) {
     const titleWithoutPrefix = title.replace(/^pre-/, '');
-    existing = sheetsList.find((s) => s.properties?.title === titleWithoutPrefix);
+    existing = sheetsList.find(
+      (s) => s.properties?.title === titleWithoutPrefix,
+    );
     if (existing) {
-      console.log(`Found renamed tab: "${titleWithoutPrefix}" (originally looking for "${title}")`);
-      return { sheetId: existing.properties.sheetId, actualTitle: titleWithoutPrefix, isNew: false };
+      console.log(
+        `Found renamed tab: "${titleWithoutPrefix}" (originally looking for "${title}")`,
+      );
+      return {
+        sheetId: existing.properties.sheetId,
+        actualTitle: titleWithoutPrefix,
+        isNew: false,
+      };
     }
   }
 
-  const result = await createSheetFromTemplateOrBlank(authClient, sheetsList, title, platformType);
+  const result = await createSheetFromTemplateOrBlank(
+    authClient,
+    sheetsList,
+    title,
+    platformType,
+  );
   return { ...result, actualTitle: title };
 }
 
-async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, platformType) {
+async function createSheetFromTemplateOrBlank(
+  authClient,
+  sheetsList,
+  title,
+  platformType,
+) {
   // Try to duplicate from a template tab (single template name: 'template')
   const templateCandidates = ['template'];
-  const template = sheetsList.find((s) => templateCandidates.includes(s.properties?.title || ''));
+  const template = sheetsList.find((s) =>
+    templateCandidates.includes(s.properties?.title || ''),
+  );
 
   if (template?.properties?.sheetId != null) {
     const duplicateRes = await sheets.spreadsheets.batchUpdate({
@@ -129,7 +161,8 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
         ],
       },
     });
-    const newSheetId = duplicateRes.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
+    const newSheetId =
+      duplicateRes.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
     // Write all platform-specific column headers into row 1 (preserves template cell formatting)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -152,19 +185,28 @@ async function createSheetFromTemplateOrBlank(authClient, sheetsList, title, pla
           },
           {
             insertDimension: {
-              range: { sheetId: newSheetId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
+              range: {
+                sheetId: newSheetId,
+                dimension: 'ROWS',
+                startIndex: 1,
+                endIndex: 2,
+              },
               inheritFromBefore: false,
             },
           },
         ],
       },
     });
-    console.log(`Duplicated template '${template.properties.title}' → '${title}' and set platform label for type '${platformType}'`);
+    console.log(
+      `Duplicated template '${template.properties.title}' → '${title}' and set platform label for type '${platformType}'`,
+    );
     return { sheetId: newSheetId, isNew: true };
   }
 
   // No template found: log fail message and create a blank tab
-  console.log(`❌ Template not found for new tab '${title}'. Candidates tried: ${templateCandidates.join(', ')}. Falling back to blank sheet.`);
+  console.log(
+    `❌ Template not found for new tab '${title}'. Candidates tried: ${templateCandidates.join(', ')}. Falling back to blank sheet.`,
+  );
   const addRes = await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     auth: authClient,
@@ -267,12 +309,17 @@ function extractSize(labels) {
 function isoSinceAtUTC(days, hour = 2, minute = 0) {
   // Returns an ISO timestamp at (today - days) with specific UTC hour:minute, e.g., 02:00Z
   const now = new Date();
-  const d = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-    0, 0, 0, 0,
-  ));
+  const d = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
   d.setUTCDate(d.getUTCDate() - days);
   d.setUTCHours(hour, minute, 0, 0);
   return d.toISOString();
@@ -286,7 +333,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
   let page = 1;
 
   while (true) {
-    console.log(`Fetching merged PRs page ${page} for ${owner}/${repo} (since ${sinceDateISO})...`);
+    console.log(
+      `Fetching merged PRs page ${page} for ${owner}/${repo} (since ${sinceDateISO})...`,
+    );
 
     try {
       const query = `repo:${owner}/${repo} is:pr is:merged base:main merged:>=${sinceDate}`;
@@ -297,7 +346,7 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         order: 'desc',
         per_page: 100,
         page,
-        advanced_search: true
+        advanced_search: true,
       });
 
       if (!data.items.length) break;
@@ -314,7 +363,7 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
               user: { login: item.user?.login || '' },
               labels: item.labels || [], // Basic labels from search
               closed_at: item.closed_at,
-              base_ref: 'main'
+              base_ref: 'main',
             });
           }
         }
@@ -329,7 +378,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
     }
   }
 
-  console.log(`Found ${prs.length} merged PRs since ${sinceDateISO} for ${owner}/${repo}`);
+  console.log(
+    `Found ${prs.length} merged PRs since ${sinceDateISO} for ${owner}/${repo}`,
+  );
   return prs;
 }
 
@@ -376,7 +427,9 @@ function getAutoSkipLabelsForPR(labels, repoName) {
   const hasSkipAll = labelNames.includes(SKIP_RELEASE_VALIDATION_LABEL);
 
   const granularLabels = labelNames.filter((name) =>
-    /^skip-release-validation\[(android|ios|design|chrome|firefox)\]$/i.test(name),
+    /^skip-release-validation\[(android|ios|design|chrome|firefox)\]$/i.test(
+      name,
+    ),
   );
 
   const lowerRepoName = String(repoName || '').toLowerCase();
@@ -385,10 +438,16 @@ function getAutoSkipLabelsForPR(labels, repoName) {
 
   const validGranularLabels = granularLabels.filter((name) => {
     const target = name.toLowerCase();
-    if (isMobile && (target.includes('[chrome]') || target.includes('[firefox]'))) {
+    if (
+      isMobile &&
+      (target.includes('[chrome]') || target.includes('[firefox]'))
+    ) {
       return false;
     }
-    if (isExtension && (target.includes('[android]') || target.includes('[ios]'))) {
+    if (
+      isExtension &&
+      (target.includes('[android]') || target.includes('[ios]'))
+    ) {
       return false;
     }
     return true;
@@ -401,24 +460,35 @@ function getAutoSkipLabelsForPR(labels, repoName) {
 }
 
 function applyAutoSkipToRow(row, labels, repoName) {
-
   const { hasSkipAll, validLabels } = getAutoSkipLabelsForPR(labels, repoName);
   if (!hasSkipAll && validLabels.length === 0) {
     return row;
   }
 
   const updatedRow = [...row];
-  const validLabelSet = new Set(validLabels.map((label) => label.toLowerCase()));
-  const isMobile = String(repoName || '').toLowerCase().endsWith('-mobile');
+  const validLabelSet = new Set(
+    validLabels.map((label) => label.toLowerCase()),
+  );
+  const isMobile = String(repoName || '')
+    .toLowerCase()
+    .endsWith('-mobile');
 
   const shouldSkipFirstValidated =
     hasSkipAll ||
     validLabelSet.has('skip-release-validation[design]') ||
-    validLabelSet.has(isMobile ? 'skip-release-validation[android]' : 'skip-release-validation[chrome]');
+    validLabelSet.has(
+      isMobile
+        ? 'skip-release-validation[android]'
+        : 'skip-release-validation[chrome]',
+    );
   const shouldSkipSecondValidated =
     hasSkipAll ||
     validLabelSet.has('skip-release-validation[design]') ||
-    validLabelSet.has(isMobile ? 'skip-release-validation[ios]' : 'skip-release-validation[firefox]');
+    validLabelSet.has(
+      isMobile
+        ? 'skip-release-validation[ios]'
+        : 'skip-release-validation[firefox]',
+    );
 
   if (shouldSkipFirstValidated) {
     updatedRow[6] = 'Skipped';
@@ -459,24 +529,28 @@ async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
     return { currentVersion: null, versionBumps: [] };
   }
 
-  // Find version bumps in lookback period  
+  // Find version bumps in lookback period
   const versionBumps = await findVersionBumpCommits(owner, repo, sinceDateISO);
 
   // Create timeline: [newest bump, older bump, ..., oldest bump]
   const timeline = {
     currentVersion: normalizeVersion(currentVersion),
     versionBumps: versionBumps, // Already sorted newest first
-    sinceDate: new Date(sinceDateISO)
+    sinceDate: new Date(sinceDateISO),
   };
 
   console.log(`📊 Version timeline for ${owner}/${repo}:`);
   console.log(`   Current: ${timeline.currentVersion}`);
 
   if (versionBumps.length === 0) {
-    console.log(`   No version bumps in lookback period - all PRs → ${timeline.currentVersion}`);
+    console.log(
+      `   No version bumps in lookback period - all PRs → ${timeline.currentVersion}`,
+    );
   } else {
     for (const bump of versionBumps) {
-      console.log(`   ${bump.oldVersion} → ${bump.newVersion} at ${formatDateHumanUTC(bump.date)}`);
+      console.log(
+        `   ${bump.oldVersion} → ${bump.newVersion} at ${formatDateHumanUTC(bump.date)}`,
+      );
     }
   }
 
@@ -490,7 +564,7 @@ async function getCurrentPackageVersion(owner, repo) {
       owner,
       repo,
       path: 'package.json',
-      ref: 'main'
+      ref: 'main',
     });
     const content = Buffer.from(data.content, 'base64').toString('utf8');
     const packageJson = JSON.parse(content);
@@ -560,7 +634,11 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
   const platformType = repoType(repo);
 
   // Get version timeline once for this repo
-  const versionTimeline = await getVersionTimelineForRepo(owner, repo, sinceDateISO);
+  const versionTimeline = await getVersionTimelineForRepo(
+    owner,
+    repo,
+    sinceDateISO,
+  );
 
   if (!versionTimeline.currentVersion) {
     console.log(`❌ Cannot determine versions for ${owner}/${repo} - skipping`);
@@ -571,7 +649,10 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
   const prsByVersion = new Map();
 
   for (const pr of relevantItems) {
-    const releaseVersion = determineReleaseVersionFromTimeline(pr.closed_at, versionTimeline);
+    const releaseVersion = determineReleaseVersionFromTimeline(
+      pr.closed_at,
+      versionTimeline,
+    );
     if (!releaseVersion) continue;
 
     if (!prsByVersion.has(releaseVersion)) {
@@ -591,7 +672,11 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
 
     for (const pr of prs) {
       // Check if PR modifies automated test files
-      const automatedTestsModified = await checkAutomatedTestFiles(owner, repo, pr.number);
+      const automatedTestsModified = await checkAutomatedTestFiles(
+        owner,
+        repo,
+        pr.number,
+      );
       const validatedA = '';
       const validatedB = '';
       const designValidation = '';
@@ -629,7 +714,7 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
       sha: 'main',
       since: sinceDateISO,
       path: 'package.json',
-      per_page: 50 // Should be enough for e.g. 15 days lookback
+      per_page: 50, // Should be enough for e.g. 15 days lookback
     });
 
     const versionBumps = [];
@@ -640,10 +725,12 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
         const { data: commitData } = await octokit.rest.repos.getCommit({
           owner,
           repo,
-          ref: commit.sha
+          ref: commit.sha,
         });
 
-        const packageJsonFile = commitData.files?.find(f => f.filename === 'package.json');
+        const packageJsonFile = commitData.files?.find(
+          (f) => f.filename === 'package.json',
+        );
         if (packageJsonFile?.patch) {
           const versionChange = parseVersionFromPatch(packageJsonFile.patch);
           if (versionChange) {
@@ -651,7 +738,7 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
               sha: commit.sha,
               date: commit.commit.committer.date,
               message: commit.commit.message,
-              ...versionChange
+              ...versionChange,
             };
           }
         }
@@ -664,7 +751,7 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
     const results = await Promise.all(commitPromises);
     versionBumps.push(...results.filter(Boolean));
 
-    // Sort by date (newest first) 
+    // Sort by date (newest first)
     return versionBumps.sort((a, b) => new Date(b.date) - new Date(a.date));
   } catch (e) {
     console.log(`⚠️ Failed to find version bumps: ${e.message}`);
@@ -684,7 +771,7 @@ async function fetchPRFiles(owner, repo, prNumber) {
         repo,
         pull_number: prNumber,
         per_page: 100,
-        page
+        page,
       });
 
       allFiles.push(...files);
@@ -696,7 +783,7 @@ async function fetchPRFiles(owner, repo, prNumber) {
       await sleep(100);
     }
 
-    return allFiles.map(file => file.filename);
+    return allFiles.map((file) => file.filename);
   } catch (e) {
     console.log(`⚠️ Failed to fetch files for PR #${prNumber}: ${e.message}`);
     return null; // Return null to indicate API failure
@@ -707,8 +794,8 @@ function checkFilesForAutomatedTestPatterns(filenames) {
   if (!filenames || filenames.length === 0) return false;
 
   // Debug logging to help identify pattern matching issues
-  const matches = filenames.filter(filename =>
-    AUTOMATED_TEST_PATTERNS.some(pattern => pattern.test(filename))
+  const matches = filenames.filter((filename) =>
+    AUTOMATED_TEST_PATTERNS.some((pattern) => pattern.test(filename)),
   );
 
   return matches.length > 0;
@@ -739,7 +826,9 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
   try {
     // Only process if the title has the "pre-" prefix
     if (!sheetTitle.startsWith('pre-')) {
-      console.log(`ℹ️ Sheet "${sheetTitle}" doesn't have "pre-" prefix, skipping rename`);
+      console.log(
+        `ℹ️ Sheet "${sheetTitle}" doesn't have "pre-" prefix, skipping rename`,
+      );
       return false;
     }
 
@@ -752,7 +841,9 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
       fields: 'sheets(properties(sheetId,title))',
     });
 
-    const sheet = meta.data.sheets?.find(s => s.properties?.title === sheetTitle);
+    const sheet = meta.data.sheets?.find(
+      (s) => s.properties?.title === sheetTitle,
+    );
     if (!sheet) {
       console.log(`⚠️ Sheet "${sheetTitle}" not found for renaming`);
       return false;
@@ -788,9 +879,15 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
 }
 
 async function processTab(authClient, title, entries, platformType) {
-  const { sheetId, actualTitle, isNew } = await ensureSheetExists(authClient, title, platformType);
+  const { sheetId, actualTitle, isNew } = await ensureSheetExists(
+    authClient,
+    title,
+    platformType,
+  );
   const existing = await readRows(authClient, actualTitle);
-  console.log(`Tab=${actualTitle} existingRows=${existing.length}, incomingRows=${entries.length}`);
+  console.log(
+    `Tab=${actualTitle} existingRows=${existing.length}, incomingRows=${entries.length}`,
+  );
   const existingKeys = new Set(
     existing
       .map((r) => parsePrNumberFromCell(r[0]))
@@ -845,11 +942,16 @@ async function processRepo(authClient, owner, repo, since) {
   );
 
   // Sort relevant items by merge time before grouping into tabs
-  const sortedRelevant = relevant.slice().sort((a, b) => new Date(a.closed_at || '') - new Date(b.closed_at || ''));
+  const sortedRelevant = relevant
+    .slice()
+    .sort((a, b) => new Date(a.closed_at || '') - new Date(b.closed_at || ''));
   const tabToRows = await buildTabGrouping(owner, repo, sortedRelevant, since);
 
   // Convert tabs to array and sort by version (newest first)
-  const tabsArray = Array.from(tabToRows.entries()).map(([title, group]) => ({ title, group }));
+  const tabsArray = Array.from(tabToRows.entries()).map(([title, group]) => ({
+    title,
+    group,
+  }));
 
   // Sort tabs by extracting version numbers for proper ordering
   tabsArray.sort((a, b) => {
@@ -861,7 +963,12 @@ async function processRepo(authClient, owner, repo, since) {
   // Process all tabs and collect their actual titles
   const processedTabs = [];
   for (const { title, group } of tabsArray) {
-    const { inserted, isNew, actualTitle } = await processTab(authClient, title, group.entries, group.platformType);
+    const { inserted, isNew, actualTitle } = await processTab(
+      authClient,
+      title,
+      group.entries,
+      group.platformType,
+    );
     insertedThisRepo += inserted;
     processedTabs.push({ title, actualTitle, isNew });
   }
@@ -871,7 +978,9 @@ async function processRepo(authClient, owner, repo, since) {
   if (processedTabs.length > 1) {
     for (let i = 1; i < processedTabs.length; i++) {
       const tab = processedTabs[i];
-      console.log(`🔄 Removing "pre-" prefix from older version: "${tab.actualTitle}"`);
+      console.log(
+        `🔄 Removing "pre-" prefix from older version: "${tab.actualTitle}"`,
+      );
       await removePrePrefixFromSheet(authClient, tab.actualTitle);
     }
   }

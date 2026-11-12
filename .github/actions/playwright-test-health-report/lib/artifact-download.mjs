@@ -14,8 +14,10 @@ export async function downloadArtifactZip(github, { owner, repo, artifactId }) {
 }
 
 export function findFilesInZip(zip, filePattern) {
-  return zip.files.filter(file => {
+  return zip.files.filter((file) => {
     const fileName = path.basename(file.path);
-    return file.path.startsWith(filePattern) || fileName.startsWith(filePattern);
+    return (
+      file.path.startsWith(filePattern) || fileName.startsWith(filePattern)
+    );
   });
 }
