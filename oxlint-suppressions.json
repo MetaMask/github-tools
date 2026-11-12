@@ -512,11 +512,6 @@
       "count": 1
     }
   },
-  "src/env-utils.test.ts": {
-    "no-undef": {
-      "count": 6
-    }
-  },
   "src/error-utils.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -557,19 +552,9 @@
       "count": 1
     }
   },
-  "src/segment-schema-draft-pr/analytics-model.test.ts": {
-    "no-undef": {
-      "count": 23
-    }
-  },
   "src/segment-schema-draft-pr/analytics-model.ts": {
     "unicorn/no-useless-undefined": {
       "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/apply-changes.test.ts": {
-    "no-undef": {
-      "count": 42
     }
   },
   "src/segment-schema-draft-pr/apply-changes.ts": {
@@ -588,42 +573,14 @@
       "count": 1
     }
   },
-  "src/segment-schema-draft-pr/client-diff.test.ts": {
-    "no-undef": {
-      "count": 33
-    }
-  },
-  "src/segment-schema-draft-pr/config.test.ts": {
-    "no-undef": {
-      "count": 7
-    }
-  },
-  "src/segment-schema-draft-pr/diff-models.test.ts": {
-    "no-undef": {
-      "count": 15
-    }
-  },
   "src/segment-schema-draft-pr/diff-models.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 6
     }
   },
   "src/segment-schema-draft-pr/generate.test.ts": {
-    "no-undef": {
-      "count": 8
-    },
     "typescript/return-await": {
       "count": 2
-    }
-  },
-  "src/segment-schema-draft-pr/github-api.test.ts": {
-    "no-undef": {
-      "count": 45
-    }
-  },
-  "src/segment-schema-draft-pr/github-output.test.ts": {
-    "no-undef": {
-      "count": 6
     }
   },
   "src/segment-schema-draft-pr/github-output.ts": {
@@ -631,24 +588,9 @@
       "count": 1
     }
   },
-  "src/segment-schema-draft-pr/names.test.ts": {
-    "no-undef": {
-      "count": 16
-    }
-  },
-  "src/segment-schema-draft-pr/parse-args.test.ts": {
-    "no-undef": {
-      "count": 12
-    }
-  },
-  "src/segment-schema-draft-pr/pr-body.test.ts": {
-    "no-undef": {
-      "count": 26
-    }
-  },
   "src/segment-schema-draft-pr/publish.test.ts": {
-    "no-undef": {
-      "count": 24
+    "import/consistent-type-specifier-style": {
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 1

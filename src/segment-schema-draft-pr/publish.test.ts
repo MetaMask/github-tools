@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { PROPOSAL_MARKER } from './constants';
 import type { CliArgs } from './parse-args';
@@ -63,12 +64,12 @@ function mockOctokits(params: {
 }): {
   client: Octokit;
   schema: Octokit;
-  updateComment: jest.Mock;
-  createComment: jest.Mock;
+  updateComment: Mock;
+  createComment: Mock;
 } {
-  const updateComment = jest.fn().mockResolvedValue({});
-  const createComment = jest.fn().mockResolvedValue({});
-  const paginate = jest.fn().mockResolvedValue(
+  const updateComment = vi.fn().mockResolvedValue({});
+  const createComment = vi.fn().mockResolvedValue({});
+  const paginate = vi.fn().mockResolvedValue(
     params.comments.map((comment) => ({
       user: { login: 'github-actions[bot]' },
       ...comment,
@@ -80,7 +81,7 @@ function mockOctokits(params: {
   } as unknown as Octokit;
   const schema = {
     pulls: {
-      list: jest.fn().mockResolvedValue({ data: params.schemaPulls }),
+      list: vi.fn().mockResolvedValue({ data: params.schemaPulls }),
     },
   } as unknown as Octokit;
   return { client, schema, updateComment, createComment };

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getProcessEnv, getRequiredEnvironmentVariable } from './env-utils';
 
 describe('env-utils', () => {

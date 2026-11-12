@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { OPT_OUT_LABEL, PROPOSAL_MARKER } from './constants';
 import {
@@ -25,7 +26,7 @@ describe('github-api', () => {
   });
 
   it('resolves the client PR including fork and opt-out label', async () => {
-    const pullsGet = jest.fn().mockResolvedValue({
+    const pullsGet = vi.fn().mockResolvedValue({
       data: {
         number: 12,
         base: { sha: 'base' },
@@ -57,7 +58,7 @@ describe('github-api', () => {
   });
 
   it('finds an open schema PR by bot head branch', async () => {
-    const pullsList = jest.fn().mockResolvedValue({
+    const pullsList = vi.fn().mockResolvedValue({
       data: [
         {
           number: 9,
@@ -84,7 +85,7 @@ describe('github-api', () => {
   });
 
   it('creates a draft schema PR', async () => {
-    const pullsCreate = jest.fn().mockResolvedValue({
+    const pullsCreate = vi.fn().mockResolvedValue({
       data: {
         number: 3,
         [HTML_URL]: 'https://github.com/Consensys/segment-schema/pull/3',
@@ -110,15 +111,15 @@ describe('github-api', () => {
   });
 
   it('edits the existing proposal comment instead of posting a second one', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         id: 77,
         body: `${PROPOSAL_MARKER}\nold`,
         user: { login: 'github-actions[bot]' },
       },
     ]);
-    const updateComment = jest.fn().mockResolvedValue({});
-    const createComment = jest.fn().mockResolvedValue({});
+    const updateComment = vi.fn().mockResolvedValue({});
+    const createComment = vi.fn().mockResolvedValue({});
     const octokit = {
       paginate,
       issues: { updateComment, createComment },
@@ -140,15 +141,15 @@ describe('github-api', () => {
   });
 
   it('updates an existing proposal comment and skips create', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         id: 77,
         body: `${PROPOSAL_MARKER}\nold`,
         user: { login: 'github-actions[bot]' },
       },
     ]);
-    const updateComment = jest.fn().mockResolvedValue({});
-    const createComment = jest.fn().mockResolvedValue({});
+    const updateComment = vi.fn().mockResolvedValue({});
+    const createComment = vi.fn().mockResolvedValue({});
     const octokit = {
       paginate,
       issues: { updateComment, createComment },
@@ -171,9 +172,9 @@ describe('github-api', () => {
   });
 
   it('no-ops when no proposal comment exists', async () => {
-    const paginate = jest.fn().mockResolvedValue([]);
-    const updateComment = jest.fn().mockResolvedValue({});
-    const createComment = jest.fn().mockResolvedValue({});
+    const paginate = vi.fn().mockResolvedValue([]);
+    const updateComment = vi.fn().mockResolvedValue({});
+    const createComment = vi.fn().mockResolvedValue({});
     const octokit = {
       paginate,
       issues: { updateComment, createComment },
@@ -191,15 +192,15 @@ describe('github-api', () => {
   });
 
   it('ignores a proposal marker posted by someone else', async () => {
-    const paginate = jest.fn().mockResolvedValue([
+    const paginate = vi.fn().mockResolvedValue([
       {
         id: 88,
         body: `${PROPOSAL_MARKER}\nplanted`,
         user: { login: 'alice' },
       },
     ]);
-    const updateComment = jest.fn().mockResolvedValue({});
-    const createComment = jest.fn().mockResolvedValue({});
+    const updateComment = vi.fn().mockResolvedValue({});
+    const createComment = vi.fn().mockResolvedValue({});
     const octokit = {
       paginate,
       issues: { updateComment, createComment },
