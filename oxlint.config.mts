@@ -36,15 +36,8 @@ export default createConfig({
     },
 
     {
-      // These are command-line scripts that read their inputs from the
-      // environment.
-      files: [
-        '.github/**',
-        'src/**/cli.ts',
-        'oxlint.config.ts',
-        'vitest.config.mts',
-        'yarn.config.cjs',
-      ],
+      // The workflow scripts read their inputs from the environment.
+      files: ['.github/**'],
       rules: {
         'node/no-process-env': 'off',
       },
