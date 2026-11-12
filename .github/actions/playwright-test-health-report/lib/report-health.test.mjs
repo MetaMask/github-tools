@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, expect, it } from 'vitest';
 
 import {
   allocateBucketSlots,
@@ -52,10 +51,10 @@ describe('summarizeTestHealth', () => {
     ]);
 
     const test = summary[0];
-    assert.equal(test.latestClassification, 'passed');
-    assert.equal(test.historicalBrokenCount, 1);
-    assert.equal(test.historicalFlakyCount, 1);
-    assert.equal(test.totalRuns, 3);
+    expect(test.latestClassification).toBe('passed');
+    expect(test.historicalBrokenCount).toBe(1);
+    expect(test.historicalFlakyCount).toBe(1);
+    expect(test.totalRuns).toBe(3);
   });
 });
 
@@ -73,9 +72,9 @@ describe('partitionSummary', () => {
       },
     ]);
 
-    assert.equal(watchItems.length, 1);
-    assert.equal(flakyItems.length, 0);
-    assert.equal(brokenItems.length, 0);
+    expect(watchItems.length).toBe(1);
+    expect(flakyItems.length).toBe(0);
+    expect(brokenItems.length).toBe(0);
   });
 });
 
@@ -88,12 +87,11 @@ describe('allocateBucketSlots', () => {
       infra: 0,
     });
 
-    assert.equal(slots.maxBroken, 0);
-    assert.equal(slots.maxWatch, 13);
-    assert.equal(
+    expect(slots.maxBroken).toBe(0);
+    expect(slots.maxWatch).toBe(13);
+    expect(
       slots.maxBroken + slots.maxFlaky + slots.maxWatch + slots.maxInfra,
-      13,
-    );
+    ).toBe(13);
   });
 });
 
@@ -105,54 +103,51 @@ describe('formatWatchHistory', () => {
       totalRuns: 8,
     });
 
-    assert.match(text, /failed 2\/8 runs/);
-    assert.match(text, /flaky 3\/8 runs/);
+    expect(text).toMatch(/failed 2\/8 runs/);
+    expect(text).toMatch(/flaky 3\/8 runs/);
   });
 });
 
 describe('normalizeRepoFilePath', () => {
   it('prefixes testDir-relative paths', () => {
-    assert.equal(
+    expect(
       normalizeRepoFilePath(
         'accounts/account-syncing-settings-toggle.spec.ts',
         {
           prefix: 'tests/smoke-appium',
         },
       ),
+    ).toBe(
       'tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
     );
   });
 
   it('strips CI absolute checkout paths to repo-relative', () => {
-    assert.equal(
+    expect(
       normalizeRepoFilePath(
         '/Users/runner/work/metamask-mobile/metamask-mobile/tests/framework/config/global.setup.ts',
       ),
-      'tests/framework/config/global.setup.ts',
-    );
+    ).toBe('tests/framework/config/global.setup.ts');
   });
 
   it('leaves paths already under tests/ unchanged when prefix is set', () => {
-    assert.equal(
+    expect(
       normalizeRepoFilePath('tests/smoke-appium/accounts/foo.spec.ts', {
         prefix: 'tests/smoke-appium',
       }),
-      'tests/smoke-appium/accounts/foo.spec.ts',
-    );
+    ).toBe('tests/smoke-appium/accounts/foo.spec.ts');
   });
 
   it('does not double-apply an identical prefix', () => {
-    assert.equal(
+    expect(
       normalizeRepoFilePath('tests/smoke-appium/accounts/foo.spec.ts', {
         prefix: 'tests/smoke-appium',
       }),
-      'tests/smoke-appium/accounts/foo.spec.ts',
-    );
+    ).toBe('tests/smoke-appium/accounts/foo.spec.ts');
   });
 
   it('returns relative paths unchanged when no prefix is set', () => {
-    assert.equal(
-      normalizeRepoFilePath('accounts/foo.spec.ts'),
+    expect(normalizeRepoFilePath('accounts/foo.spec.ts')).toBe(
       'accounts/foo.spec.ts',
     );
   });
@@ -202,8 +197,7 @@ describe('createSlackBlocks path links', () => {
         (element) => element.type === 'link' && element.text === 'toggles sync',
       );
 
-    assert.equal(
-      link?.url,
+    expect(link?.url).toBe(
       'https://github.com/MetaMask/metamask-mobile/blob/main/tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
     );
   });

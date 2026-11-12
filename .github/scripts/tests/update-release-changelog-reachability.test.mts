@@ -1,8 +1,7 @@
-import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, it, mock } from 'node:test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { isCommitReachableFrom } from '../update-release-changelog.mts';
 import { git } from './git-test-environment.mts';
@@ -27,33 +26,28 @@ describe('isCommitReachableFrom', () => {
   });
 
   afterEach(() => {
-    mock.restoreAll();
     rmSync(directory, { recursive: true, force: true });
   });
 
   it('is true for a commit on the ref and false for one that is not', () => {
-    assert.equal(isCommitReachableFrom(shared, 'release', directory), true);
-    assert.equal(
-      isCommitReachableFrom(onlyOnMain, 'release', directory),
-      false,
-    );
+    expect(isCommitReachableFrom(shared, 'release', directory)).toBe(true);
+    expect(isCommitReachableFrom(onlyOnMain, 'release', directory)).toBe(false);
   });
 
   it('warns and returns false when Git cannot resolve the commit', () => {
-    const warn = mock.method(console, 'warn', () => undefined);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    assert.equal(
-      isCommitReachableFrom('f'.repeat(40), 'release', directory),
+    expect(isCommitReachableFrom('f'.repeat(40), 'release', directory)).toBe(
       false,
     );
-    assert.equal(warn.mock.callCount(), 1);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('does not warn for an ordinary non-ancestor', () => {
-    const warn = mock.method(console, 'warn', () => undefined);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     isCommitReachableFrom(onlyOnMain, 'release', directory);
 
-    assert.equal(warn.mock.callCount(), 0);
+    expect(warn).toHaveBeenCalledTimes(0);
   });
 });

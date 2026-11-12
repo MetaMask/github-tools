@@ -1,8 +1,7 @@
-import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
 import {
   AGREEMENT_PHRASE,
@@ -55,32 +54,28 @@ function input(overrides = {}) {
 
 describe('eventSkipReason', () => {
   it('skips propose on issue_comment and close unless the PR closed', () => {
-    assert.equal(
-      eventSkipReason('propose', 'issue_comment', 'created'),
+    expect(eventSkipReason('propose', 'issue_comment', 'created')).toBe(
       'wrong-event',
     );
-    assert.equal(
-      eventSkipReason('propose', 'pull_request', 'closed'),
+    expect(eventSkipReason('propose', 'pull_request', 'closed')).toBe(
       'wrong-event',
     );
-    assert.equal(
-      eventSkipReason('close', 'pull_request', 'synchronize'),
+    expect(eventSkipReason('close', 'pull_request', 'synchronize')).toBe(
       'wrong-event',
     );
-    assert.equal(eventSkipReason('create', 'issue_comment', 'created'), '');
-    assert.equal(eventSkipReason('propose', 'pull_request', 'synchronize'), '');
-    assert.equal(eventSkipReason('close', 'pull_request', 'closed'), '');
+    expect(eventSkipReason('create', 'issue_comment', 'created')).toBe('');
+    expect(eventSkipReason('propose', 'pull_request', 'synchronize')).toBe('');
+    expect(eventSkipReason('close', 'pull_request', 'closed')).toBe('');
   });
 });
 
 describe('isAgreementComment', () => {
   it('treats trailing whitespace on the agreement sentence as a match', () => {
-    assert.equal(
+    expect(
       isAgreementComment(`${AGREEMENT_PHRASE}  \nThanks`, 'alice', 'alice'),
-      true,
-    );
-    assert.equal(isAgreementComment(AGREEMENT_PHRASE, 'bob', 'alice'), false);
-    assert.equal(isAgreementComment('please open it', 'alice', 'alice'), false);
+    ).toBe(true);
+    expect(isAgreementComment(AGREEMENT_PHRASE, 'bob', 'alice')).toBe(false);
+    expect(isAgreementComment('please open it', 'alice', 'alice')).toBe(false);
   });
 });
 
@@ -94,9 +89,9 @@ describe('collectTsDiff and hasAnalyticsDiff', () => {
       { filename: 'README.md', patch: '+docs' },
       { filename: 'app/foo.test.ts', patch: '+createEventBuilder(x)' },
     ]);
-    assert.deepEqual(diff.files, ['app/Home.ts']);
-    assert.equal(diff.mentionsAnalytics, true);
-    assert.equal(hasAnalyticsDiff(diff, 'mobile'), true);
+    expect(diff.files).toStrictEqual(['app/Home.ts']);
+    expect(diff.mentionsAnalytics).toBe(true);
+    expect(hasAnalyticsDiff(diff, 'mobile')).toBe(true);
   });
 
   it('treats a catalog-only change as an analytics hit', () => {
@@ -106,16 +101,16 @@ describe('collectTsDiff and hasAnalyticsDiff', () => {
         patch: "+NEW_EVENT = 'New Event'",
       },
     ]);
-    assert.equal(diff.mentionsAnalytics, false);
-    assert.equal(hasAnalyticsDiff(diff, 'mobile'), true);
+    expect(diff.mentionsAnalytics).toBe(false);
+    expect(hasAnalyticsDiff(diff, 'mobile')).toBe(true);
   });
 
   it('does not treat unrelated TypeScript patches as analytics hits', () => {
     const diff = collectTsDiff([
       { filename: 'app/Home.ts', patch: '+const x = 1;\n' },
     ]);
-    assert.equal(diff.mentionsAnalytics, false);
-    assert.equal(hasAnalyticsDiff(diff, 'mobile'), false);
+    expect(diff.mentionsAnalytics).toBe(false);
+    expect(hasAnalyticsDiff(diff, 'mobile')).toBe(false);
   });
 
   it('treats addSensitiveProperties as an analytics hit', () => {
@@ -125,7 +120,7 @@ describe('collectTsDiff and hasAnalyticsDiff', () => {
         patch: '+.addSensitiveProperties({ secret: true })',
       },
     ]);
-    assert.equal(diff.mentionsAnalytics, true);
+    expect(diff.mentionsAnalytics).toBe(true);
   });
 
   it('counts a renamed TypeScript file once', () => {
@@ -136,32 +131,30 @@ describe('collectTsDiff and hasAnalyticsDiff', () => {
         patch: '+const x = 1;\n',
       },
     ]);
-    assert.deepEqual(diff.files, ['app/next.ts', 'app/prev.ts']);
-    assert.equal(diff.recordCount, 1);
+    expect(diff.files).toStrictEqual(['app/next.ts', 'app/prev.ts']);
+    expect(diff.recordCount).toBe(1);
   });
 });
 
 describe('shouldPushSchema', () => {
   it('pushes on create when open, and on propose only after a schema PR exists', () => {
-    assert.equal(shouldPushSchema('create', false, true, true), true);
-    assert.equal(shouldPushSchema('propose', false, true, true), false);
-    assert.equal(shouldPushSchema('propose', true, true, true), true);
-    assert.equal(shouldPushSchema('close', true, false, true), false);
-    assert.equal(shouldPushSchema('create', false, true, false), false);
+    expect(shouldPushSchema('create', false, true, true)).toBe(true);
+    expect(shouldPushSchema('propose', false, true, true)).toBe(false);
+    expect(shouldPushSchema('propose', true, true, true)).toBe(true);
+    expect(shouldPushSchema('close', true, false, true)).toBe(false);
+    expect(shouldPushSchema('create', false, true, false)).toBe(false);
   });
 });
 
 describe('decideGate', () => {
   it('skips forks, opt-out, closed PRs, and non-agreement comments', () => {
-    assert.equal(
-      decideGate(input({ pr: { ...PR, isFork: true } })).skipReason,
+    expect(decideGate(input({ pr: { ...PR, isFork: true } })).skipReason).toBe(
       'fork',
     );
-    assert.equal(
+    expect(
       decideGate(input({ pr: { ...PR, hasOptOutLabel: true } })).skipReason,
-      'opt-out',
-    );
-    assert.equal(
+    ).toBe('opt-out');
+    expect(
       decideGate(
         input({
           mode: 'create',
@@ -172,9 +165,8 @@ describe('decideGate', () => {
           commenterLogin: 'alice',
         }),
       ).skipReason,
-      'client-pr-closed',
-    );
-    assert.equal(
+    ).toBe('client-pr-closed');
+    expect(
       decideGate(
         input({
           mode: 'create',
@@ -182,8 +174,7 @@ describe('decideGate', () => {
           eventAction: 'created',
         }),
       ).skipReason,
-      'agreement-mismatch',
-    );
+    ).toBe('agreement-mismatch');
   });
 
   it('skips close when no schema PR exists', () => {
@@ -194,8 +185,8 @@ describe('decideGate', () => {
         schemaPrExists: false,
       }),
     );
-    assert.equal(result.skip, true);
-    assert.equal(result.skipReason, 'no-schema-pr');
+    expect(result.skip).toBe(true);
+    expect(result.skipReason).toBe('no-schema-pr');
   });
 
   it('skips propose when there is no analytics diff, schema PR, or sticky comment', () => {
@@ -204,7 +195,7 @@ describe('decideGate', () => {
         pullFiles: [{ filename: 'app/Home.ts', patch: '+const x = 1;\n' }],
       }),
     );
-    assert.equal(result.skipReason, 'no-analytics-diff');
+    expect(result.skipReason).toBe('no-analytics-diff');
   });
 
   it('continues propose so publish can edit a sticky comment when analytics drop off', () => {
@@ -214,9 +205,9 @@ describe('decideGate', () => {
         hasProposalComment: true,
       }),
     );
-    assert.equal(result.skip, false);
-    assert.equal(result.hasAnalyticsDiff, false);
-    assert.equal(result.shouldPush, false);
+    expect(result.skip).toBe(false);
+    expect(result.hasAnalyticsDiff).toBe(false);
+    expect(result.shouldPush).toBe(false);
   });
 
   it('sets tooManyFiles and does not push when the TS file list exceeds the cap', () => {
@@ -228,9 +219,9 @@ describe('decideGate', () => {
       }),
     );
     const result = decideGate(input({ pullFiles, schemaPrExists: true }));
-    assert.equal(result.skip, false);
-    assert.equal(result.tooManyFiles, true);
-    assert.equal(result.shouldPush, false);
+    expect(result.skip).toBe(false);
+    expect(result.tooManyFiles).toBe(true);
+    expect(result.shouldPush).toBe(false);
   });
 
   it('does not treat 76 renamed TypeScript files as over the cap', () => {
@@ -240,7 +231,7 @@ describe('decideGate', () => {
       patch: '+createEventBuilder(MetaMetricsEvents.APP_OPENED)',
     }));
     const result = decideGate(input({ pullFiles }));
-    assert.equal(result.tooManyFiles, false);
+    expect(result.tooManyFiles).toBe(false);
   });
 
   it('pushes on create when agreement matches and YAML can be written', () => {
@@ -253,9 +244,9 @@ describe('decideGate', () => {
         commenterLogin: 'alice',
       }),
     );
-    assert.equal(result.skip, false);
-    assert.equal(result.shouldPush, true);
-    assert.equal(result.branch, botBranchName('mobile', 12));
+    expect(result.skip).toBe(false);
+    expect(result.shouldPush).toBe(true);
+    expect(result.branch).toBe(botBranchName('mobile', 12));
   });
 });
 
@@ -265,8 +256,8 @@ describe('schema pull list client', () => {
       join(dirname(fileURLToPath(import.meta.url)), 'action.yml'),
       'utf8',
     );
-    assert.match(action, /getOctokit\(process\.env\.SEGMENT_SCHEMA_TOKEN\)/u);
-    assert.doesNotMatch(action, /const \{\s*getOctokit\s*\}/u);
-    assert.doesNotMatch(action, /headers:\s*\{\s*authorization:/u);
+    expect(action).toMatch(/getOctokit\(process\.env\.SEGMENT_SCHEMA_TOKEN\)/u);
+    expect(action).not.toMatch(/const \{\s*getOctokit\s*\}/u);
+    expect(action).not.toMatch(/headers:\s*\{\s*authorization:/u);
   });
 });

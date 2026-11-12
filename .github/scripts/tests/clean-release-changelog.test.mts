@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -6,9 +5,9 @@ import type { ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { expect, test, vi } from 'vitest';
 
 import {
   assertPrEvidenceAvailable,
@@ -42,13 +41,12 @@ const generatedSection = `## [13.51.0]
 - Fixed an issue (#102)`;
 
 test('removes LiteLLM credentials from evidence subprocesses', () => {
-  assert.deepEqual(
+  expect(
     getEnvironmentWithoutAiKey({
       GH_TOKEN: 'github-token',
       AI_ANALYZER_LITELLM_KEY: 'litellm-key',
     }),
-    { GH_TOKEN: 'github-token' },
-  );
+  ).toStrictEqual({ GH_TOKEN: 'github-token' });
 });
 
 test('retries transient GitHub API failures before returning evidence', async () => {
@@ -68,15 +66,15 @@ test('retries transient GitHub API failures before returning evidence', async ()
     },
   );
 
-  assert.equal(response, '{"title":"Recovered"}');
-  assert.equal(attempts, 3);
-  assert.deepEqual(retryDelays, [1_000, 2_000]);
+  expect(response).toBe('{"title":"Recovered"}');
+  expect(attempts).toBe(3);
+  expect(retryDelays).toStrictEqual([1_000, 2_000]);
 });
 
 test('does not retry permanent GitHub API failures', async () => {
   let attempts = 0;
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestGhApiWithRetry(
         ['repos/MetaMask/metamask-extension/pulls/1'],
         async () => {
@@ -86,23 +84,18 @@ test('does not retry permanent GitHub API failures', async () => {
         async () => {
           throw new Error('Unexpected retry');
         },
-      ),
-    /HTTP 404/u,
-  );
-  assert.equal(attempts, 1);
-  assert.equal(
-    isRetryableGhApiFailure(new Error('HTTP 404: Not Found')),
-    false,
-  );
+      ))(),
+  ).rejects.toThrow(/HTTP 404/u);
+  expect(attempts).toBe(1);
+  expect(isRetryableGhApiFailure(new Error('HTTP 404: Not Found'))).toBe(false);
   // The command line names the PR, which is not an HTTP status.
-  assert.equal(
+  expect(
     isRetryableGhApiFailure(
       new Error(
         'Command failed: gh api repos/o/r/pulls/503\ngh: Not Found (HTTP 404)',
       ),
     ),
-    false,
-  );
+  ).toBe(false);
 });
 
 test('uses PR title and body when local evidence is unavailable', async () => {
@@ -122,12 +115,11 @@ test('uses PR title and body when local evidence is unavailable', async () => {
     },
   );
 
-  assert.deepEqual(evidence.unavailablePrEvidence, []);
-  assert.match(
-    evidence.evidence[0] ?? '',
+  expect(evidence.unavailablePrEvidence).toStrictEqual([]);
+  expect(evidence.evidence[0] ?? '').toMatch(
     /#37469: fix: match the recurring every sheet/u,
   );
-  assert.equal(requests.length, 1);
+  expect(requests.length).toBe(1);
 });
 
 test('collects local evidence only from mainline squash commits', async () => {
@@ -157,7 +149,7 @@ test('collects local evidence only from mainline squash commits', async () => {
     const evidence = await getLocalPrEvidence(['1', '2', '3', '4']);
 
     // A revert quotes the PR it undoes but is not evidence for that PR.
-    assert.deepEqual([...evidence].sort(), [
+    expect([...evidence].sort()).toStrictEqual([
       ['1', '#1: feat: add thing (#1)\nLocal squash commit body:\nBody one'],
       ['4', '#4: feat: real thing (#4)\nLocal squash commit body:\nReal body'],
     ]);
@@ -167,15 +159,15 @@ test('collects local evidence only from mainline squash commits', async () => {
   }
 });
 
-test('falls back to GitHub when local history cannot be read', async (context) => {
+test('falls back to GitHub when local history cannot be read', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'no-repo-'));
   const originalDirectory = process.cwd();
-  const warn = context.mock.method(console, 'warn', () => undefined);
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
   try {
     process.chdir(directory);
-    assert.deepEqual([...(await getLocalPrEvidence(['1']))], []);
-    assert.equal(warn.mock.callCount(), 1);
+    expect([...(await getLocalPrEvidence(['1']))]).toStrictEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
   } finally {
     process.chdir(originalDirectory);
     rmSync(directory, { force: true, recursive: true });
@@ -197,15 +189,17 @@ test('does not query GitHub when local mainline evidence exists', async () => {
     ]),
   );
 
-  assert.deepEqual(evidence.unavailablePrEvidence, []);
-  assert.deepEqual(evidence.evidence, [
+  expect(evidence.unavailablePrEvidence).toStrictEqual([]);
+  expect(evidence.evidence).toStrictEqual([
     '#37469: fix: match the recurring every sheet to expires after\nLocal squash commit body:\nThe interval picker now matches.',
   ]);
 });
 
 test('limits local evidence history to referenced PR numbers', () => {
-  assert.deepEqual(getLocalEvidenceLogArguments([]), undefined);
-  assert.deepEqual(getLocalEvidenceLogArguments(['37469', '37522', '37469']), [
+  expect(getLocalEvidenceLogArguments([])).toStrictEqual(undefined);
+  expect(
+    getLocalEvidenceLogArguments(['37469', '37522', '37469']),
+  ).toStrictEqual([
     'log',
     'HEAD',
     '--extended-regexp',
@@ -216,10 +210,10 @@ test('limits local evidence history to referenced PR numbers', () => {
 
 test('identifies LiteLLM credential rejections', () => {
   const error = new LiteLlmAuthenticationError(401);
-  assert.equal(error.name, 'LiteLlmAuthenticationError');
-  assert.match(error.message, /HTTP 401/u);
-  assert.equal(isLiteLlmAuthenticationError(error), true);
-  assert.equal(isLiteLlmAuthenticationError(new Error('HTTP 401')), false);
+  expect(error.name).toBe('LiteLlmAuthenticationError');
+  expect(error.message).toMatch(/HTTP 401/u);
+  expect(isLiteLlmAuthenticationError(error)).toBe(true);
+  expect(isLiteLlmAuthenticationError(new Error('HTTP 401'))).toBe(false);
 });
 
 test('cleans large release sections in reference-preserving chunks', () => {
@@ -233,7 +227,7 @@ test('cleans large release sections in reference-preserving chunks', () => {
 ### Fixed
 
 - Improved a flow (#103)`;
-  assert.deepEqual(splitReleaseSectionIntoChunks(section, '13.51.0', 2), [
+  expect(splitReleaseSectionIntoChunks(section, '13.51.0', 2)).toStrictEqual([
     {
       section: `## [13.51.0]
 
@@ -272,14 +266,14 @@ test('cleans large release sections in reference-preserving chunks', () => {
     ],
     '13.51.0',
   );
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateReplacement(merged, '13.51.0', ['101', '102', '103']),
-  );
-  assert.doesNotMatch(merged, /\)\n\n- /u);
+  ).not.toThrow();
+  expect(merged).not.toMatch(/\)\n\n- /u);
 });
 
-test('warns about and skips an identical repeat of an entry', (context) => {
-  const warn = context.mock.method(console, 'warn', () => undefined);
+test('warns about and skips an identical repeat of an entry', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const chunks = splitReleaseSectionIntoChunks(
     `## [13.51.0]
 
@@ -293,25 +287,23 @@ test('warns about and skips an identical repeat of an entry', (context) => {
     '13.51.0',
   );
 
-  assert.deepEqual(chunks[0]?.prNumbers, ['101']);
-  assert.equal(warn.mock.callCount(), 1);
-  assert.match(String(warn.mock.calls[0]?.arguments[0]), /PR 101/u);
+  expect(chunks[0]?.prNumbers).toStrictEqual(['101']);
+  expect(warn).toHaveBeenCalledTimes(1);
+  expect(String(warn.mock.calls[0]?.[0])).toMatch(/PR 101/u);
 });
 
 test('rejects different entries for the same PR instead of dropping one', () => {
-  assert.throws(
-    () =>
-      splitReleaseSectionIntoChunks(
-        `## [13.51.0]
+  expect(() =>
+    splitReleaseSectionIntoChunks(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101)
 - Fixed another issue (#101)`,
-        '13.51.0',
-      ),
-    /different entries for PR 101/u,
-  );
+      '13.51.0',
+    ),
+  ).toThrow(/different entries for PR 101/u);
 });
 
 test('extracts exactly one release section', () => {
@@ -326,15 +318,14 @@ ${generatedSection}
 - An earlier fix (#100)
 `;
 
-  assert.equal(
-    extractReleaseSection(changelog, '13.51.0').section,
+  expect(extractReleaseSection(changelog, '13.51.0').section).toBe(
     generatedSection,
   );
-  assert.deepEqual(getPrNumbers(generatedSection), ['101', '102']);
+  expect(getPrNumbers(generatedSection)).toStrictEqual(['101', '102']);
 });
 
 test('counts the PR groups auto-changelog counts', () => {
-  assert.deepEqual(
+  expect(
     getPrNumbers(`## [1.0.0]
 
 ### Fixed
@@ -342,30 +333,26 @@ test('counts the PR groups auto-changelog counts', () => {
 - Fixed issue #4521 in the send flow (#101, #102).
 - Reverted "Fixed it (#67)" (#69)
 - Added a flow with no reference`),
-    ['101', '102', '67', '69'],
-  );
+  ).toStrictEqual(['101', '102', '67', '69']);
   // auto-changelog reads the first line, wherever the group sits on it.
-  assert.deepEqual(
+  expect(
     getEntryPrNumbers('- Fixed it (#7)\n  - nested detail (#8)'),
-    ['7'],
-  );
-  assert.deepEqual(getEntryPrNumbers('- Fixed it (#7), (#8)'), ['7', '8']);
-  assert.deepEqual(getEntryPrNumbers('- Fixed swap from (#46000) (#101)'), [
+  ).toStrictEqual(['7']);
+  expect(getEntryPrNumbers('- Fixed it (#7), (#8)')).toStrictEqual(['7', '8']);
+  expect(getEntryPrNumbers('- Fixed swap from (#46000) (#101)')).toStrictEqual([
     '46000',
     '101',
   ]);
-  assert.deepEqual(getEntryPrNumbers('- (#101)'), ['101']);
+  expect(getEntryPrNumbers('- (#101)')).toStrictEqual(['101']);
 });
 
 test('rejects a duplicate release heading', () => {
-  assert.throws(
-    () =>
-      extractReleaseSection(
-        `${generatedSection}\n\n${generatedSection}`,
-        '13.51.0',
-      ),
-    /Expected exactly one release heading/u,
-  );
+  expect(() =>
+    extractReleaseSection(
+      `${generatedSection}\n\n${generatedSection}`,
+      '13.51.0',
+    ),
+  ).toThrow(/Expected exactly one release heading/u);
 });
 
 test('replaces only the release section without changing its surrounding whitespace', () => {
@@ -389,14 +376,13 @@ ${generatedSection}
 
 - Fixed an issue (#102)`;
 
-  assert.equal(
-    replaceReleaseSection(changelog, '13.51.0', replacement),
+  expect(replaceReleaseSection(changelog, '13.51.0', replacement)).toBe(
     changelog.replace(generatedSection, replacement),
   );
 });
 
 test('accepts a categorized replacement that preserves every PR once', () => {
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateReplacement(
       `## [13.51.0]
 
@@ -410,125 +396,106 @@ test('accepts a categorized replacement that preserves every PR once', () => {
       '13.51.0',
       ['101', '102'],
     ),
-  );
+  ).not.toThrow();
 });
 
 test('rejects uncategorized, omitted, invented, and duplicate PR references', () => {
-  assert.throws(
-    () => validateReplacement(generatedSection, '13.51.0', ['101', '102']),
-    /Uncategorized/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+  expect(() =>
+    validateReplacement(generatedSection, '13.51.0', ['101', '102']),
+  ).toThrow(/Uncategorized/u);
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101)`,
-        '13.51.0',
-        ['101', '102'],
-      ),
-    /references do not match/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+      '13.51.0',
+      ['101', '102'],
+    ),
+  ).toThrow(/references do not match/u);
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101, #102, #103)`,
-        '13.51.0',
-        ['101', '102'],
-      ),
-    /references do not match/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+      '13.51.0',
+      ['101', '102'],
+    ),
+  ).toThrow(/references do not match/u);
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101)
 - Fixed it again (#101)
 - Fixed another issue (#102)`,
-        '13.51.0',
-        ['101', '102'],
-      ),
-    /duplicate PR references/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+      '13.51.0',
+      ['101', '102'],
+    ),
+  ).toThrow(/duplicate PR references/u);
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 Here is the cleaned section:
 
 ### Fixed
 
 - Fixed an issue (#101, #102)`,
-        '13.51.0',
-        ['101', '102'],
-      ),
-    /unexpected Markdown/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+      '13.51.0',
+      ['101', '102'],
+    ),
+  ).toThrow(/unexpected Markdown/u);
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101)- Fixed another issue (#102)`,
-        '13.51.0',
-        ['101', '102'],
-      ),
-    /adjacent list items/u,
-  );
+      '13.51.0',
+      ['101', '102'],
+    ),
+  ).toThrow(/adjacent list items/u);
 });
 
 test('rejects an entry without a trailing PR reference', () => {
-  assert.throws(
-    () =>
-      validateReplacement(
-        `## [13.51.0]
+  expect(() =>
+    validateReplacement(
+      `## [13.51.0]
 
 ### Fixed
 
 - Fixed an issue (#101)
 - Improved performance across the app`,
-        '13.51.0',
-        ['101'],
-      ),
-    /must be text followed by its PR reference/u,
-  );
+      '13.51.0',
+      ['101'],
+    ),
+  ).toThrow(/must be text followed by its PR reference/u);
 });
 
 test('rejects entries that are not canonical or hide a PR in the text', () => {
   const entry = (line: string) => `## [13.51.0]\n\n### Fixed\n\n${line}`;
-  assert.throws(
-    () => validateReplacement(entry('- Fixed X (#101).'), '13.51.0', ['101']),
-    /must be text followed by its PR reference/u,
-  );
-  assert.throws(
-    () => validateReplacement(entry('- (#101)'), '13.51.0', ['101']),
-    /must be text followed by its PR reference/u,
-  );
-  assert.throws(
-    () =>
-      validateReplacement(
-        entry('- Fixed swap from (#46000) (#101)'),
-        '13.51.0',
-        ['101'],
-      ),
-    /references do not match/u,
-  );
+  expect(() =>
+    validateReplacement(entry('- Fixed X (#101).'), '13.51.0', ['101']),
+  ).toThrow(/must be text followed by its PR reference/u);
+  expect(() =>
+    validateReplacement(entry('- (#101)'), '13.51.0', ['101']),
+  ).toThrow(/must be text followed by its PR reference/u);
+  expect(() =>
+    validateReplacement(entry('- Fixed swap from (#46000) (#101)'), '13.51.0', [
+      '101',
+    ]),
+  ).toThrow(/references do not match/u);
 });
 
 test('accepts dashes and parentheses inside an entry', () => {
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateReplacement(
       `## [13.51.0]
 
@@ -538,7 +505,7 @@ test('accepts dashes and parentheses inside an entry', () => {
       '13.51.0',
       ['101'],
     ),
-  );
+  ).not.toThrow();
 });
 
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
@@ -622,14 +589,13 @@ for (const invalidTimeout of ['soon', '0', '3000000000']) {
     const originalTimeout = process.env.CHANGELOG_AI_TIMEOUT_MS;
     restoreEnvironmentVariable('CHANGELOG_AI_TIMEOUT_MS', invalidTimeout);
     try {
-      await assert.rejects(
-        async () =>
+      await expect(
+        (async () =>
           requestCleanRoomRewrite({
             ...rewriteInput,
             fetchImpl: createFetch([]),
-          }),
-        /CHANGELOG_AI_TIMEOUT_MS must be a positive integer/u,
-      );
+          }))(),
+      ).rejects.toThrow(/CHANGELOG_AI_TIMEOUT_MS must be a positive integer/u);
     } finally {
       restoreEnvironmentVariable('CHANGELOG_AI_TIMEOUT_MS', originalTimeout);
     }
@@ -645,29 +611,29 @@ test('sends the pinned model with the bearer credential to chat completions', as
     timeoutMs: 1_000,
   });
 
-  assert.equal(result, '## [13.51.0]');
-  assert.equal(requests.length, 1);
-  assert.match(requests[0]?.url ?? '', /\/chat\/completions$/u);
-  assert.equal(requests[0]?.init.method, 'POST');
+  expect(result).toBe('## [13.51.0]');
+  expect(requests.length).toBe(1);
+  expect(requests[0]?.url ?? '').toMatch(/\/chat\/completions$/u);
+  expect(requests[0]?.init.method).toBe('POST');
   const headers = requests[0]?.init.headers as Record<string, string>;
-  assert.equal(headers.Authorization, 'Bearer litellm-key');
+  expect(headers.Authorization).toBe('Bearer litellm-key');
   const body = JSON.parse(String(requests[0]?.init.body)) as {
     model: string;
     temperature: number;
     messages: { content: string }[];
   };
-  assert.equal(body.model, 'gpt-6.1-terra');
-  assert.equal(body.temperature, 0);
-  assert.match(body.messages[1]?.content ?? '', /<release_section>/u);
-  assert.doesNotMatch(JSON.stringify(body), /litellm-key/u);
+  expect(body.model).toBe('gpt-6.1-terra');
+  expect(body.temperature).toBe(0);
+  expect(body.messages[1]?.content ?? '').toMatch(/<release_section>/u);
+  expect(JSON.stringify(body)).not.toMatch(/litellm-key/u);
 });
 
 test('does not retry a rejected LiteLLM credential', async () => {
   for (const status of [401, 403]) {
     const requests: RecordedRequest[] = [];
     const sleeps: number[] = [];
-    await assert.rejects(
-      async () =>
+    await expect(
+      (async () =>
         requestCleanRoomRewrite({
           ...rewriteInput,
           fetchImpl: createFetch([fakeResponse(status)], requests),
@@ -675,13 +641,14 @@ test('does not retry a rejected LiteLLM credential', async () => {
             sleeps.push(milliseconds);
           },
           timeoutMs: 1_000,
-        }),
+        }))(),
+    ).rejects.toSatisfy(
       (error: unknown) =>
         isLiteLlmAuthenticationError(error) &&
         error.message.includes(`HTTP ${String(status)}`),
     );
-    assert.equal(requests.length, 1);
-    assert.deepEqual(sleeps, []);
+    expect(requests.length).toBe(1);
+    expect(sleeps).toStrictEqual([]);
   }
 });
 
@@ -700,15 +667,15 @@ test('retries one transient LiteLLM failure and then succeeds', async () => {
     timeoutMs: 1_000,
   });
 
-  assert.equal(result, '## [13.51.0]');
-  assert.equal(requests.length, 2);
-  assert.deepEqual(sleeps, [1_000]);
+  expect(result).toBe('## [13.51.0]');
+  expect(requests.length).toBe(2);
+  expect(sleeps).toStrictEqual([1_000]);
 });
 
 test('stops after the retry budget for persistent LiteLLM failures', async () => {
   const requests: RecordedRequest[] = [];
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestCleanRoomRewrite({
         ...rewriteInput,
         fetchImpl: createFetch(
@@ -717,27 +684,25 @@ test('stops after the retry budget for persistent LiteLLM failures', async () =>
         ),
         sleep: async () => undefined,
         timeoutMs: 1_000,
-      }),
-    /LiteLLM returned HTTP 500/u,
-  );
-  assert.equal(requests.length, 2);
+      }))(),
+  ).rejects.toThrow(/LiteLLM returned HTTP 500/u);
+  expect(requests.length).toBe(2);
 });
 
 test('rejects an empty LiteLLM message after the retry budget', async () => {
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestCleanRoomRewrite({
         ...rewriteInput,
         fetchImpl: createFetch([completion(''), completion(null)]),
         sleep: async () => undefined,
         timeoutMs: 1_000,
-      }),
-    /no message content/u,
-  );
+      }))(),
+  ).rejects.toThrow(/no message content/u);
 });
 
-test('requests another response when one fails validation', async (context) => {
-  context.mock.method(console, 'warn', () => undefined);
+test('requests another response when one fails validation', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const requests: RecordedRequest[] = [];
   const valid = `## [13.51.0]
 
@@ -762,17 +727,17 @@ test('requests another response when one fails validation', async (context) => {
     ['101', '102'],
   );
 
-  assert.equal(section, valid);
-  assert.equal(requests.length, 2);
+  expect(section).toBe(valid);
+  expect(requests.length).toBe(2);
 });
 
-test('gives up after the last response fails validation', async (context) => {
-  context.mock.method(console, 'warn', () => undefined);
+test('gives up after the last response fails validation', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const requests: RecordedRequest[] = [];
   const invalid = '## [13.51.0]\n\n### Fixed\n\n- Fixed an issue (#101)';
 
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestValidatedRewrite(
         {
           ...rewriteInput,
@@ -783,17 +748,16 @@ test('gives up after the last response fails validation', async (context) => {
         },
         '13.51.0',
         ['101', '102'],
-      ),
-    /references do not match/u,
-  );
-  assert.equal(requests.length, 3);
+      ))(),
+  ).rejects.toThrow(/references do not match/u);
+  expect(requests.length).toBe(3);
 });
 
 test('does not request again after a rejected key', async () => {
   const requests: RecordedRequest[] = [];
 
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestValidatedRewrite(
         {
           ...rewriteInput,
@@ -801,10 +765,9 @@ test('does not request again after a rejected key', async () => {
         },
         '13.51.0',
         ['101', '102'],
-      ),
-    LiteLlmAuthenticationError,
-  );
-  assert.equal(requests.length, 1);
+      ))(),
+  ).rejects.toThrow(LiteLlmAuthenticationError);
+  expect(requests.length).toBe(1);
 });
 
 test('aborts a LiteLLM request that exceeds the timeout', async () => {
@@ -818,33 +781,29 @@ test('aborts a LiteLLM request that exceeds the timeout', async () => {
     });
   }) as typeof fetch;
 
-  await assert.rejects(
-    async () =>
+  await expect(
+    (async () =>
       requestCleanRoomRewrite({
         ...rewriteInput,
         fetchImpl: hangingFetch,
         sleep: async () => undefined,
         timeoutMs: 5,
-      }),
-    /aborted by timeout/u,
-  );
-  assert.equal(signals.length, 2);
-  assert.equal(
-    signals.every((signal) => signal?.aborted),
-    true,
-  );
+      }))(),
+  ).rejects.toThrow(/aborted by timeout/u);
+  expect(signals.length).toBe(2);
+  expect(signals.every((signal) => signal?.aborted)).toBe(true);
 });
 
 test('rejects a proofread when any source PR lacks evidence', () => {
-  assert.throws(
-    () =>
-      assertPrEvidenceAvailable([
-        { prNumber: '101', error: 'HTTP 404: Not Found' },
-        { prNumber: '102', error: 'HTTP 500: Internal Server Error' },
-      ]),
+  expect(() =>
+    assertPrEvidenceAvailable([
+      { prNumber: '101', error: 'HTTP 404: Not Found' },
+      { prNumber: '102', error: 'HTTP 500: Internal Server Error' },
+    ]),
+  ).toThrow(
     /PR evidence unavailable: #101 \(HTTP 404: Not Found\), #102 \(HTTP 500: Internal Server Error\)/u,
   );
-  assert.doesNotThrow(() => assertPrEvidenceAvailable([]));
+  expect(() => assertPrEvidenceAvailable([])).not.toThrow();
 });
 
 const execFileAsync = promisify(execFile);
@@ -971,10 +930,9 @@ test('writes the validated section and reports success', async () => {
 - Fixed an issue (#102)`;
   const result = await runProofreader(respondWithContent(section));
 
-  assert.equal(result.exitCode, 0);
-  assert.equal(result.report.status, 'succeeded');
-  assert.equal(
-    result.changelog,
+  expect(result.exitCode).toBe(0);
+  expect(result.report.status).toBe('succeeded');
+  expect(result.changelog).toBe(
     result.original.replace(generatedSection, section),
   );
 });
@@ -993,11 +951,13 @@ test('leaves the changelog untouched when the model invents an entry', async () 
 - Fixed an issue (#102)`),
   );
 
-  assert.equal(result.exitCode, 1);
-  assert.equal(result.report.status, 'failed');
-  assert.equal(result.report.stage, 'cleaning');
-  assert.match(String(result.report.error), /must be text followed by its PR/u);
-  assert.equal(result.changelog, result.original);
+  expect(result.exitCode).toBe(1);
+  expect(result.report.status).toBe('failed');
+  expect(result.report.stage).toBe('cleaning');
+  expect(String(result.report.error)).toMatch(
+    /must be text followed by its PR/u,
+  );
+  expect(result.changelog).toBe(result.original);
 });
 
 test('leaves the changelog untouched when LiteLLM rejects the key', async () => {
@@ -1006,7 +966,7 @@ test('leaves the changelog untouched when LiteLLM rejects the key', async () => 
     response.end('{}');
   });
 
-  assert.equal(result.exitCode, 1);
-  assert.equal(result.report.stage, 'authentication');
-  assert.equal(result.changelog, result.original);
+  expect(result.exitCode).toBe(1);
+  expect(result.report.stage).toBe('authentication');
+  expect(result.changelog).toBe(result.original);
 });

@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
@@ -10,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
-import test, { after } from 'node:test';
+import { afterAll, expect, test } from 'vitest';
 
 import { getGitTestEnvironment, git } from './git-test-environment.mts';
 
@@ -24,7 +23,7 @@ const SCRIPT_PATH = join(
 const TEMPORARY_DIRECTORY = mkdtempSync(
   join(tmpdir(), 'previous-release-merge-'),
 );
-after(() => rmSync(TEMPORARY_DIRECTORY, { force: true, recursive: true }));
+afterAll(() => rmSync(TEMPORARY_DIRECTORY, { force: true, recursive: true }));
 
 /**
  * Creates an origin repository with a `main`, an older active release, and a
@@ -115,11 +114,10 @@ test('preserves changelog history from an older active release branch', () => {
 
   fixture.run();
 
-  assert.equal(
-    fixture.readChangelog(),
+  expect(fixture.readChangelog()).toBe(
     '# Changelog\n\n## [Unreleased]\n\n## [13.54.0]\n\n- Released entry (#2)\n\n## [13.53.0]\n\n- Destination-only entry (#3)\n\n[Unreleased]: https://example.com/HEAD\n[13.54.0]: https://example.com/13.54.0\n[13.53.0]: https://example.com/13.53.0\n',
   );
-  assert.doesNotThrow(() =>
+  expect(() =>
     git(
       fixture.workDirectory,
       'merge-base',
@@ -127,7 +125,7 @@ test('preserves changelog history from an older active release branch', () => {
       'origin/release/13.54.0',
       'HEAD',
     ),
-  );
+  ).not.toThrow();
 });
 
 test('preserves changelog history when the source changelog exceeds the default process buffer', () => {
@@ -141,8 +139,7 @@ test('preserves changelog history when the source changelog exceeds the default 
 
   fixture.run();
 
-  assert.equal(
-    fixture.readChangelog(),
+  expect(fixture.readChangelog()).toBe(
     '# Changelog\n\n## [13.54.0]\n\n- Released entry (#2)\n\n## [13.53.0]\n\n- Destination-only entry (#3)\n',
   );
 });
@@ -158,7 +155,7 @@ test('preserves destination changelog when the source section is ambiguous', () 
 
   fixture.run();
 
-  assert.equal(fixture.readChangelog(), destinationChangelog);
+  expect(fixture.readChangelog()).toBe(destinationChangelog);
 });
 
 test('preserves destination changelog when it already has the release section', () => {
@@ -171,5 +168,5 @@ test('preserves destination changelog when it already has the release section', 
 
   fixture.run();
 
-  assert.equal(fixture.readChangelog(), destinationChangelog);
+  expect(fixture.readChangelog()).toBe(destinationChangelog);
 });
