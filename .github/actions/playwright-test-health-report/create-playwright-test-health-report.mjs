@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 
 import { Octokit } from '@octokit/rest';
-import { downloadArtifactZip, findFilesInZip } from './lib/artifact-download.mjs';
-import { parsePlaywrightJsonReport } from './lib/parse-playwright-json.mjs';
-import { createSlackBlocks, sendSlackBatched } from './lib/slack-test-health-blocks.mjs';
+
+import {
+  downloadArtifactZip,
+  findFilesInZip,
+} from './lib/artifact-download.mjs';
 import { partitionSummary } from './lib/classify-report-buckets.mjs';
+import { parsePlaywrightJsonReport } from './lib/parse-playwright-json.mjs';
+import {
+  createSlackBlocks,
+  sendSlackBatched,
+} from './lib/slack-test-health-blocks.mjs';
 import { summarizeTestHealth } from './lib/summarize-test-health.mjs';
 import { getDateRange, getWorkflowRuns } from './lib/workflow-runs.mjs';
 
@@ -28,7 +35,8 @@ const env = {
   WORKFLOW_IDS: process.env.WORKFLOW_IDS,
   BRANCH: process.env.BRANCH || 'main',
   LOOKBACK_DAYS: parsePositiveInt(process.env.LOOKBACK_DAYS, 1),
-  ARTIFACT_NAME_PREFIX: process.env.ARTIFACT_NAME_PREFIX || 'playwright-json-report',
+  ARTIFACT_NAME_PREFIX:
+    process.env.ARTIFACT_NAME_PREFIX || 'playwright-json-report',
   RESULTS_FILE_PATTERN: process.env.RESULTS_FILE_PATTERN || 'playwright-report',
   TOP_N: parsePositiveInt(process.env.TOP_N, 15),
   REPORT_TITLE: process.env.REPORT_TITLE || 'Playwright Test Health Report',
@@ -46,16 +54,22 @@ if (!env.WORKFLOW_IDS) {
 
 function getWorkflowIds() {
   return env.WORKFLOW_IDS.split(',')
-    .map(value => value.trim())
+    .map((value) => value.trim())
     .filter(Boolean);
 }
 
 function isTestFailureFinding(finding) {
-  return finding.classification === 'broken' || finding.classification === 'flaky' || finding.classification === 'infra';
+  return (
+    finding.classification === 'broken' ||
+    finding.classification === 'flaky' ||
+    finding.classification === 'infra'
+  );
 }
 
 function countTestFailureRuns(findings) {
-  return new Set(findings.filter(isTestFailureFinding).map(finding => finding.runId)).size;
+  return new Set(
+    findings.filter(isTestFailureFinding).map((finding) => finding.runId),
+  ).size;
 }
 
 async function getMergedWorkflowRuns(github, dateRange) {
@@ -74,7 +88,9 @@ async function getMergedWorkflowRuns(github, dateRange) {
     runs.push(...workflowRuns);
   }
 
-  const dedupedRuns = Array.from(new Map(runs.map(run => [run.id, run])).values());
+  const dedupedRuns = Array.from(
+    new Map(runs.map((run) => [run.id, run])).values(),
+  );
   dedupedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   return dedupedRuns;
 }
@@ -95,7 +111,9 @@ async function collectFindings(github, runs) {
       },
     );
 
-    const matching = artifacts.filter(artifact => artifact.name.startsWith(env.ARTIFACT_NAME_PREFIX));
+    const matching = artifacts.filter((artifact) =>
+      artifact.name.startsWith(env.ARTIFACT_NAME_PREFIX),
+    );
     matchingArtifacts += matching.length;
 
     if (matching.length === 0) {
@@ -113,7 +131,9 @@ async function collectFindings(github, runs) {
         const jsonFiles = findFilesInZip(zip, env.RESULTS_FILE_PATTERN);
 
         if (jsonFiles.length === 0) {
-          console.log(`  ⚠️  No ${env.RESULTS_FILE_PATTERN} file found in ${artifact.name}`);
+          console.log(
+            `  ⚠️  No ${env.RESULTS_FILE_PATTERN} file found in ${artifact.name}`,
+          );
           continue;
         }
 
@@ -124,17 +144,23 @@ async function collectFindings(github, runs) {
             findings.push(
               ...parsePlaywrightJsonReport(report, {
                 runId: run.id,
-                runUrl: run.html_url || `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${run.id}`,
+                runUrl:
+                  run.html_url ||
+                  `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${run.id}`,
                 date: run.created_at,
                 artifactName: artifact.name,
               }),
             );
           } catch (error) {
-            console.log(`  ❌ Invalid JSON in ${artifact.name}/${file.path}: ${error.message}`);
+            console.log(
+              `  ❌ Invalid JSON in ${artifact.name}/${file.path}: ${error.message}`,
+            );
           }
         }
       } catch (error) {
-        console.log(`  ❌ Failed to process artifact ${artifact.name}: ${error.message}`);
+        console.log(
+          `  ❌ Failed to process artifact ${artifact.name}: ${error.message}`,
+        );
       }
     }
   }
@@ -166,7 +192,8 @@ async function sendSlackReport(summary, dateDisplay, metadata) {
 }
 
 function logClassificationDiagnostics(summary, metadata) {
-  const { brokenItems, flakyItems, watchItems, infraItems } = partitionSummary(summary);
+  const { brokenItems, flakyItems, watchItems, infraItems } =
+    partitionSummary(summary);
 
   console.log('\n🧾 Classification diagnostics');
   console.log(`  Lookback: ${env.LOOKBACK_DAYS} day(s)`);
@@ -174,13 +201,15 @@ function logClassificationDiagnostics(summary, metadata) {
   console.log(
     `  Buckets -> failing: ${brokenItems.length}, infra: ${infraItems.length}, flaky: ${flakyItems.length}, watch: ${watchItems.length}`,
   );
-  console.log(`  CI runs: ${metadata.workflowCount} | Test-failure runs: ${metadata.testFailureRunCount}`);
+  console.log(
+    `  CI runs: ${metadata.workflowCount} | Test-failure runs: ${metadata.testFailureRunCount}`,
+  );
   console.log(`  Other CI failures: ${metadata.otherFailedRunCount}`);
 
   if (watchItems.length > 0) {
     const preview = watchItems
       .slice(0, 5)
-      .map(test => {
+      .map((test) => {
         const broken = test.historicalBrokenCount ?? 0;
         const flaky = test.historicalFlakyCount ?? 0;
         return `${test.name} (${test.projectName}, failed ${broken}, flaky ${flaky})`;
@@ -208,8 +237,13 @@ async function main() {
       return;
     }
 
-    const failedRunCount = workflowRuns.filter(run => run.conclusion === 'failure').length;
-    const { findings, matchingArtifacts } = await collectFindings(github, workflowRuns);
+    const failedRunCount = workflowRuns.filter(
+      (run) => run.conclusion === 'failure',
+    ).length;
+    const { findings, matchingArtifacts } = await collectFindings(
+      github,
+      workflowRuns,
+    );
 
     if (matchingArtifacts === 0) {
       console.log('⚠️ No matching artifacts found.');
@@ -217,7 +251,10 @@ async function main() {
     }
 
     const testFailureRunCount = countTestFailureRuns(findings);
-    const otherFailedRunCount = Math.max(0, failedRunCount - testFailureRunCount);
+    const otherFailedRunCount = Math.max(
+      0,
+      failedRunCount - testFailureRunCount,
+    );
     const summary = summarizeTestHealth(findings);
 
     logClassificationDiagnostics(summary, {
@@ -235,16 +272,20 @@ async function main() {
   } catch (error) {
     console.error('❌ Error:', error.message);
     if (error.status === 401) {
-      console.log('\n💡 GitHub token is unauthorized. Ensure it has repo and actions:read permissions.');
+      console.log(
+        '\n💡 GitHub token is unauthorized. Ensure it has repo and actions:read permissions.',
+      );
     }
     if (error.status === 404) {
-      console.log('\n💡 One or more workflows were not found. Check WORKFLOW_IDS values.');
+      console.log(
+        '\n💡 One or more workflows were not found. Check WORKFLOW_IDS values.',
+      );
     }
     process.exit(1);
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error('\n❌ Unexpected error:', error);
   process.exit(1);
 });

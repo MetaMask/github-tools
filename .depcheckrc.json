@@ -11,7 +11,6 @@
     "@yarnpkg/types",
     "eslint-plugin-n",
     "oxlint-tsgolint",
-    "prettier-plugin-packagejson",
     "@swc/cli",
     "@swc/core",
     "ts-node",

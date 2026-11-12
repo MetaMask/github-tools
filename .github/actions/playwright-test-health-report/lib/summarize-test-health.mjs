@@ -74,7 +74,7 @@ export function summarizeTestHealth(findings) {
   }
 
   return Array.from(summary.values())
-    .map(item => {
+    .map((item) => {
       const { seenRunIds, ...rest } = item;
       return {
         ...rest,
