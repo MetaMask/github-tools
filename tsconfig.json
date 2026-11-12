@@ -16,6 +16,7 @@
   },
   "include": [
     "src",
+    "knip.config.mts",
     "oxlint.config.mts",
     "yarn.config.cjs",
     ".github/scripts/**/*.mts"
