@@ -175,5 +175,7 @@ runs:
         REPOSITORY: ${{ github.repository }}
         COMMIT_SHA: ${{ steps.commit.outputs.commit-sha }}
       run: |
-        git fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "${COMMIT_SHA}"
+        # Clear the `Authorization` header that `actions/checkout` persists, so
+        # that it is not sent in addition to the token in the URL.
+        git -c http.https://github.com/.extraheader= fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "${COMMIT_SHA}"
         git reset "${COMMIT_SHA}"
