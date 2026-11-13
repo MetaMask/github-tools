@@ -1,4 +1,4 @@
-name: Publish Preview Builds (Build)
+name: Prepare Preview Builds
 
 on:
   workflow_call:

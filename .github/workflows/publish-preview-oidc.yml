@@ -56,7 +56,7 @@ on:
 jobs:
   build:
     name: Build
-    uses: ./.github/workflows/publish-preview-build.yml
+    uses: ./.github/workflows/prepare-preview.yml
     with:
       npm-scope: ${{ inputs.npm-scope }}
       source-scope: ${{ inputs.source-scope }}
