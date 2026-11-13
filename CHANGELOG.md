@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.0]
+
 ### Fixed
 
 - Fall back to the `team-bots` label in `add-team-label` for bot authors missing from `topology.json` ([#327](https://github.com/MetaMask/github-tools/pull/327))
@@ -341,7 +343,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.24.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/MetaMask/github-tools/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/MetaMask/github-tools/compare/v1.22.2...v1.23.0
 [1.22.2]: https://github.com/MetaMask/github-tools/compare/v1.22.1...v1.22.2
