@@ -1,5 +1,5 @@
 name: Create signed commit
-description: 'Commits the staged changes through the GitHub API, so that GitHub signs the commit on behalf of the token owner (e.g., a GitHub App), and pushes it to the given branch. Stage the files with `git add` first.'
+description: 'Commits the staged changes through the GitHub API, so that GitHub signs the commit on behalf of the token owner (e.g., a GitHub App), and pushes it to the given branch. Stage the files with `git add` first. Afterwards, the checkout is moved onto the signed commit if HEAD is detached or on the given branch. Otherwise, it is left unchanged.'
 
 inputs:
   github-token:
@@ -173,9 +173,16 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         REPOSITORY: ${{ github.repository }}
+        BRANCH: ${{ inputs.branch }}
         COMMIT_SHA: ${{ steps.commit.outputs.commit-sha }}
       run: |
         # Clear the `Authorization` header that `actions/checkout` persists, so
         # that it is not sent in addition to the token in the URL.
-        git -c http.https://github.com/.extraheader= fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "${COMMIT_SHA}"
-        git reset "${COMMIT_SHA}"
+        git -c http.https://github.com/.extraheader= fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+
+        # Only move HEAD if it is detached or on the branch that was committed
+        # to.
+        current="$(git symbolic-ref --short -q HEAD || true)"
+        if [[ -z "${current}" || "${current}" == "${BRANCH}" ]]; then
+          git reset "${COMMIT_SHA}"
+        fi
