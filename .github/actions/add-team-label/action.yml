@@ -1,5 +1,5 @@
 name: Add Team Label
-description: "Adds a GitHub team label to a pull request based on the author's entry in the MetaMask topology file. Skips if the PR already has a team-* or external-contributor label."
+description: "Adds a GitHub team label to a pull request based on the author's entry in the MetaMask topology file. Skips if the PR already has a team-* or external-contributor label, and falls back to team-bots for bot accounts missing from the topology file."
 
 inputs:
   team-label-token:
@@ -37,11 +37,16 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.planning-token || inputs.team-label-token }}
         USER: ${{ github.event.pull_request.user.login }}
+        AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
       shell: bash
       run: |
         # Stream topology.json through jq, find the first team where USER appears in members, pm, em, or tl, and emit
         # its githubLabel.name value.
         team_label=$(gh api -H 'Accept: application/vnd.github.raw' 'repos/metamask/metamask-planning/contents/topology.json' | jq -r --arg USER "$USER" '.[] | select(any(.members[]?; . == $USER) or (.pm // empty) == $USER or (.em // empty) == $USER or (.tl // empty) == $USER) | .githubLabel.name' | head -n 1)
+        # A GitHub App (type Bot) missing from the topology file still belongs to the bots team.
+        if [ -z "$team_label" ] && [ "$AUTHOR_TYPE" = "Bot" ]; then
+          team_label=team-bots
+        fi
         if [ -z "$team_label" ]; then
           echo "::error::Team label not found for author: $USER. Please open a pull request with your GitHub handle and team label to update topology.json at https://github.com/MetaMask/MetaMask-planning/blob/main/topology.json"
           exit 1

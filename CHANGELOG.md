@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fall back to the `team-bots` label in `add-team-label` for bot authors missing from `topology.json` ([#327](https://github.com/MetaMask/github-tools/pull/327))
+
 ## [1.24.0]
 
 ### Changed
