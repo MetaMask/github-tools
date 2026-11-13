@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fall back to the `team-bots` label in `add-team-label` for bot authors missing from `topology.json` ([#327](https://github.com/MetaMask/github-tools/pull/327))
+- Point the `[Unreleased]` changelog link at a restored release in `merge-previous-releases` ([#326](https://github.com/MetaMask/github-tools/pull/326))
+  - When the merge restores a release newer than the one the `[Unreleased]` compare link starts from, the link now starts from the restored release.
 
 ## [1.24.0]
 
