@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- feat: add `create-signed-commit` composite action ([#320](https://github.com/MetaMask/github-tools/pull/320))
-- feat(publish-preview): add OIDC variant of the workflow ([#311](https://github.com/MetaMask/github-tools/pull/311))
+- Add `create-signed-commit` composite action ([#320](https://github.com/MetaMask/github-tools/pull/320))
+- Add `publish-preview-oidc`, an OIDC variant of the `publish-preview` workflow ([#311](https://github.com/MetaMask/github-tools/pull/311))
 
 ## [1.22.2]
 
