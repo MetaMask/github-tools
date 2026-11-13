@@ -173,3 +173,35 @@ test('preserves destination changelog when it already has the release section', 
 
   assert.equal(fixture.readChangelog(), destinationChangelog);
 });
+
+test('moves the Unreleased link to the restored release', () => {
+  const compare = 'https://example.com/compare/';
+  const fixture = createReleaseMergeFixture({
+    sourceChangelog: `# Changelog\n\n## [Unreleased]\n\n## [13.54.0]\n\n- Released entry (#2)\n\n## [13.53.0]\n\n- Existing entry (#1)\n\n[Unreleased]: ${compare}v13.54.0...HEAD\n[13.54.0]: ${compare}v13.53.0...v13.54.0\n[13.53.0]: ${compare}v13.52.0...v13.53.0\n`,
+    destinationChangelog: `# Changelog\n\n## [Unreleased]\n\n## [13.53.0]\n\n- Existing entry (#1)\n\n[Unreleased]: ${compare}v13.53.0...HEAD\n[13.53.0]: ${compare}v13.52.0...v13.53.0\n`,
+  });
+
+  fixture.run();
+
+  assert.equal(
+    fixture.readChangelog(),
+    `# Changelog\n\n## [Unreleased]\n\n## [13.54.0]\n\n- Released entry (#2)\n\n## [13.53.0]\n\n- Existing entry (#1)\n\n[Unreleased]: ${compare}v13.54.0...HEAD\n[13.54.0]: ${compare}v13.53.0...v13.54.0\n[13.53.0]: ${compare}v13.52.0...v13.53.0\n`,
+  );
+});
+
+test('keeps an Unreleased link that already starts from a newer release', () => {
+  const compare = 'https://example.com/compare/';
+  const destinationLinks = `[Unreleased]: ${compare}v13.55.0...HEAD\n[13.55.0]: ${compare}v13.53.0...v13.55.0\n[13.53.0]: ${compare}v13.52.0...v13.53.0\n`;
+  const fixture = createReleaseMergeFixture({
+    sourceChangelog: `# Changelog\n\n## [Unreleased]\n\n## [13.54.0]\n\n- Released entry (#2)\n\n[Unreleased]: ${compare}v13.54.0...HEAD\n[13.54.0]: ${compare}v13.53.0...v13.54.0\n`,
+    destinationChangelog: `# Changelog\n\n## [Unreleased]\n\n## [13.55.0]\n\n- New entry (#4)\n\n## [13.53.0]\n\n- Existing entry (#1)\n\n${destinationLinks}`,
+  });
+
+  fixture.run();
+
+  assert.ok(
+    fixture
+      .readChangelog()
+      .includes(`[Unreleased]: ${compare}v13.55.0...HEAD\n`),
+  );
+});
