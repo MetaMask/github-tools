@@ -20,9 +20,14 @@ on:
         type: boolean
         required: true
       pull-request:
-        description: 'Pull request number to prepare a preview build for'
+        description: 'Pull request number to prepare a preview build for.'
         required: false
         type: number
+      branch:
+        description: 'Branch in this repository to prepare a preview build for, instead of a pull request.'
+        required: false
+        type: string
+        default: ''
       rename-after-install-and-build:
         description: 'Whether packages are renamed to the preview build scope after (true) or before (false) the install and build steps.'
         type: boolean
@@ -46,14 +51,50 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
+      REF_SHA: ${{ steps.ref-sha.outputs.REF_SHA }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Validate inputs
+        env:
+          PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          if [[ -n "$PR_NUMBER" && -n "$BRANCH" ]]; then
+            echo "::error::Provide either a pull request number or a branch, not both."
+            exit 1
+          fi
+
+          if [[ -z "$PR_NUMBER" && -z "$BRANCH" ]]; then
+            echo "::error::Provide a pull request number or a branch."
+            exit 1
+          fi
+
+          if [[ -n "$BRANCH" ]] && ! git check-ref-format "refs/heads/${BRANCH}"; then
+            echo "::error::Invalid branch name."
+            exit 1
+          fi
+
       - name: Determine whether this PR is from a fork
         id: is-fork
-        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "IS_FORK=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
+
+      - name: Resolve the branch to a commit
+        id: ref-sha
+        if: ${{ inputs.branch != '' }}
+        run: |
+          remote_ref="$(git ls-remote --exit-code origin "refs/heads/${BRANCH}")"
+          echo "REF_SHA=$(cut -f1 <<< "${remote_ref}")" >> "$GITHUB_OUTPUT"
+        env:
+          BRANCH: ${{ inputs.branch }}
 
   react-to-comment:
     name: React to comment
@@ -80,10 +121,19 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Check out pull request
+        if: ${{ inputs.branch == '' }}
         run: gh pr checkout "${PR_NUMBER}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
+
+      - name: Check out branch
+        if: ${{ inputs.branch != '' }}
+        run: |
+          git fetch --depth=1 origin "${REF_SHA}"
+          git checkout --detach "${REF_SHA}"
+        env:
+          REF_SHA: ${{ needs.is-fork-pull-request.outputs.REF_SHA }}
 
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3

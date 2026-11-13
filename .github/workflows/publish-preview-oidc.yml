@@ -4,9 +4,14 @@ on:
   workflow_call:
     inputs:
       pull-request:
-        description: 'Pull request number to publish a preview build for'
-        required: true
+        description: 'Pull request number to publish a preview build for. Mutually exclusive with "branch".'
+        required: false
         type: number
+      branch:
+        description: 'Branch in this repository to publish a preview build for. Mutually exclusive with "pull-request".'
+        required: false
+        type: string
+        default: ''
       npm-scope:
         description: 'Target NPM scope for preview packages'
         type: string
@@ -63,6 +68,7 @@ jobs:
     uses: ./.github/workflows/prepare-preview.yml
     with:
       pull-request: ${{ inputs.pull-request }}
+      branch: ${{ inputs.branch }}
       npm-scope: ${{ inputs.npm-scope }}
       source-scope: ${{ inputs.source-scope }}
       build-command: ${{ inputs.build-command }}
@@ -205,7 +211,11 @@ jobs:
             fi
           fi
 
+      - name: Add build preview to the job summary
+        run: cat preview-build-message.txt >> "$GITHUB_STEP_SUMMARY"
+
       - name: Post build preview in comment
+        if: ${{ inputs.pull-request }}
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
