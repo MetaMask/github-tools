@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0]
+
+### Uncategorized
+
+- feat: add `create-signed-commit` composite action ([#320](https://github.com/MetaMask/github-tools/pull/320))
+- feat(publish-preview): add OIDC variant of the workflow ([#311](https://github.com/MetaMask/github-tools/pull/311))
+
 ## [1.22.2]
 
 ### Changed
@@ -322,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.22.2...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.23.0...HEAD
+[1.23.0]: https://github.com/MetaMask/github-tools/compare/v1.22.2...v1.23.0
 [1.22.2]: https://github.com/MetaMask/github-tools/compare/v1.22.1...v1.22.2
 [1.22.1]: https://github.com/MetaMask/github-tools/compare/v1.22.0...v1.22.1
 [1.22.0]: https://github.com/MetaMask/github-tools/compare/v1.21.0...v1.22.0
