@@ -1,0 +1,207 @@
+name: Publish Preview Builds (OIDC)
+
+on:
+  workflow_call:
+    inputs:
+      npm-scope:
+        description: 'Target NPM scope for preview packages'
+        type: string
+        required: false
+        default: '@metamask-previews'
+      source-scope:
+        description: 'Source NPM scope to replace'
+        type: string
+        required: false
+        default: '@metamask/'
+      build-command:
+        description: 'Command to build the project'
+        type: string
+        required: false
+        default: 'yarn build'
+      is-monorepo:
+        description: 'Whether the consumer is a monorepo (workspace-aware prepare/publish/message)'
+        type: boolean
+        required: false
+        default: true
+      rename-after-install-and-build:
+        description: 'Governs where in the workflow that packages in the repo are renamed to use the preview build scope. If true, this step runs after the install and build steps; if false (default), it runs before. This option is mostly for Snaps so that artifacts (e.g. dist/bundle.js, snap.manifest.json) capture the original package name, not the preview build name.'
+        type: boolean
+        required: false
+        default: false
+      environment:
+        description: 'GitHub environment for the publish job (e.g., default-branch). Empty = no gate.'
+        type: string
+        required: false
+        default: ''
+      artifact-retention-days:
+        description: 'Days to retain build artifacts'
+        type: number
+        required: false
+        default: 4
+      docs-url:
+        description: 'URL to preview builds documentation (included in PR comment)'
+        type: string
+        required: false
+        default: ''
+      dry-run:
+        description: 'Skip actual NPM publish (for testing)'
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      BUILD_ENV:
+        description: 'JSON object of environment variables to pass to the build step (e.g. ''{"FOO":"bar","API_URL":"https://..."}''). Use this for build-time configuration and secrets needed by the build command.'
+        required: false
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/prepare-preview.yml
+    with:
+      npm-scope: ${{ inputs.npm-scope }}
+      source-scope: ${{ inputs.source-scope }}
+      build-command: ${{ inputs.build-command }}
+      is-monorepo: ${{ inputs.is-monorepo }}
+      rename-after-install-and-build: ${{ inputs.rename-after-install-and-build }}
+      artifact-retention-days: ${{ inputs.artifact-retention-days }}
+    secrets:
+      BUILD_ENV: ${{ secrets.BUILD_ENV }}
+
+  publish-preview:
+    name: Publish preview
+    needs: build
+    if: ${{ needs.build.outputs.is-fork == 'false' }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: true
+
+      - name: Restore build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-build-artifacts
+
+      # The artifact package.json files come from the PR branch.
+      # A malicious PR could inject lifecycle scripts (prepack/postpack) that
+      # execute during `yarn npm publish` with the NPM token in the environment
+      # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
+      # It could also override publishConfig.registry to exfiltrate the token.
+      # We strip dangerous lifecycle scripts (they already ran during build)
+      # and block unexpected registries outright.
+      - name: Sanitize and validate artifact manifests
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+        run: |
+          bad=0
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            mapfile -t manifests < <(find packages -name package.json -not -path '*/node_modules/*')
+          else
+            manifests=(package.json)
+          fi
+          if [[ ${#manifests[@]} -eq 0 ]]; then
+            echo "::error::No package.json files found to validate"
+            exit 1
+          fi
+          # Strip registry overrides from .yarnrc.yml to prevent registry
+          # redirects that could exfiltrate the NPM token. npmPublishRegistry
+          # takes precedence over npmRegistryServer for yarn npm publish, and
+          # npmScopes can override per-scope. YARN_NPM_REGISTRY_SERVER env var
+          # only overrides npmRegistryServer, not the others.
+          if [[ -f .yarnrc.yml ]]; then
+            echo "Stripping registry config from .yarnrc.yml"
+            yq -i 'del(.npmRegistryServer) | del(.npmPublishRegistry) | del(.npmScopes)' .yarnrc.yml
+          fi
+          for f in "${manifests[@]}"; do
+            # Strip lifecycle scripts that run during pack/publish
+            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)?(pack|publish|prepare)$"))' "$f" > /dev/null 2>&1; then
+              echo "Stripping lifecycle scripts from $f"
+              jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)?(pack|publish|prepare)$") | not)) else . end' "$f" > "${f}.tmp"
+              mv "${f}.tmp" "$f"
+            fi
+            # Block unexpected registries
+            reg=$(jq -r '.publishConfig.registry // ""' "$f")
+            if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
+              echo "::error::Unexpected registry in $f: $reg"
+              bad=1
+            fi
+          done
+          exit "$bad"
+
+      - name: Reconcile workspace state
+        run: yarn install --no-immutable
+
+      - name: Publish preview builds (monorepo)
+        if: ${{ inputs.is-monorepo && !inputs.dry-run }}
+        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        env:
+          YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
+
+      - name: Publish preview builds (polyrepo)
+        if: ${{ !inputs.is-monorepo && !inputs.dry-run }}
+        run: yarn npm publish --tag preview
+        env:
+          YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
+
+      - name: Dry run notice
+        if: ${{ inputs.dry-run }}
+        run: echo "Dry run — skipping publish"
+
+      - name: Generate preview build message
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+          DOCS_URL: ${{ inputs.docs-url }}
+        run: |
+          docs_link=""
+          if [[ -n "$DOCS_URL" ]]; then
+            docs_link="[Learn how to use preview builds in other projects](${DOCS_URL})."
+          fi
+
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            packages="$(
+              yarn workspaces list --no-private --json \
+                | jq --raw-output '.location' \
+                | xargs -I{} cat '{}/package.json' \
+                | jq --raw-output '"\(.name)@\(.version)"'
+            )"
+            echo -n "Preview builds have been published." > preview-build-message.txt
+            if [[ -n "$docs_link" ]]; then
+              echo -n " ${docs_link}" >> preview-build-message.txt
+            fi
+            cat <<-MSGEOF >> preview-build-message.txt
+
+          <details>
+          <summary>Expand for full list of packages and versions.</summary>
+
+          \`\`\`
+          ${packages}
+          \`\`\`
+
+          </details>
+          MSGEOF
+          else
+            name="$(jq -r '.name' package.json)"
+            version="$(jq -r '.version' package.json)"
+            cat <<-MSGEOF > preview-build-message.txt
+          The following preview build has been published:
+
+          \`\`\`
+          ${name}@${version}
+          \`\`\`
+          MSGEOF
+            if [[ -n "$docs_link" ]]; then
+              printf '\n%s\n' "$docs_link" >> preview-build-message.txt
+            fi
+          fi
+
+      - name: Post build preview in comment
+        run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}

@@ -1,0 +1,197 @@
+name: Prepare Preview Builds
+
+on:
+  workflow_call:
+    inputs:
+      npm-scope:
+        description: 'Target NPM scope for preview packages'
+        type: string
+        required: true
+      source-scope:
+        description: 'Source NPM scope to replace'
+        type: string
+        required: true
+      build-command:
+        description: 'Command to build the project'
+        type: string
+        required: true
+      is-monorepo:
+        description: 'Whether the consumer is a monorepo (workspace-aware prepare/publish/message)'
+        type: boolean
+        required: true
+      rename-after-install-and-build:
+        description: 'Whether packages are renamed to the preview build scope after (true) or before (false) the install and build steps.'
+        type: boolean
+        required: true
+      artifact-retention-days:
+        description: 'Days to retain build artifacts'
+        type: number
+        required: true
+    outputs:
+      is-fork:
+        description: 'Whether the pull request is from a fork. The build is skipped when it is.'
+        value: ${{ jobs.is-fork-pull-request.outputs.IS_FORK }}
+    secrets:
+      BUILD_ENV:
+        description: 'JSON object of environment variables to pass to the build step.'
+        required: false
+
+jobs:
+  is-fork-pull-request:
+    name: Determine whether this PR is from a fork
+    runs-on: ubuntu-latest
+    outputs:
+      IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Determine whether this PR is from a fork
+        id: is-fork
+        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+
+  react-to-comment:
+    name: React to comment
+    needs: is-fork-pull-request
+    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add reaction to trigger comment
+        run: |
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}/reactions" \
+            -f content='+1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+
+  build-preview:
+    name: Build preview
+    needs: react-to-comment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check out pull request
+        run: gh pr checkout "${PR_NUMBER}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: true
+
+      - name: Get commit SHA
+        id: commit-sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies (pre-build)
+        if: ${{ inputs.rename-after-install-and-build }}
+        run: yarn install --no-immutable
+
+      - name: Mask build environment values
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if [[ -n "$BUILD_ENV" ]]; then
+            while IFS= read -r line; do
+              if [[ -n "$line" ]]; then
+                echo "::add-mask::$line"
+              fi
+            done < <(jq --raw-output '.[] | tostring' <<< "$BUILD_ENV")
+          fi
+
+      - name: Build (pre-rename)
+        if: ${{ inputs.rename-after-install-and-build }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
+        run: ${{ inputs.build-command }}
+
+      - name: Prepare preview manifests
+        env:
+          NPM_SCOPE: ${{ inputs.npm-scope }}
+          COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
+          SOURCE_SCOPE: ${{ inputs.source-scope }}
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+        run: |
+          prepare_manifest() {
+            local manifest_file="$1"
+            jq --raw-output \
+              --arg npm_scope "$NPM_SCOPE" \
+              --arg hash "$COMMIT_SHA" \
+              --arg source_scope "$SOURCE_SCOPE" \
+              '
+                .name |= sub($source_scope; "\($npm_scope)/") |
+                .version |= (split("-")[0] + "-preview-\($hash)")
+              ' \
+              "$manifest_file" > temp.json
+            mv temp.json "$manifest_file"
+          }
+
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            workspace_list="$(yarn workspaces list --no-private --json \
+              | jq --slurp --raw-output 'map([.location, .name]) | map(@tsv) | .[]')"
+
+            # Add resolutions so renamed packages still resolve from local workspace
+            echo "Adding workspace resolutions to root manifest..."
+            resolutions='{}'
+            while IFS=$'\t' read -r location name; do
+              version="$(jq --raw-output '.version' "$location/package.json")"
+              resolutions="$(jq \
+                --arg name "$name" \
+                --arg version "$version" \
+                --arg location "$location" \
+                '.[$name + "@^" + $version] = "portal:./" + $location' \
+                <<< "$resolutions")"
+            done <<< "$workspace_list"
+            jq --argjson resolutions "$resolutions" '.resolutions = ((.resolutions // {}) + $resolutions)' package.json > temp.json
+            mv temp.json package.json
+
+            echo "Preparing manifests..."
+            while IFS=$'\t' read -r location name; do
+              echo "- $name"
+              prepare_manifest "$location/package.json"
+            done <<< "$workspace_list"
+          else
+            echo "Preparing manifest..."
+            prepare_manifest package.json
+          fi
+
+      - name: Install dependencies
+        run: yarn install --no-immutable
+
+      - name: Build (post-rename)
+        if: ${{ !inputs.rename-after-install-and-build }}
+        env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
+        run: ${{ inputs.build-command }}
+
+      - name: Upload build artifacts (monorepo)
+        if: ${{ inputs.is-monorepo }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-build-artifacts
+          include-hidden-files: true
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: |
+            ./.yarn/patches/*
+            ./yarn.lock
+            ./package.json
+            ./packages/*/
+            !./packages/*/node_modules/
+            !./packages/*/tests/
+            !./packages/**/*.test.*
+
+      - name: Upload build artifacts (polyrepo)
+        if: ${{ !inputs.is-monorepo }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-build-artifacts
+          include-hidden-files: true
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: |
+            .
+            !./node_modules/
+            !./.git/
