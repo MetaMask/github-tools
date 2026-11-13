@@ -1,0 +1,188 @@
+name: Create signed commit
+description: 'Commits the staged changes through the GitHub API, so that GitHub signs the commit on behalf of the token owner (e.g., a GitHub App), and pushes it to the given branch. Stage the files with `git add` first. Afterwards, the checkout is moved onto the signed commit if HEAD is detached or on the given branch. Otherwise, it is left unchanged.'
+
+inputs:
+  github-token:
+    description: 'The token used to create the commit (e.g., a GitHub App installation token). It needs `contents: write`.'
+    required: false
+    default: ${{ github.token }}
+  branch:
+    description: 'The branch to push the signed commit to. It is created from the current HEAD if it does not exist on the remote.'
+    required: true
+  commit-message:
+    description: 'The commit message to use for the signed commit.'
+    required: true
+
+outputs:
+  commit-sha:
+    description: 'The SHA of the signed commit, or an empty string if there was nothing to commit.'
+    value: ${{ steps.commit.outputs.commit-sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create signed commit
+      id: commit
+      uses: actions/github-script@v9
+      env:
+        BRANCH: ${{ inputs.branch }}
+        COMMIT_MESSAGE: ${{ inputs.commit-message }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { execFileSync } = require('child_process');
+
+          const { BRANCH: branch, COMMIT_MESSAGE: message } = process.env;
+          const { owner, repo } = context.repo;
+
+          // Like `git commit`, only commit what the workflow has staged.
+          // Renames are disabled so that both the old and new path are
+          // listed.
+          const staged = await exec.getExecOutput(
+            'git',
+            [
+              'diff',
+              '--cached',
+              '--raw',
+              '-z',
+              '--no-abbrev',
+              '--no-renames',
+              'HEAD',
+            ],
+            { silent: true },
+          );
+
+          const changes = [
+            ...staged.stdout.matchAll(
+              /:\d+ (?<mode>\d+) [0-9a-f]+ (?<sha>[0-9a-f]+) (?<status>[A-Z])\0(?<path>[^\0]+)\0/gu,
+            ),
+          ];
+
+          if (changes.length === 0) {
+            core.info('No changes to commit.');
+            core.setOutput('commit-sha', '');
+            return;
+          }
+
+          const head = (
+            await exec.getExecOutput('git', ['rev-parse', 'HEAD'], {
+              silent: true,
+            })
+          ).stdout.trim();
+
+          const getBranchHead = async () => {
+            try {
+              const { data: ref } = await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${branch}`,
+              });
+              return ref.object.sha;
+            } catch (error) {
+              if (error.status === 404) {
+                return null;
+              }
+
+              throw error;
+            }
+          };
+
+          const branchHead = await getBranchHead();
+          const branchExists = branchHead !== null;
+          if (branchExists && branchHead !== head) {
+            throw new Error(
+              `Branch "${branch}" is at ${branchHead}, but the checkout is at ${head}. Check out the latest commit of the branch before creating a signed commit.`,
+            );
+          }
+
+          const tree = [];
+          for (const {
+            groups: { path, mode, sha, status },
+          } of changes) {
+            if (status === 'D') {
+              tree.push({ path, mode: '100644', type: 'blob', sha: null });
+              continue;
+            }
+
+            if (mode === '160000') {
+              throw new Error(`Cannot commit "${path}": Submodules are not supported.`);
+            }
+
+            // The blob in the index is the content git would commit. This also
+            // covers symlinks, whose blob is the link target.
+            const content = execFileSync('git', ['cat-file', 'blob', sha], {
+              maxBuffer: 100 * 1024 * 1024,
+            });
+
+            const { data: blob } = await github.rest.git.createBlob({
+              owner,
+              repo,
+              content: content.toString('base64'),
+              encoding: 'base64',
+            });
+
+            tree.push({ path, mode, type: 'blob', sha: blob.sha });
+          }
+
+          const { data: parent } = await github.rest.git.getCommit({
+            owner,
+            repo,
+            commit_sha: head,
+          });
+
+          const { data: newTree } = await github.rest.git.createTree({
+            owner,
+            repo,
+            base_tree: parent.tree.sha,
+            tree,
+          });
+
+          // The author and committer are deliberately omitted. GitHub only
+          // signs the commit when it sets them itself.
+          const { data: commit } = await github.rest.git.createCommit({
+            owner,
+            repo,
+            message,
+            tree: newTree.sha,
+            parents: [head],
+          });
+
+          if (branchExists) {
+            await github.rest.git.updateRef({
+              owner,
+              repo,
+              ref: `heads/${branch}`,
+              sha: commit.sha,
+              force: false,
+            });
+          } else {
+            await github.rest.git.createRef({
+              owner,
+              repo,
+              ref: `refs/heads/${branch}`,
+              sha: commit.sha,
+            });
+          }
+
+          core.info(`Created signed commit ${commit.sha} on "${branch}".`);
+          core.setOutput('commit-sha', commit.sha);
+
+    - name: Update local checkout
+      if: ${{ steps.commit.outputs.commit-sha != '' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPOSITORY: ${{ github.repository }}
+        BRANCH: ${{ inputs.branch }}
+        COMMIT_SHA: ${{ steps.commit.outputs.commit-sha }}
+      run: |
+        # Clear the `Authorization` header that `actions/checkout` persists, so
+        # that it is not sent in addition to the token in the URL.
+        git -c http.https://github.com/.extraheader= fetch "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+
+        # Only move HEAD if it is detached or on the branch that was committed
+        # to.
+        current="$(git symbolic-ref --short -q HEAD || true)"
+        if [[ -z "${current}" || "${current}" == "${BRANCH}" ]]; then
+          git reset "${COMMIT_SHA}"
+        fi
