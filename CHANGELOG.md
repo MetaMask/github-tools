@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.23.0]
 
-### Uncategorized
+### Added
 
 - Add `create-signed-commit` composite action ([#320](https://github.com/MetaMask/github-tools/pull/320))
 - Add `publish-preview-oidc`, an OIDC variant of the `publish-preview` workflow ([#311](https://github.com/MetaMask/github-tools/pull/311))
