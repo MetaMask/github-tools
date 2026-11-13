@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `merge-approved-pr` only merges when a release-team member approved the current head commit, and the head branch is in the same repository ([#PR_NUMBER](https://github.com/MetaMask/github-tools/pull/PR_NUMBER))
+- `merge-approved-pr` only merges when a release-team member approved the current head commit, and the head branch is in the same repository ([#324](https://github.com/MetaMask/github-tools/pull/324))
   - An approval of an earlier commit no longer counts after new commits are pushed, and heads from forks are refused.
   - The merge is pinned to the verified head commit, so GitHub refuses it if the branch moves during the run.
-- `merge-approved-pr` with `verify-version-bump: true` accepts the Mobile native version fields ([#PR_NUMBER](https://github.com/MetaMask/github-tools/pull/PR_NUMBER))
+- `merge-approved-pr` with `verify-version-bump: true` accepts the Mobile native version fields ([#324](https://github.com/MetaMask/github-tools/pull/324))
   - `versionName` in `android/app/build.gradle` and `MARKETING_VERSION` in `ios/MetaMask.xcodeproj/project.pbxproj` may change alongside `package.json`, to the same version. Nothing else may change.
 
 ## [1.23.0]
