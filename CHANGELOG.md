@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.24.0]
 
-### Uncategorized
+### Changed
 
-- fix(publish-preview-oidc): support dispatching previews by pull request or branch ([#323](https://github.com/MetaMask/github-tools/pull/323))
+- Support dispatching previews by pull request or branch in `publish-preview-oidc` workflow ([#323](https://github.com/MetaMask/github-tools/pull/323))
 
 ## [1.23.0]
 
