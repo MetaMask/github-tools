@@ -3,6 +3,10 @@ name: Publish Preview Builds (OIDC)
 on:
   workflow_call:
     inputs:
+      pull-request:
+        description: 'Pull request number to publish a preview build for'
+        required: true
+        type: number
       npm-scope:
         description: 'Target NPM scope for preview packages'
         type: string
@@ -58,6 +62,7 @@ jobs:
     name: Build
     uses: ./.github/workflows/prepare-preview.yml
     with:
+      pull-request: ${{ inputs.pull-request }}
       npm-scope: ${{ inputs.npm-scope }}
       source-scope: ${{ inputs.source-scope }}
       build-command: ${{ inputs.build-command }}
@@ -204,4 +209,4 @@ jobs:
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ inputs.pull-request }}

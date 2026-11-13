@@ -19,6 +19,10 @@ on:
         description: 'Whether the consumer is a monorepo (workspace-aware prepare/publish/message)'
         type: boolean
         required: true
+      pull-request:
+        description: 'Pull request number to prepare a preview build for'
+        required: false
+        type: number
       rename-after-install-and-build:
         description: 'Whether packages are renamed to the preview build scope after (true) or before (false) the install and build steps.'
         type: boolean
@@ -49,12 +53,12 @@ jobs:
         run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
 
   react-to-comment:
     name: React to comment
     needs: is-fork-pull-request
-    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
+    if: ${{ github.event.comment.id && needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
     runs-on: ubuntu-latest
     steps:
       - name: Add reaction to trigger comment
@@ -69,7 +73,8 @@ jobs:
 
   build-preview:
     name: Build preview
-    needs: react-to-comment
+    needs: is-fork-pull-request
+    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -78,7 +83,7 @@ jobs:
         run: gh pr checkout "${PR_NUMBER}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
 
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
