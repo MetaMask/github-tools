@@ -16,5 +16,5 @@
   },
   "tabWidth": 2,
   "trailingComma": "all",
-  "ignorePatterns": [".yarnrc.yml"]
+  "ignorePatterns": [".yarnrc.yml", "CHANGELOG.md"]
 }

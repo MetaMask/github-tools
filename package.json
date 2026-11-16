@@ -13,7 +13,7 @@
     "gen:commits": "node .github/scripts/generate-rc-commits.mjs",
     "get-review-metrics": "ts-node src/get-review-metrics.ts",
     "lint": "yarn lint:tsc && yarn lint:oxlint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check",
-    "lint:changelog": "auto-changelog validate --formatter oxfmt",
+    "lint:changelog": "auto-changelog validate --prettier",
     "lint:constraints": "yarn constraints",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:fix": "yarn lint:oxlint --fix --prune-suppressions && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
@@ -27,7 +27,7 @@
     "update-release-sheet": "node .github/scripts/update-release-sheet.mjs"
   },
   "dependencies": {
-    "@metamask/auto-changelog": "^7.1.0",
+    "@metamask/auto-changelog": "^7.0.1",
     "@metamask/utils": "^7.1.0",
     "@octokit/graphql": "^7.0.1",
     "@octokit/request": "^8.1.1",
