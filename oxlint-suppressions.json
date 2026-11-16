@@ -461,11 +461,6 @@
       "count": 1
     }
   },
-  "jest.config.js": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "src/cache-utils.ts": {
     "jsdoc/require-returns": {
       "count": 1
