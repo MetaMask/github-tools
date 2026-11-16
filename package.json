@@ -41,6 +41,7 @@
     "googleapis": "144.0.0",
     "luxon": "^3.3.0",
     "ora": "^5.4.1",
+    "prettier": "^3.9.9",
     "semver": "^7.7.2",
     "simple-git": "3.27.0",
     "typescript": "^5.1.3",
