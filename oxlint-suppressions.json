@@ -301,9 +301,6 @@
     "typescript/no-base-to-string": {
       "count": 2
     },
-    "typescript/no-floating-promises": {
-      "count": 35
-    },
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
     },
@@ -335,9 +332,6 @@
     "typescript/explicit-function-return-type": {
       "count": 3
     },
-    "typescript/no-floating-promises": {
-      "count": 4
-    },
     "vitest/no-import-node-test": {
       "count": 1
     }
@@ -345,9 +339,6 @@
   ".github/scripts/tests/release-section.test.mts": {
     "typescript/explicit-function-return-type": {
       "count": 1
-    },
-    "typescript/no-floating-promises": {
-      "count": 29
     },
     "vitest/no-conditional-in-test": {
       "count": 1
@@ -357,17 +348,11 @@
     }
   },
   ".github/scripts/tests/release-version-utils.test.mts": {
-    "typescript/no-floating-promises": {
-      "count": 4
-    },
     "vitest/no-import-node-test": {
       "count": 1
     }
   },
   ".github/scripts/tests/retry.test.mts": {
-    "typescript/no-floating-promises": {
-      "count": 3
-    },
     "typescript/return-await": {
       "count": 2
     },
@@ -385,9 +370,6 @@
     "typescript/explicit-function-return-type": {
       "count": 1
     },
-    "typescript/no-floating-promises": {
-      "count": 9
-    },
     "vitest/no-import-node-test": {
       "count": 1
     }
@@ -395,9 +377,6 @@
   ".github/scripts/tests/update-release-changelog-git.test.mts": {
     "node/no-sync": {
       "count": 14
-    },
-    "typescript/no-floating-promises": {
-      "count": 30
     },
     "vitest/no-conditional-in-test": {
       "count": 2
@@ -409,9 +388,6 @@
   ".github/scripts/tests/update-release-changelog-reachability.test.mts": {
     "node/no-sync": {
       "count": 3
-    },
-    "typescript/no-floating-promises": {
-      "count": 4
     },
     "vitest/no-import-node-test": {
       "count": 1
@@ -426,9 +402,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 3
-    },
-    "typescript/no-floating-promises": {
-      "count": 61
     },
     "vitest/no-conditional-in-test": {
       "count": 2
