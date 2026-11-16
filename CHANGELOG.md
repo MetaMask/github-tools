@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `merge-approved-pr` with `verify-version-bump: true` accepts the Mobile native version fields ([#324](https://github.com/MetaMask/github-tools/pull/324))
   - `versionName` in `android/app/build.gradle` and `MARKETING_VERSION` in `ios/MetaMask.xcodeproj/project.pbxproj` may change alongside `package.json`, to the same version. Nothing else may change.
 
+## [1.25.0]
+
+### Fixed
+
+- Fall back to the `team-bots` label in `add-team-label` for bot authors missing from `topology.json` ([#327](https://github.com/MetaMask/github-tools/pull/327))
+- Point the `[Unreleased]` changelog link at a restored release in `merge-previous-releases` ([#326](https://github.com/MetaMask/github-tools/pull/326))
+  - When the merge restores a release newer than the one the `[Unreleased]` compare link starts from, the link now starts from the restored release.
+
+## [1.24.0]
+
+### Changed
+
+- Support dispatching previews by pull request or branch in `publish-preview-oidc` workflow ([#323](https://github.com/MetaMask/github-tools/pull/323))
+
 ## [1.23.0]
 
 ### Added
@@ -337,7 +351,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.23.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
+[1.24.0]: https://github.com/MetaMask/github-tools/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/MetaMask/github-tools/compare/v1.22.2...v1.23.0
 [1.22.2]: https://github.com/MetaMask/github-tools/compare/v1.22.1...v1.22.2
 [1.22.1]: https://github.com/MetaMask/github-tools/compare/v1.22.0...v1.22.1

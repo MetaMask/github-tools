@@ -136,6 +136,30 @@ function insertReleaseReference(
 }
 
 /**
+ * Points the `[Unreleased]` compare link at a newly restored release when the
+ * destination's link still starts from an older one.
+ * @param changelog - The destination changelog contents.
+ * @param version - The release that was restored.
+ * @returns The updated changelog, unchanged when the link is missing,
+ * ambiguous, or not a `compare/vX.Y.Z...HEAD` link.
+ */
+function updateUnreleasedReference(changelog: string, version: string): string {
+  const pattern =
+    /^(\[Unreleased\]: .*\/compare\/v?)(\d+\.\d+\.\d+)(\.\.\.HEAD)$/gmu;
+  const matches = [...changelog.matchAll(pattern)];
+  const [match] = matches;
+  const base = match?.[2];
+  if (matches.length !== 1 || !base || compareSemver(version, base) <= 0) {
+    return changelog;
+  }
+  return changelog.replace(
+    pattern,
+    (_whole, prefix: string, _base: string, suffix: string) =>
+      `${prefix}${version}${suffix}`,
+  );
+}
+
+/**
  * Copies a finalized release section from a source branch's changelog into
  * the destination changelog, preserving the destination on any ambiguity.
  */
@@ -182,12 +206,13 @@ function main(): void {
     version,
     lineEnding,
   );
-  const merged = insertReleaseReference(
+  const withReference = insertReleaseReference(
     withSection,
     getReleaseReference(source, version),
     version,
     lineEnding,
   );
+  const merged = updateUnreleasedReference(withReference, version);
   writeFileSync('CHANGELOG.md', merged);
   console.log(
     `Inserted finalized ${version} changelog history from ${sourceRef}.`,
