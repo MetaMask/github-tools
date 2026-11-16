@@ -41,20 +41,18 @@ export default defineConfig({
 
       provider: 'v8',
 
-      // Only `src` counts towards the coverage thresholds. The scripts under
-      // `.github` are not part of the coverage report.
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts'],
+      include: ['src/**/*.ts', '.github/**/*.{js,mjs,mts,ts}'],
+      exclude: ['**/*.test.*', '.github/scripts/tests/**'],
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: 'coverage',
 
       thresholds: {
         // Raises the thresholds in this file when coverage improves.
         autoUpdate: true,
-        branches: 62.31,
-        functions: 62.25,
-        lines: 65.55,
-        statements: 65.73,
+        branches: 41.72,
+        functions: 50.63,
+        lines: 41.61,
+        statements: 41.5,
       },
     },
   },
