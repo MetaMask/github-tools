@@ -18,7 +18,11 @@ inputs:
   verify-version-bump:
     required: false
     default: 'false'
-    description: 'Whether to verify that this PR is purely a version bump'
+    description: >-
+      Whether to verify that this PR is purely a version bump. package.json must change its
+      "version" field. The Mobile native version fields (versionName in android/app/build.gradle
+      and MARKETING_VERSION in ios/MetaMask.xcodeproj/project.pbxproj) may change alongside it,
+      to the same version. No other change is allowed.
   github-token:
     required: true
     description: 'GitHub token with permissions to merge'
@@ -73,9 +77,21 @@ runs:
             pull_number: parseInt(process.env.PR_NUMBER, 10),
           });
 
-          // Export base/head refs for subsequent steps
+          // A head branch in a fork (or a deleted repository) can match the head
+          // branch pattern by name, so only accept heads from this repository.
+          const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
+          const headRepo = pr.head.repo ? pr.head.repo.full_name : null;
+          if (headRepo !== baseRepo) {
+            core.setFailed(
+              `Skipping: PR head must be in '${baseRepo}'. Found '${headRepo ?? 'a deleted repository'}'.`,
+            );
+            return;
+          }
+
+          // Export base/head refs and the head commit for subsequent steps
           core.exportVariable('PR_BASE_REF', pr.base.ref);
           core.exportVariable('PR_HEAD_REF', pr.head.ref);
+          core.exportVariable('PR_HEAD_SHA', pr.head.sha);
 
     # Verify that the PR targets the required base branch from the required head pattern
     - name: Verify Branch Names
@@ -104,11 +120,13 @@ runs:
         github-token: ${{ inputs.github-token }}
         script: |
           // Fetch all reviews for the PR
-          const { data: reviews } = await github.rest.pulls.listReviews({
+          const reviews = await github.paginate(github.rest.pulls.listReviews, {
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: parseInt(process.env.PR_NUMBER, 10),
+            per_page: 100,
           });
+          const headSha = process.env.PR_HEAD_SHA;
 
           // Fetch members of the release team
           let teamMembers = [];
@@ -133,25 +151,34 @@ runs:
             return;
           }
 
-          // Process reviews to find the latest state for each reviewer
-          const reviewerStates = {};
+          // Process reviews to find the latest review for each reviewer
+          const latestReviews = {};
           for (const review of reviews) {
             if (review.state === 'APPROVED' || review.state === 'CHANGES_REQUESTED') {
-              reviewerStates[review.user.login] = review.state;
+              latestReviews[review.user.login] = review;
             } else if (review.state === 'DISMISSED') {
-              delete reviewerStates[review.user.login];
+              delete latestReviews[review.user.login];
             }
           }
 
-          // Check for approval from a release-team member and no outstanding change requests
-          const states = Object.entries(reviewerStates);
-          const hasTeamApproval = states.some(
-            ([user, state]) => state === 'APPROVED' && teamMembers.includes(user),
+          // Check for a release-team approval of the current head commit and no
+          // outstanding change requests. An approval of an earlier commit does not
+          // cover commits pushed after it.
+          const latest = Object.entries(latestReviews);
+          const hasTeamApproval = latest.some(
+            ([user, review]) =>
+              review.state === 'APPROVED' &&
+              review.commit_id === headSha &&
+              teamMembers.includes(user),
           );
-          const hasChangesRequested = states.some(([, state]) => state === 'CHANGES_REQUESTED');
+          const hasChangesRequested = latest.some(
+            ([, review]) => review.state === 'CHANGES_REQUESTED',
+          );
 
           if (!hasTeamApproval) {
-            core.setFailed('Skipping: PR is not approved by a member of the release-team.');
+            core.setFailed(
+              `Skipping: PR head ${headSha} is not approved by a member of the release-team.`,
+            );
           } else if (hasChangesRequested) {
             core.setFailed('Skipping: PR has changes requested.');
           } else {
@@ -159,8 +186,9 @@ runs:
           }
 
     # If verify-version-bump is true, then verify that
-    # - the only change is in package.json
-    # - the only line changed is "version"
+    # - package.json changes, and every changed file is a known version file
+    # - every changed line is that file's version line
+    # - every file moves from the same old version to the same new version
     # - the version change is a valid semver bump
     - name: Verify a version bump
       if: ${{ steps.verify-branches.outputs.should_skip != 'true' && inputs.verify-version-bump == 'true' }}
@@ -177,52 +205,71 @@ runs:
             per_page: 100,
           });
 
-          // We expect exactly one changed file: package.json
-          if (files.length !== 1 || files[0].filename !== 'package.json') {
+          // The version line of each file a version bump may change. package.json is
+          // required; the Mobile native version fields are optional.
+          const versionLines = {
+            'package.json': /^\s*"version"\s*:\s*"(\d+\.\d+\.\d+)",?\s*$/,
+            'android/app/build.gradle': /^\s*versionName\s+"(\d+\.\d+\.\d+)"\s*$/,
+            'ios/MetaMask.xcodeproj/project.pbxproj': /^\s*MARKETING_VERSION\s*=\s*(\d+\.\d+\.\d+);\s*$/,
+          };
+
+          if (!files.some((file) => file.filename === 'package.json')) {
+            core.setFailed('Validation failed: a version bump must change package.json.');
+            return;
+          }
+
+          const oldVersions = new Set();
+          const newVersions = new Set();
+          for (const file of files) {
+            const versionLine = versionLines[file.filename];
+            if (!versionLine || file.status !== 'modified') {
+              core.setFailed(
+                `Validation failed: ${file.filename} (${file.status}) is not a version file. A version bump may only modify ${Object.keys(versionLines).join(', ')}.`,
+              );
+              return;
+            }
+            if (!file.patch) {
+              // If GitHub omitted the patch (e.g., too large), don't emit the flag.
+              core.setFailed(
+                `Validation failed: Unable to retrieve the ${file.filename} patch to verify the version bump.`,
+              );
+              return;
+            }
+
+            const changedLines = file.patch
+              .split('\n')
+              .filter((line) => line.startsWith('+') || line.startsWith('-'))
+              .filter((line) => !line.startsWith('+++') && !line.startsWith('---'));
+            const removed = changedLines.filter((line) => line.startsWith('-'));
+            const added = changedLines.filter((line) => line.startsWith('+'));
+            if (removed.length === 0 || removed.length !== added.length) {
+              core.setFailed(
+                `Validation failed: ${file.filename} must replace each version line it changes (one removal, one addition).`,
+              );
+              return;
+            }
+
+            for (const line of changedLines) {
+              const match = line.slice(1).match(versionLine);
+              if (!match) {
+                core.setFailed(
+                  `Validation failed: ${file.filename} changes a line other than its MAJOR.MINOR.PATCH version line.`,
+                );
+                return;
+              }
+              (line.startsWith('-') ? oldVersions : newVersions).add(match[1]);
+            }
+          }
+
+          if (oldVersions.size !== 1 || newVersions.size !== 1) {
             core.setFailed(
-              'Validation failed: PR must only change package.json when verify-version-bump is enabled.',
+              `Validation failed: every version file must move from the same version to the same version. Found ${[...oldVersions].join(', ')} -> ${[...newVersions].join(', ')}.`,
             );
             return;
           }
 
-          const patch = files[0].patch;
-          if (!patch) {
-            // If GitHub omitted the patch (e.g., too large), don't emit the flag.
-            core.setFailed(
-              'Validation failed: Unable to retrieve the package.json patch to verify the version bump.',
-            );
-            return;
-          }
-
-          const changedLines = patch
-            .split('\n')
-            .filter((line) => (line.startsWith('+') || line.startsWith('-')))
-            .filter((line) => !line.startsWith('+++') && !line.startsWith('---'));
-
-          if (changedLines.length !== 2) {
-            core.setFailed(
-              'Validation failed: package.json must change only the version line (one removal, one addition).',
-            );
-            return;
-          }
-
-          const oldLine = changedLines.find((line) => line.startsWith('-') && /"version"\s*:/.test(line));
-          const newLine = changedLines.find((line) => line.startsWith('+') && /"version"\s*:/.test(line));
-          if (!oldLine || !newLine) {
-            core.setFailed('Validation failed: package.json must change only the version field.');
-            return;
-          }
-
-          const semverRe = /"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"/;
-          const oldMatch = oldLine.match(semverRe);
-          const newMatch = newLine.match(semverRe);
-          if (!oldMatch || !newMatch) {
-            core.setFailed('Validation failed: version must be in MAJOR.MINOR.PATCH numeric form.');
-            return;
-          }
-
-          const oldVersion = `${oldMatch[1]}.${oldMatch[2]}.${oldMatch[3]}`;
-          const newVersion = `${newMatch[1]}.${newMatch[2]}.${newMatch[3]}`;
+          const [oldVersion] = oldVersions;
+          const [newVersion] = newVersions;
           if (oldVersion === newVersion) {
             core.setFailed(
               'Validation failed: package.json version must change (format-only edits are not allowed).',
@@ -230,8 +277,8 @@ runs:
             return;
           }
 
-          const [oldMajor, oldMinor, oldPatch] = oldMatch.slice(1).map((n) => parseInt(n, 10));
-          const [newMajor, newMinor, newPatch] = newMatch.slice(1).map((n) => parseInt(n, 10));
+          const [oldMajor, oldMinor, oldPatch] = oldVersion.split('.').map((n) => parseInt(n, 10));
+          const [newMajor, newMinor, newPatch] = newVersion.split('.').map((n) => parseInt(n, 10));
 
           const isMajorBump = newMajor === oldMajor + 1 && newMinor === 0 && newPatch === 0;
           const isMinorBump = newMajor === oldMajor && newMinor === oldMinor + 1 && newPatch === 0;
@@ -239,7 +286,7 @@ runs:
 
           if (isMajorBump || isMinorBump || isPatchBump) {
             console.log(
-              `The only change is in package.json, and the only line changed is 'version' with a valid semver bump (${oldVersion} -> ${newVersion}).`,
+              `Only version lines changed (${files.map((file) => file.filename).join(', ')}), with a valid semver bump (${oldVersion} -> ${newVersion}).`,
             );
           } else {
             core.setFailed(
@@ -258,12 +305,14 @@ runs:
         github-token: ${{ inputs.github-token }}
         script: |
           try {
-            // Perform the merge using the requested method ('merge' or 'squash')
+            // Perform the merge using the requested method ('merge' or 'squash').
+            // `sha` makes GitHub refuse the merge if the head moved after the checks above.
             await github.rest.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: parseInt(process.env.PR_NUMBER, 10),
               merge_method: process.env.MERGE_METHOD,
+              sha: process.env.PR_HEAD_SHA,
             });
             console.log(
               `PR merged successfully: Source '${process.env.PR_HEAD_REF}' -> Target '${process.env.PR_BASE_REF}'.`,
