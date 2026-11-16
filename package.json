@@ -16,7 +16,7 @@
     "lint:changelog": "auto-changelog validate --formatter oxfmt",
     "lint:constraints": "yarn constraints",
     "lint:dependencies": "depcheck && yarn dedupe",
-    "lint:fix": "yarn lint:oxlint --fix && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
+    "lint:fix": "yarn lint:oxlint --fix --prune-suppressions && yarn lint:constraints --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "oxfmt --ignore-path .gitignore",
     "lint:oxlint": "oxlint",
     "lint:tsc": "tsc",
