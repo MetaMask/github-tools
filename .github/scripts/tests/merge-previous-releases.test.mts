@@ -180,8 +180,7 @@ test('moves the Unreleased link to the restored release', () => {
 
   fixture.run();
 
-  assert.equal(
-    fixture.readChangelog(),
+  expect(fixture.readChangelog()).toBe(
     `# Changelog\n\n## [Unreleased]\n\n## [13.54.0]\n\n- Released entry (#2)\n\n## [13.53.0]\n\n- Existing entry (#1)\n\n[Unreleased]: ${compare}v13.54.0...HEAD\n[13.54.0]: ${compare}v13.53.0...v13.54.0\n[13.53.0]: ${compare}v13.52.0...v13.53.0\n`,
   );
 });
@@ -196,9 +195,7 @@ test('keeps an Unreleased link that already starts from a newer release', () => 
 
   fixture.run();
 
-  assert.ok(
-    fixture
-      .readChangelog()
-      .includes(`[Unreleased]: ${compare}v13.55.0...HEAD\n`),
+  expect(fixture.readChangelog()).toContain(
+    `[Unreleased]: ${compare}v13.55.0...HEAD\n`,
   );
 });
