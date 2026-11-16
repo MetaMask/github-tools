@@ -19,7 +19,8 @@ const config: KnipConfig = {
     '@lavamoat/allow-scripts',
     '@lavamoat/preinstall-always-fail',
 
-    // Not imported directly, but used for the `ts-node --swc` scripts.
+    // Not used by any script or config here. It was already a devDependency,
+    // and removing it is out of scope for the lint migration.
     '@swc/cli',
 
     // Provided by the GitHub Actions runner, which is where
