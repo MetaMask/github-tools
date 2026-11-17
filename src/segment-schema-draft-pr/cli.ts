@@ -3,7 +3,8 @@ import { botBranchName } from './config';
 import { generateSchemaDraft, writeSummaryFile } from './generate';
 import { createOctokitClients, parseRepo } from './github-api';
 import { writeGithubOutput } from './github-output';
-import { parseCliArgs, type CliArgs } from './parse-args';
+import { parseCliArgs } from './parse-args';
+import type { CliArgs } from './parse-args';
 import { runPublish } from './publish';
 
 main().catch((error: unknown) => {
