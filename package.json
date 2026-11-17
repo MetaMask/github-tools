@@ -79,7 +79,7 @@
     "ts-jest": "^28.0.7",
     "ts-node": "^10.9.1"
   },
-  "packageManager": "yarn@4.18.1",
+  "packageManager": "yarn@4.18.1+sha256.a28ad591febb769f939c11f82f89bacad0b0fac0c884d3b78fa2aaaee970907e",
   "engines": {
     "node": ">=22.18.0"
   },
