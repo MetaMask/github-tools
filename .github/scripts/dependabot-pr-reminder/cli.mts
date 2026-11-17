@@ -2,18 +2,12 @@ import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { fetchTopology } from '../shared/topology.mts';
+import type { Topology } from '../shared/topology.mts';
 import { classifyPullRequests } from './classify.mts';
-import {
-  PULL_REQUESTS_QUERY,
-  buildTopologyPath,
-  collectRequestedTeams,
-  ghApi,
-  toPullRequest,
-} from './github-api.mts';
-import type { GraphQlPullRequestNode } from './github-api.mts';
+import { fetchDependabotPullRequests } from './github-api.mts';
 import { buildSlackPayload } from './slack-payload.mts';
 import { parseOwnerTeams } from './teams.mts';
-import type { PullRequest, Topology } from './types.mts';
 
 /**
  * Fetches open Dependabot pull requests and writes the Slack payload.
@@ -30,50 +24,22 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
       'GITHUB_REPOSITORY, FALLBACK_TEAM, PLANNING_TOKEN and GITHUB_OUTPUT are required',
     );
   }
-  const [owner, name] = repository.split('/');
-  if (!owner || !name) {
+  if (repository.split('/').filter(Boolean).length !== 2) {
     throw new Error('GITHUB_REPOSITORY must be in owner/name form');
   }
   const ref = environment.TOPOLOGY_REF?.trim()
     ? environment.TOPOLOGY_REF.trim()
     : 'main';
 
-  const graphqlOutput = await ghApi(
-    [
-      'graphql',
-      '--paginate',
-      '--slurp',
-      '-f',
-      `query=${PULL_REQUESTS_QUERY}`,
-      '-f',
-      `owner=${owner}`,
-      '-f',
-      `name=${name}`,
-    ],
-    undefined,
+  const pullRequests = await fetchDependabotPullRequests(repository, {
     environment,
-  );
-  const pages = JSON.parse(graphqlOutput) as {
-    data: { repository: { pullRequests: { nodes: GraphQlPullRequestNode[] } } };
-  }[];
-  const restOutput = await ghApi(
-    [
-      '--paginate',
-      '--slurp',
-      `repos/${owner}/${name}/pulls?state=open&per_page=100`,
-    ],
-    undefined,
-    environment,
-  );
-  const requestedTeamsByNumber = collectRequestedTeams(
-    JSON.parse(restOutput) as Parameters<typeof collectRequestedTeams>[0],
-  );
-  const pullRequests = pages
-    .flatMap((page) => page.data.repository.pullRequests.nodes)
-    .map((node) =>
-      toPullRequest(node, requestedTeamsByNumber.get(node.number) ?? []),
-    )
-    .filter((pullRequest): pullRequest is PullRequest => Boolean(pullRequest));
+  });
+  // Skip the topology request entirely when there is nothing to report.
+  if (pullRequests.length === 0) {
+    console.log('No open Dependabot pull requests to report.');
+    await appendFile(outputPath, 'has-prs=false\n');
+    return;
+  }
 
   const ownerTeams = parseOwnerTeams(environment.OWNER_TEAMS);
   const reminder = classifyPullRequests(pullRequests, {
@@ -81,19 +47,26 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     fallbackTeam,
   });
 
-  const topology = JSON.parse(
-    await ghApi(
-      ['-H', 'Accept: application/vnd.github.raw', buildTopologyPath(ref)],
-      planningToken,
-      environment,
-    ),
-  ) as Topology;
+  // Tags are a nicety. If topology is unavailable, still post, with team names
+  // as plain text.
+  let topology: Topology = {};
+  try {
+    topology = await fetchTopology({
+      ref,
+      gh: { environment, token: planningToken },
+    });
+  } catch (error) {
+    console.log(
+      `::warning::Could not read topology.json, posting without Slack tags: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 
   const payload = buildSlackPayload(reminder, topology, {
     fallbackTeam,
     repository,
   });
-
   if (!payload) {
     console.log('No open Dependabot pull requests to report.');
     await appendFile(outputPath, 'has-prs=false\n');

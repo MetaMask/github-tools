@@ -1,25 +1,18 @@
-import { normalizeTeam } from './teams.mts';
-import type { PullRequest, Reminder, Topology } from './types.mts';
+import {
+  capBlocks,
+  chunkSections,
+  escapeSlack,
+  section,
+  subteamMention,
+  truncateText,
+} from '../shared/slack-blocks.mts';
+import type { SlackBlock } from '../shared/slack-blocks.mts';
+import { getSlackSubteamId, normalizeTeamSlug } from '../shared/topology.mts';
+import type { Topology } from '../shared/topology.mts';
+import type { PullRequest, Reminder } from './types.mts';
 
-type SlackBlock = { type: string; text: { type: string; text: string } };
-
-/**
- * Escapes characters that Slack mrkdwn treats as control characters.
- *
- * @param text - The raw text.
- * @returns The escaped text.
- */
-function escapeSlack(text: string): string {
-  return text
-    .replace(/&/gu, '&amp;')
-    .replace(/</gu, '&lt;')
-    .replace(/>/gu, '&gt;');
-}
-
-/**
- * The maximum characters of a section text we emit. Slack rejects 3000+.
- */
-const MAX_SECTION_LENGTH = 2800;
+/** Long titles are cut before escaping so a cut can't split a link or entity. */
+const MAX_TITLE_LENGTH = 200;
 
 /**
  * Formats pull requests as bulleted Slack links, one line each.
@@ -29,40 +22,9 @@ const MAX_SECTION_LENGTH = 2800;
  */
 function formatPullRequestLines(pullRequests: PullRequest[]): string[] {
   return pullRequests.map(
-    ({ url, number, title }) => `• <${url}|#${number} ${escapeSlack(title)}>`,
+    ({ url, number, title }) =>
+      `• <${url}|#${number} ${escapeSlack(truncateText(title, MAX_TITLE_LENGTH))}>`,
   );
-}
-
-/**
- * Splits a header and lines into section texts that fit Slack's limit. The
- * header is repeated on every section.
- *
- * @param header - The header line.
- * @param lines - The lines to list below the header.
- * @returns One or more section texts.
- */
-function chunkSections(header: string, lines: string[]): string[] {
-  const budget = Math.max(MAX_SECTION_LENGTH - header.length - 1, 1);
-  const texts: string[] = [];
-  let current: string[] = [];
-  let length = 0;
-
-  for (const rawLine of lines) {
-    const line =
-      rawLine.length > budget ? `${rawLine.slice(0, budget - 1)}…` : rawLine;
-    const added = line.length + (current.length > 0 ? 1 : 0);
-    if (current.length > 0 && length + added > budget) {
-      texts.push(`${header}\n${current.join('\n')}`);
-      current = [];
-      length = 0;
-    }
-    length += line.length + (current.length > 0 ? 1 : 0);
-    current.push(line);
-  }
-  if (current.length > 0) {
-    texts.push(`${header}\n${current.join('\n')}`);
-  }
-  return texts;
 }
 
 /**
@@ -82,8 +44,6 @@ export function buildSlackPayload(
 ):
   | {
       text: string;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      link_names: boolean;
       blocks: SlackBlock[];
     }
   | undefined {
@@ -100,66 +60,57 @@ export function buildSlackPayload(
     return undefined;
   }
 
-  const tag = (team: string): string => {
-    const slug = normalizeTeam(team);
-    const entry = Object.values(topology).find(
-      (candidate) =>
-        typeof candidate?.githubHandle === 'string' &&
-        normalizeTeam(candidate.githubHandle) === slug,
-    );
-    const id = entry?.slackHandle?.team;
-    return id ? `<!subteam^${id}>` : slug;
+  const tag = (team: string): { text: string; subteamId?: string } => {
+    const subteamId = getSlackSubteamId(topology, team);
+    return subteamId
+      ? { text: subteamMention(subteamId), subteamId }
+      : { text: escapeSlack(normalizeTeamSlug(team)) };
   };
-
-  const section = (text: string): SlackBlock => ({
-    type: 'section',
-    text: { type: 'mrkdwn', text },
-  });
 
   const headline = `*[${escapeSlack(options.repository)}] Open Dependabot pull requests*`;
-  const blocks = [section(headline)];
-  const mentions = new Set<string>();
-  const mention = (team: string): string => {
-    const value = tag(team);
-    if (value.startsWith('<!subteam^')) {
-      mentions.add(value);
+  // Each section remembers its team mention, so only teams whose section is
+  // actually sent get pinged.
+  const entries: { block: SlackBlock; subteamId?: string | undefined }[] = [
+    { block: section(headline) },
+  ];
+  const addSections = (
+    header: { text: string; subteamId?: string },
+    pullRequests: PullRequest[],
+    label?: string,
+  ): void => {
+    const fullHeader = label ? `${header.text} *${label}*` : header.text;
+    for (const text of chunkSections(
+      fullHeader,
+      formatPullRequestLines(pullRequests),
+    )) {
+      entries.push({ block: section(text), subteamId: header.subteamId });
     }
-    return value;
   };
   for (const [team, pullRequests] of teamEntries) {
-    for (const text of chunkSections(
-      mention(team),
-      formatPullRequestLines(pullRequests),
-    )) {
-      blocks.push(section(text));
-    }
+    addSections(tag(team), pullRequests);
   }
   for (const { label, pullRequests } of fallbackSections) {
-    for (const text of chunkSections(
-      `${mention(options.fallbackTeam)} *${label}*`,
-      formatPullRequestLines(pullRequests),
-    )) {
-      blocks.push(section(text));
-    }
+    addSections(tag(options.fallbackTeam), pullRequests, label);
   }
 
-  const maxBlocks = 50;
-  if (blocks.length > maxBlocks) {
-    const omitted = blocks.splice(maxBlocks - 1);
-    const omittedCount = omitted.reduce(
-      (total, block) =>
-        total +
-        block.text.text.split('\n').filter((line) => line.startsWith('•'))
-          .length,
-      0,
-    );
-    blocks.push(section(`…and ${omittedCount} more pull request(s) not shown`));
-  }
+  const { blocks, omitted } = capBlocks(
+    entries.map(({ block }) => block),
+    (omittedBlocks) =>
+      `…and ${omittedBlocks.reduce(
+        (total, block) =>
+          total +
+          block.text.text.split('\n').filter((line) => line.startsWith('•'))
+            .length,
+        0,
+      )} more pull request(s) not shown`,
+  );
+  const shownEntries =
+    omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
+  const mentions = new Set(
+    shownEntries.flatMap(({ subteamId }) =>
+      subteamId ? [subteamMention(subteamId)] : [],
+    ),
+  );
 
-  return {
-    text: [headline, ...mentions].join(' '),
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    link_names: true,
-    blocks,
-  };
+  return { text: [headline, ...mentions].join(' '), blocks };
 }

@@ -1,18 +1,4 @@
 /**
- * Normalizes a team reference to a bare lowercase slug.
- *
- * @param team - The team, e.g. `@MetaMask/Core-Platform`.
- * @returns The slug, e.g. `core-platform`.
- */
-export function normalizeTeam(team: string): string {
-  return team
-    .trim()
-    .toLowerCase()
-    .replace(/^@/u, '')
-    .replace(/^metamask\//u, '');
-}
-
-/**
  * Parses the comma-separated OWNER_TEAMS value.
  *
  * @param value - The raw value.
