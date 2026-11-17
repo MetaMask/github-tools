@@ -2,9 +2,6 @@
   ".github/actions/playwright-test-health-report/create-playwright-test-health-report.mjs": {
     "n/hashbang": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 12
     }
   },
   ".github/actions/playwright-test-health-report/lib/classify-report-buckets.mjs": {
@@ -32,12 +29,6 @@
     }
   },
   ".github/scripts/clean-release-changelog.mts": {
-    "node/no-process-env": {
-      "count": 3
-    },
-    "node/no-sync": {
-      "count": 4
-    },
     "typescript/explicit-function-return-type": {
       "count": 4
     },
@@ -54,9 +45,6 @@
     },
     "no-unused-vars": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 11
     },
     "object-shorthand": {
       "count": 4
@@ -90,12 +78,6 @@
     "no-var": {
       "count": 1
     },
-    "node/no-process-env": {
-      "count": 2
-    },
-    "node/no-sync": {
-      "count": 1
-    },
     "require-unicode-regexp": {
       "count": 2
     },
@@ -103,11 +85,6 @@
       "count": 2
     },
     "unicorn/no-useless-undefined": {
-      "count": 3
-    }
-  },
-  ".github/scripts/merge-previous-release-changelog.mts": {
-    "node/no-sync": {
       "count": 3
     }
   },
@@ -136,9 +113,6 @@
     "no-unused-vars": {
       "count": 2
     },
-    "node/no-process-env": {
-      "count": 6
-    },
     "object-shorthand": {
       "count": 2
     },
@@ -164,9 +138,6 @@
     },
     "import/unambiguous": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 3
     }
   },
   ".github/scripts/remove-rca-needed-label-sheets.ts": {
@@ -181,9 +152,6 @@
     },
     "no-useless-return": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 5
     },
     "object-shorthand": {
       "count": 1
@@ -222,16 +190,6 @@
       "count": 1
     }
   },
-  ".github/scripts/shared/environment.mts": {
-    "node/no-process-env": {
-      "count": 1
-    }
-  },
-  ".github/scripts/shared/report.mts": {
-    "node/no-sync": {
-      "count": 2
-    }
-  },
   ".github/scripts/slack-release-testing.mjs": {
     "id-denylist": {
       "count": 4
@@ -250,9 +208,6 @@
     },
     "no-var": {
       "count": 2
-    },
-    "node/no-process-env": {
-      "count": 6
     },
     "object-shorthand": {
       "count": 3
@@ -273,9 +228,6 @@
     },
     "n/hashbang": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 3
     }
   },
   ".github/scripts/update-release-changelog-baseline.mts": {
@@ -286,12 +238,6 @@
   ".github/scripts/update-release-changelog.mts": {
     "import/consistent-type-specifier-style": {
       "count": 1
-    },
-    "node/no-process-env": {
-      "count": 12
-    },
-    "node/no-sync": {
-      "count": 17
     },
     "typescript/explicit-function-return-type": {
       "count": 6
@@ -311,12 +257,6 @@
       "count": 2
     },
     "no-var": {
-      "count": 1
-    },
-    "node/no-process-env": {
-      "count": 1
-    },
-    "node/no-sync": {
       "count": 1
     },
     "object-shorthand": {
