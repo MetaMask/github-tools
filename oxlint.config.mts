@@ -4,20 +4,6 @@ import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
 
-type Override = NonNullable<
-  Parameters<typeof createConfig>[0]['overrides']
->[number];
-
-const nodeTestOverride: Override = {
-  files: ['.github/scripts/**/*.test.mts'],
-  extends: [nodejs, vitest],
-  rules: {
-    // The top level `test()` calls of the `node:test` tests return promises
-    // that the test runner tracks, so they are not floating.
-    'typescript/no-floating-promises': 'off',
-  },
-};
-
 export default createConfig({
   extends: [base],
 
@@ -50,18 +36,32 @@ export default createConfig({
     },
 
     {
-      // The workflow scripts read their inputs from the environment.
-      files: ['.github/**'],
-      rules: {
-        'node/no-process-env': 'off',
-      },
+      files: [
+        'src/**/*.test.ts',
+        '.github/**/*.test.{mjs,mts}',
+        '.github/scripts/tests/**',
+      ],
+      extends: [
+        nodejs,
+        vitest,
+        {
+          // Tests read the environment and use synchronous APIs for fixtures.
+          rules: {
+            'node/no-process-env': 'off',
+            'node/no-sync': 'off',
+          },
+        },
+      ],
     },
 
     {
-      files: ['src/**/*.test.ts'],
-      extends: [nodejs, vitest],
+      // The workflow scripts are command line programs: they read their inputs
+      // from the environment and can use synchronous APIs.
+      files: ['.github/**'],
+      rules: {
+        'node/no-process-env': 'off',
+        'node/no-sync': 'off',
+      },
     },
-
-    nodeTestOverride,
   ],
 });
