@@ -70,9 +70,9 @@ function mockClientOctokit(
             new Error('Not Found'),
             { status: 404 },
           );
-          return Promise.reject(error);
+          return await Promise.reject(error);
         }
-        return Promise.resolve(encodedFile(text));
+        return await Promise.resolve(encodedFile(text));
       },
     );
 
