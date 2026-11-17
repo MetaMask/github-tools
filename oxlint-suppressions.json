@@ -71,6 +71,11 @@
       "count": 4
     }
   },
+  ".github/scripts/dependabot-pr-reminder/cli.mts": {
+    "node/no-process-env": {
+      "count": 1
+    }
+  },
   ".github/scripts/generate-rc-commits.mjs": {
     "curly": {
       "count": 4

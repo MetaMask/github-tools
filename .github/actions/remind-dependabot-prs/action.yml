@@ -1,0 +1,53 @@
+name: Remind Dependabot PRs
+description: 'Builds a Slack payload listing open Dependabot PRs grouped by owning team.'
+
+inputs:
+  github-token:
+    description: 'Token used to read pull request data from the invoking repository.'
+    required: true
+  planning-token:
+    description: 'Token with read access to MetaMask/MetaMask-planning (for topology.json).'
+    required: true
+  owner-teams:
+    description: 'Comma-separated list of team slugs that own the invoking repository. May be empty.'
+    required: false
+    default: ''
+  fallback-team:
+    description: 'Team slug used for PRs that cannot be attributed to a team.'
+    required: false
+    default: 'core-platform'
+  topology-ref:
+    description: 'Git ref of MetaMask-planning to read topology.json from.'
+    required: false
+    default: 'main'
+
+outputs:
+  has-prs:
+    description: '"true" when there are open Dependabot PRs to report, otherwise "false".'
+    value: ${{ steps.reminder.outputs.has-prs }}
+  payload-path:
+    description: 'Path to the JSON file containing the Slack payload.'
+    value: ${{ steps.reminder.outputs.payload-path }}
+
+runs:
+  using: composite
+  steps:
+    # The script is a .mts file, which requires Node 22+ to run directly.
+    - name: Set up Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+
+    - name: Build Dependabot PR reminder
+      id: reminder
+      shell: bash
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        PLANNING_TOKEN: ${{ inputs.planning-token }}
+        OWNER_TEAMS: ${{ inputs.owner-teams }}
+        FALLBACK_TEAM: ${{ inputs.fallback-team }}
+        TOPOLOGY_REF: ${{ inputs.topology-ref }}
+      run: |
+        set -euo pipefail
+        node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder/cli.mts"
