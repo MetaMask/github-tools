@@ -1,6 +1,8 @@
 import { normalizeTeam } from './teams.mts';
 import type { PullRequest, Reminder, Topology } from './types.mts';
 
+type SlackBlock = { type: string; text: { type: string; text: string } };
+
 /**
  * Escapes characters that Slack mrkdwn treats as control characters.
  *
@@ -82,7 +84,7 @@ export function buildSlackPayload(
       text: string;
       // eslint-disable-next-line @typescript-eslint/naming-convention
       link_names: boolean;
-      blocks: { type: string; text: { type: string; text: string } }[];
+      blocks: SlackBlock[];
     }
   | undefined {
   const teamEntries = Object.entries(reminder.byTeam).filter(
@@ -109,7 +111,7 @@ export function buildSlackPayload(
     return id ? `<!subteam^${id}>` : slug;
   };
 
-  const section = (text: string) => ({
+  const section = (text: string): SlackBlock => ({
     type: 'section',
     text: { type: 'mrkdwn', text },
   });

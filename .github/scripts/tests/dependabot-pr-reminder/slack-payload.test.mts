@@ -1,12 +1,8 @@
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { assert, describe, expect, it } from 'vitest';
 
-import { pr } from './fixtures.mts';
 import { buildSlackPayload } from '../../dependabot-pr-reminder/slack-payload.mts';
-import type {
-  Reminder,
-  Topology,
-} from '../../dependabot-pr-reminder/types.mts';
+import type { Reminder } from '../../dependabot-pr-reminder/types.mts';
+import { pr } from './fixtures.mts';
 
 describe('buildSlackPayload', () => {
   const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
@@ -18,7 +14,7 @@ describe('buildSlackPayload', () => {
     `${payload.text}\n${JSON.stringify(payload.blocks)}`;
 
   it('returns undefined for an empty reminder', () => {
-    assert.equal(buildSlackPayload(emptyReminder(), {}, options), undefined);
+    expect(buildSlackPayload(emptyReminder(), {}, options)).toBeUndefined();
   });
 
   it('tags a team using slackHandle.team', () => {
@@ -35,10 +31,10 @@ describe('buildSlackPayload', () => {
       options,
     );
     assert.ok(payload);
-    assert.match(allText(payload), /<!subteam\^S123>/u);
-    assert.match(allText(payload), /#7/u);
-    assert.match(payload.text, /<!subteam\^S123>/u);
-    assert.doesNotMatch(allText(payload), /:dependabot:/u);
+    expect(allText(payload)).toMatch(/<!subteam\^S123>/u);
+    expect(allText(payload)).toMatch(/#7/u);
+    expect(payload.text).toMatch(/<!subteam\^S123>/u);
+    expect(allText(payload)).not.toMatch(/:dependabot:/u);
   });
 
   it('matches githubHandle regardless of case or @ prefix', () => {
@@ -55,7 +51,7 @@ describe('buildSlackPayload', () => {
       options,
     );
     assert.ok(payload);
-    assert.match(allText(payload), /<!subteam\^S9>/u);
+    expect(allText(payload)).toMatch(/<!subteam\^S9>/u);
   });
 
   it('falls back to the plain team name when topology has no match', () => {
@@ -63,8 +59,8 @@ describe('buildSlackPayload', () => {
     reminder.byTeam['core-platform'] = [pr()];
     const payload = buildSlackPayload(reminder, {}, options);
     assert.ok(payload);
-    assert.match(allText(payload), /core-platform/u);
-    assert.doesNotMatch(allText(payload), /subteam\^/u);
+    expect(allText(payload)).toMatch(/core-platform/u);
+    expect(allText(payload)).not.toMatch(/subteam\^/u);
   });
 
   it('escapes &, <, > in PR titles', () => {
@@ -72,7 +68,7 @@ describe('buildSlackPayload', () => {
     reminder.byTeam.a = [pr({ title: 'Bump <a> & b > c' })];
     const payload = buildSlackPayload(reminder, {}, options);
     assert.ok(payload);
-    assert.match(allText(payload), /Bump &lt;a&gt; &amp; b &gt; c/u);
+    expect(allText(payload)).toMatch(/Bump &lt;a&gt; &amp; b &gt; c/u);
   });
 
   it('renders fallback sections under the fallback team', () => {
@@ -92,13 +88,13 @@ describe('buildSlackPayload', () => {
     );
     assert.ok(payload);
     const text = allText(payload);
-    assert.match(text, /<!subteam\^SF>/u);
-    assert.match(text, /[Ff]ailing CI/u);
-    assert.match(text, /[Rr]eady to merge/u);
-    assert.match(text, /[Nn]eeds owner/u);
-    assert.match(text, /#1/u);
-    assert.match(text, /#2/u);
-    assert.match(text, /#3/u);
+    expect(text).toMatch(/<!subteam\^SF>/u);
+    expect(text).toMatch(/[Ff]ailing CI/u);
+    expect(text).toMatch(/[Rr]eady to merge/u);
+    expect(text).toMatch(/[Nn]eeds owner/u);
+    expect(text).toMatch(/#1/u);
+    expect(text).toMatch(/#2/u);
+    expect(text).toMatch(/#3/u);
   });
 });
 
@@ -122,7 +118,7 @@ describe('buildSlackPayload chunking', () => {
     );
     assert.ok(payload);
     const texts = payload.blocks.map((block) => block.text.text);
-    assert.ok(texts.length > 3);
+    expect(texts.length).toBeGreaterThan(3);
     for (const text of texts) {
       assert.ok(text.length <= 3000, `section has ${text.length} characters`);
     }
@@ -147,9 +143,8 @@ describe('buildSlackPayload limits and lookup', () => {
       options,
     );
     assert.ok(payload);
-    assert.ok(payload.blocks.length <= 50);
-    const last = payload.blocks[payload.blocks.length - 1];
-    assert.match(last?.text.text ?? '', /…and \d+ more/u);
+    expect(payload.blocks.length).toBeLessThanOrEqual(50);
+    expect(payload.blocks.at(-1)?.text.text).toMatch(/…and \d+ more/u);
   });
 
   it('does not throw on null topology entries', () => {
@@ -161,9 +156,9 @@ describe('buildSlackPayload limits and lookup', () => {
       {
         bad: null,
         good: { githubHandle: 'MetaMask/a', slackHandle: { team: 'S1' } },
-      } as unknown as Topology,
+      },
       options,
     );
-    assert.match(payload?.text ?? '', /<!subteam\^S1>/u);
+    expect(payload?.text).toMatch(/<!subteam\^S1>/u);
   });
 });
