@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 // Based on the original script done by @itsyoboieltr on Extension repo
 
 import { Octokit } from '@octokit/rest';
@@ -7,11 +6,13 @@ import { IncomingWebhook } from '@slack/webhook';
 import unzipper from 'unzipper';
 
 const githubToken = process.env.GITHUB_TOKEN;
-if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
+if (!githubToken) {
+  throw new Error('Missing GITHUB_TOKEN env var');
+}
 
 const env = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-  LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
+  LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1', 10),
   TEST_RESULTS_FILE_PATTERN:
     process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
   OWNER: process.env.OWNER || 'MetaMask',
@@ -184,7 +185,7 @@ function extractRealFailures(testData) {
               jobId: testSuite.job?.id,
               runId: testSuite.job?.runId,
               date: new Date(testSuite.date || Date.now()),
-              retryCount: retryCount,
+              retryCount,
               type: 'real_failure',
             });
           }
@@ -237,7 +238,7 @@ function extractFlakyTests(testData) {
                 jobId: failureInfo.jobId,
                 runId: failureInfo.runId,
                 date: failureInfo.date,
-                retryCount: retryCount,
+                retryCount,
                 type: 'flaky',
               });
             }
@@ -450,7 +451,7 @@ function createSlackBlocks(
     // Each failure
     top10
       .filter((test) => test.realFailures > 0)
-      .forEach((test, idx) => {
+      .forEach((test) => {
         const globalIndex = top10.indexOf(test) + 1;
         const failText = test.realFailures === 1 ? 'time' : 'times';
         const retryText = test.totalRetries === 1 ? 'retry' : 'retries';
@@ -482,7 +483,7 @@ function createSlackBlocks(
           elements: [
             {
               type: 'rich_text_section',
-              elements: elements,
+              elements,
             },
           ],
         });
@@ -491,7 +492,7 @@ function createSlackBlocks(
         const error = test.lastRealFailureError;
         if (error) {
           const errorPreview =
-            error.length > 150 ? error.substring(0, 150) + '...' : error;
+            error.length > 150 ? `${error.substring(0, 150)}...` : error;
           blocks.push({
             type: 'rich_text',
             elements: [
@@ -500,7 +501,7 @@ function createSlackBlocks(
                 elements: [
                   {
                     type: 'text',
-                    text: `  ${errorPreview.replace(/\n/g, ' ')}`,
+                    text: `  ${errorPreview.replace(/\n/gu, ' ')}`,
                     style: { italic: true },
                   },
                 ],
@@ -577,7 +578,7 @@ function createSlackBlocks(
         elements: [
           {
             type: 'rich_text_section',
-            elements: elements,
+            elements,
           },
         ],
       });
@@ -586,7 +587,7 @@ function createSlackBlocks(
       const error = test.flakyFailureError;
       if (error) {
         const errorPreview =
-          error.length > 150 ? error.substring(0, 150) + '...' : error;
+          error.length > 150 ? `${error.substring(0, 150)}...` : error;
         blocks.push({
           type: 'rich_text',
           elements: [
@@ -595,7 +596,7 @@ function createSlackBlocks(
               elements: [
                 {
                   type: 'text',
-                  text: `     ${errorPreview.replace(/\n/g, ' ')}`,
+                  text: `     ${errorPreview.replace(/\n/gu, ' ')}`,
                   style: { italic: true },
                 },
               ],
@@ -610,7 +611,7 @@ function createSlackBlocks(
 }
 
 function displayResults(summary, dateDisplay) {
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log(`📊 REPORT - ${dateDisplay}`);
   console.log('='.repeat(80));
 
@@ -662,9 +663,9 @@ function displayResults(summary, dateDisplay) {
       if (test.lastRealFailureError) {
         const errorPreview =
           test.lastRealFailureError.length > 100
-            ? test.lastRealFailureError.substring(0, 100) + '...'
+            ? `${test.lastRealFailureError.substring(0, 100)}...`
             : test.lastRealFailureError;
-        console.log(`    💥 Error: ${errorPreview.replace(/\n/g, ' ')}`);
+        console.log(`    💥 Error: ${errorPreview.replace(/\n/gu, ' ')}`);
       }
     } else {
       // Flaky tests (failed initially but eventually passed)
@@ -684,10 +685,10 @@ function displayResults(summary, dateDisplay) {
       if (test.flakyFailureError) {
         const errorPreview =
           test.flakyFailureError.length > 100
-            ? test.flakyFailureError.substring(0, 100) + '...'
+            ? `${test.flakyFailureError.substring(0, 100)}...`
             : test.flakyFailureError;
         console.log(
-          `    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`,
+          `    💥 Initial error: ${errorPreview.replace(/\n/gu, ' ')}`,
         );
       }
     }

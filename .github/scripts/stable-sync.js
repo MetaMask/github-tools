@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 // USAGE:
 // This will create/update a local stable-sync branch
 // and get it in the state needed for a stable-sync PR

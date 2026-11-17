@@ -1,4 +1,3 @@
-import { parse } from 'csv-parse/sync';
 import fs from 'fs';
 import { google } from 'googleapis';
 
@@ -28,7 +27,7 @@ async function getGoogleAuth() {
 
   // Initialize GoogleAuth with credentials object directly
   const auth = new google.auth.GoogleAuth({
-    credentials: credentials,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
@@ -43,6 +42,7 @@ async function getGoogleAuth() {
  * @param {string} platform - The platform for which the release is being prepared.
  * @param {string} semanticVersion - The semantic version of the release.
  * @param {number} templateSheetId - The sheet ID of the template to be duplicated.
+ * @param {Array<Array<string>>} sheetData - The rows of data to write into the new sheet.
  * @returns {Promise<void>} A promise that resolves when the sheet has been created and modified.
  */
 async function createReleaseSheet(
@@ -82,7 +82,7 @@ async function createReleaseSheet(
     console.log(`Sheet duplicated successfully. New sheet ID: ${newSheetId}`);
 
     // Step 2. Make the new sheet the active sheet
-    const sheetActivationResponse = await sheets.spreadsheets.batchUpdate({
+    await sheets.spreadsheets.batchUpdate({
       spreadsheetId: documentId,
       resource: {
         requests: [
@@ -158,9 +158,9 @@ async function getTotalSheetCount(documentId) {
     }
 
     return sheetsData.length;
-  } catch (err) {
-    console.error('Failed to retrieve spreadsheet data:', err);
-    throw err;
+  } catch (error) {
+    console.error('Failed to retrieve spreadsheet data:', error);
+    throw error;
   }
 }
 
@@ -197,8 +197,8 @@ async function getAllReleases(documentId) {
     // Create a list of promises for each sheet using map
     const promises = sheetsData.map(async (sheet) => {
       const { title } = sheet.properties;
-      const versionMatch = title.match(/v(\d+\.\d+\.\d+)/);
-      const platformMatch = title.match(/\(([^)]+)\)/);
+      const versionMatch = title.match(/v(\d+\.\d+\.\d+)/u);
+      const platformMatch = title.match(/\(([^)]+)\)/u);
 
       if (!versionMatch) {
         console.log(
@@ -219,9 +219,9 @@ async function getAllReleases(documentId) {
     // Filter out null values (sheets that were skipped) and resolve all promises
     const results = await Promise.all(promises);
     return results.filter((result) => result !== null);
-  } catch (err) {
-    console.error('Failed to retrieve spreadsheet data:', err);
-    throw err;
+  } catch (error) {
+    console.error('Failed to retrieve spreadsheet data:', error);
+    throw error;
   }
 }
 
@@ -281,7 +281,7 @@ async function main() {
 
   const releases = await getAllReleases(documentId);
 
-  var sheetExists = false;
+  let sheetExists = false;
 
   releases.forEach((release) => {
     console.log(
@@ -341,8 +341,8 @@ function parseCSVv2(filePath) {
   // Regex patterns to exclude certain commit messages
   // Regex patterns to exclude certain commit messages
   const excludedCommitRegex = [
-    /cherry-pick/, // Matches any occurrence of "cherry-pick"
-    /cp-\d+\.\d+\.\d+/, // Matches patterns like "cp-1.0.0"
+    /cherry-pick/u, // Matches any occurrence of "cherry-pick"
+    /cp-\d+\.\d+\.\d+/u, // Matches patterns like "cp-1.0.0"
   ];
 
   try {
@@ -358,7 +358,9 @@ function parseCSVv2(filePath) {
 
     // Start from the second line to skip headers
     for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim() === '') continue; // Skip empty lines
+      if (lines[i].trim() === '') {
+        continue;
+      } // Skip empty lines
 
       // Split the line into columns based on commas
       const columns = lines[i].split(',');
