@@ -3,8 +3,8 @@
 // Based on the original script done by @itsyoboieltr on Extension repo
 
 import { Octokit } from '@octokit/rest';
-import unzipper from 'unzipper';
 import { IncomingWebhook } from '@slack/webhook';
+import unzipper from 'unzipper';
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
@@ -12,69 +12,79 @@ if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
 const env = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
-  TEST_RESULTS_FILE_PATTERN: process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
+  TEST_RESULTS_FILE_PATTERN:
+    process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
   OWNER: process.env.OWNER || 'MetaMask',
   REPOSITORY: process.env.REPOSITORY || 'metamask-mobile',
   WORKFLOW_ID: process.env.WORKFLOW_ID || 'ci.yml',
   BRANCH: process.env.BRANCH || 'main',
   SLACK_WEBHOOK_FLAKY_TESTS: process.env.SLACK_WEBHOOK_FLAKY_TESTS || '',
   TEST_REPORT_ARTIFACTS: process.env.TEST_REPORT_ARTIFACTS
-    ? process.env.TEST_REPORT_ARTIFACTS.split(',').map(name => name.trim())
-    : ['test-e2e-android-json-report', 'test-e2e-ios-json-report', 'test-e2e-chrome-report', 'test-e2e-firefox-report'],
+    ? process.env.TEST_REPORT_ARTIFACTS.split(',').map((name) => name.trim())
+    : [
+        'test-e2e-android-json-report',
+        'test-e2e-ios-json-report',
+        'test-e2e-chrome-report',
+        'test-e2e-firefox-report',
+      ],
 };
 
 function getDateRange() {
   const today = new Date();
-  const daysAgo = new Date(today.getTime() - (env.LOOKBACK_DAYS * 24 * 60 * 60 * 1000));
+  const daysAgo = new Date(
+    today.getTime() - env.LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+  );
 
   const fromDisplay = daysAgo.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 
   const toDisplay = today.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 
   return {
     from: daysAgo.toISOString(),
     to: today.toISOString(),
-    display: `${fromDisplay} - ${toDisplay}`
+    display: `${fromDisplay} - ${toDisplay}`,
   };
 }
 
 async function getWorkflowRuns(github, from, to) {
   try {
-    const runs = await github.paginate(
-      github.rest.actions.listWorkflowRuns,
-      {
-        owner: env.OWNER,
-        repo: env.REPOSITORY,
-        workflow_id: env.WORKFLOW_ID,
-        branch: env.BRANCH,
-        created: `${from}..${to}`,
-        per_page: 100,
-      }
-    );
+    const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+      owner: env.OWNER,
+      repo: env.REPOSITORY,
+      workflow_id: env.WORKFLOW_ID,
+      branch: env.BRANCH,
+      created: `${from}..${to}`,
+      per_page: 100,
+    });
 
     // Filter to only completed runs from push or schedule events (excludes fork PRs)
-    const completedRuns = runs.filter(run =>
-      run.status === 'completed' &&
-      (run.event === 'push' || run.event === 'schedule')
+    const completedRuns = runs.filter(
+      (run) =>
+        run.status === 'completed' &&
+        (run.event === 'push' || run.event === 'schedule'),
     );
 
     // Sort by created date (newest first)
-    completedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    completedRuns.sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
 
     return completedRuns;
   } catch (error) {
     if (error.status === 404) {
-      throw new Error(`Workflow '${env.WORKFLOW_ID}' not found in ${env.OWNER}/${env.REPOSITORY}`);
+      throw new Error(
+        `Workflow '${env.WORKFLOW_ID}' not found in ${env.OWNER}/${env.REPOSITORY}`,
+      );
     }
     throw error;
   }
@@ -92,9 +102,13 @@ async function downloadArtifact(github, artifact) {
     const buffer = Buffer.from(response.data);
     const zip = await unzipper.Open.buffer(buffer);
 
-    const testFile = zip.files.find(file => file.path.startsWith(env.TEST_RESULTS_FILE_PATTERN));
+    const testFile = zip.files.find((file) =>
+      file.path.startsWith(env.TEST_RESULTS_FILE_PATTERN),
+    );
     if (!testFile) {
-      console.log(`  ⚠️  No ${env.TEST_RESULTS_FILE_PATTERN} file found in ${artifact.name}`);
+      console.log(
+        `  ⚠️  No ${env.TEST_RESULTS_FILE_PATTERN} file found in ${artifact.name}`,
+      );
       return null;
     }
 
@@ -113,7 +127,9 @@ async function downloadTestArtifacts(github, runs) {
   const allTestData = [];
 
   for (const [index, run] of runs.entries()) {
-    console.log(`📦 Processing run ${index + 1}/${runs.length}: ${run.head_commit?.message?.split('\n')[0] || 'No commit message'}`);
+    console.log(
+      `📦 Processing run ${index + 1}/${runs.length}: ${run.head_commit?.message?.split('\n')[0] || 'No commit message'}`,
+    );
 
     try {
       const artifacts = await github.paginate(
@@ -122,11 +138,11 @@ async function downloadTestArtifacts(github, runs) {
           owner: env.OWNER,
           repo: env.REPOSITORY,
           run_id: run.id,
-        }
+        },
       );
 
-      const testArtifacts = artifacts.filter(artifact =>
-        env.TEST_REPORT_ARTIFACTS.includes(artifact.name)
+      const testArtifacts = artifacts.filter((artifact) =>
+        env.TEST_REPORT_ARTIFACTS.includes(artifact.name),
       );
 
       if (testArtifacts.length === 0) {
@@ -147,7 +163,6 @@ async function downloadTestArtifacts(github, runs) {
 
   return allTestData;
 }
-
 
 function extractRealFailures(testData) {
   const realFailures = [];
@@ -170,7 +185,7 @@ function extractRealFailures(testData) {
               runId: testSuite.job?.runId,
               date: new Date(testSuite.date || Date.now()),
               retryCount: retryCount,
-              type: 'real_failure'
+              type: 'real_failure',
             });
           }
         }
@@ -200,7 +215,7 @@ function extractFlakyTests(testData) {
                   jobId: attempt.job?.id,
                   runId: attempt.job?.runId,
                   error: testCase.error || 'No error details',
-                  date: new Date(attempt.date || Date.now())
+                  date: new Date(attempt.date || Date.now()),
                 });
               }
             }
@@ -208,7 +223,10 @@ function extractFlakyTests(testData) {
 
           // Process tests that eventually passed but had initial failures
           for (const testCase of testSuite.testCases || []) {
-            if (testCase.status === 'passed' && failedInAttempts.has(testCase.name)) {
+            if (
+              testCase.status === 'passed' &&
+              failedInAttempts.has(testCase.name)
+            ) {
               const failureInfo = failedInAttempts.get(testCase.name);
               flakyTests.push({
                 name: testCase.name,
@@ -220,7 +238,7 @@ function extractFlakyTests(testData) {
                 runId: failureInfo.runId,
                 date: failureInfo.date,
                 retryCount: retryCount,
-                type: 'flaky'
+                type: 'flaky',
               });
             }
           }
@@ -231,7 +249,6 @@ function extractFlakyTests(testData) {
 
   return flakyTests;
 }
-
 
 function summarizeFailures(realFailures, flakyTests = []) {
   const summary = new Map();
@@ -269,7 +286,7 @@ function summarizeFailures(realFailures, flakyTests = []) {
         flakyFailureJobId: null,
         flakyFailureRunId: null,
         flakyFailureError: null,
-        flakyFailureDate: null
+        flakyFailureDate: null,
       });
     }
   }
@@ -281,7 +298,10 @@ function summarizeFailures(realFailures, flakyTests = []) {
       const existing = summary.get(test.name);
       existing.totalRetries += test.retryCount;
       // Keep most recent flaky failure info
-      if (!existing.flakyFailureJobId || test.date > existing.flakyFailureDate) {
+      if (
+        !existing.flakyFailureJobId ||
+        test.date > existing.flakyFailureDate
+      ) {
         existing.flakyFailureJobId = test.jobId;
         existing.flakyFailureRunId = test.runId;
         existing.flakyFailureError = test.error;
@@ -309,24 +329,31 @@ function summarizeFailures(realFailures, flakyTests = []) {
         flakyFailureJobId: test.jobId,
         flakyFailureRunId: test.runId,
         flakyFailureError: test.error,
-        flakyFailureDate: test.date
+        flakyFailureDate: test.date,
       });
     }
   }
 
-  return Array.from(summary.values())
-    .sort((a, b) => {
-      // Real failures first, sorted by failure count
-      if (a.realFailures !== b.realFailures) {
-        return b.realFailures - a.realFailures;
-      }
-      // If both have same real failure count, sort by total retries
-      return b.totalRetries - a.totalRetries;
-    });
+  return Array.from(summary.values()).sort((a, b) => {
+    // Real failures first, sorted by failure count
+    if (a.realFailures !== b.realFailures) {
+      return b.realFailures - a.realFailures;
+    }
+    // If both have same real failure count, sort by total retries
+    return b.totalRetries - a.totalRetries;
+  });
 }
 
-async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount) {
-  if (!env.SLACK_WEBHOOK_FLAKY_TESTS || !env.SLACK_WEBHOOK_FLAKY_TESTS.startsWith('https://')) {
+async function sendSlackReport(
+  summary,
+  dateDisplay,
+  workflowCount,
+  failedCount,
+) {
+  if (
+    !env.SLACK_WEBHOOK_FLAKY_TESTS ||
+    !env.SLACK_WEBHOOK_FLAKY_TESTS.startsWith('https://')
+  ) {
     console.log('Skipping Slack notification');
     return;
   }
@@ -334,7 +361,12 @@ async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount)
   console.log('\n📤 Sending report to Slack...');
   try {
     const webhook = new IncomingWebhook(env.SLACK_WEBHOOK_FLAKY_TESTS);
-    const blocks = createSlackBlocks(summary, dateDisplay, workflowCount, failedCount);
+    const blocks = createSlackBlocks(
+      summary,
+      dateDisplay,
+      workflowCount,
+      failedCount,
+    );
 
     // Slack has a limit of 50 blocks per message
     const BATCH_SIZE = 50;
@@ -349,7 +381,12 @@ async function sendSlackReport(summary, dateDisplay, workflowCount, failedCount)
   }
 }
 
-function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount = 0) {
+function createSlackBlocks(
+  summary,
+  dateDisplay,
+  workflowCount = 0,
+  failedCount = 0,
+) {
   const blocks = [];
 
   blocks.push({
@@ -357,20 +394,22 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
     text: {
       type: 'plain_text',
       text: 'Flaky Test Report - Top 10',
-      emoji: true
-    }
+      emoji: true,
+    },
   });
 
   // Calculate counts first
-  const realFailures = summary.filter(test => test.realFailures > 0);
-  const flakyTests = summary.filter(test => test.realFailures === 0);
+  const realFailures = summary.filter((test) => test.realFailures > 0);
+  const flakyTests = summary.filter((test) => test.realFailures === 0);
 
   blocks.push({
     type: 'context',
-    elements: [{
-      type: 'mrkdwn',
-      text: `Period (UTC): ${dateDisplay} | Repo: ${env.REPOSITORY} | Failed CI Runs: ${failedCount}/${workflowCount} from ${env.BRANCH} branch\nFound: ${realFailures.length} tests failing, ${flakyTests.length} flaky (eventually passed)`
-    }]
+    elements: [
+      {
+        type: 'mrkdwn',
+        text: `Period (UTC): ${dateDisplay} | Repo: ${env.REPOSITORY} | Failed CI Runs: ${failedCount}/${workflowCount} from ${env.BRANCH} branch\nFound: ${realFailures.length} tests failing, ${flakyTests.length} flaky (eventually passed)`,
+      },
+    ],
   });
 
   blocks.push({ type: 'divider' });
@@ -378,12 +417,14 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
   if (summary.length === 0) {
     blocks.push({
       type: 'rich_text',
-      elements: [{
-        type: 'rich_text_section',
-        elements: [
-          { type: 'text', text: 'No flaky tests found, great job! ✅ ' }
-        ]
-      }]
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'text', text: 'No flaky tests found, great job! ✅ ' },
+          ],
+        },
+      ],
     });
     return blocks;
   }
@@ -394,63 +435,80 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
   if (realFailures.length > 0) {
     blocks.push({
       type: 'rich_text',
-      elements: [{
-        type: 'rich_text_section',
-        elements: [
-          { type: 'emoji', name: 'x' },
-          { type: 'text', text: ' ' },
-          { type: 'text', text: 'Failures', style: { bold: true } }
-        ]
-      }]
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'emoji', name: 'x' },
+            { type: 'text', text: ' ' },
+            { type: 'text', text: 'Failures', style: { bold: true } },
+          ],
+        },
+      ],
     });
 
     // Each failure
-    top10.filter(test => test.realFailures > 0).forEach((test, idx) => {
-      const globalIndex = top10.indexOf(test) + 1;
-      const failText = test.realFailures === 1 ? 'time' : 'times';
-      const retryText = test.totalRetries === 1 ? 'retry' : 'retries';
+    top10
+      .filter((test) => test.realFailures > 0)
+      .forEach((test, idx) => {
+        const globalIndex = top10.indexOf(test) + 1;
+        const failText = test.realFailures === 1 ? 'time' : 'times';
+        const retryText = test.totalRetries === 1 ? 'retry' : 'retries';
 
-      // Create GitHub file URL
-      const fileUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/blob/${env.BRANCH}/${test.path}`;
+        // Create GitHub file URL
+        const fileUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/blob/${env.BRANCH}/${test.path}`;
 
-      // Build elements for this test
-      const elements = [
-        { type: 'text', text: `  ${globalIndex}. ` },  // 2 spaces indent
-        { type: 'link', url: fileUrl, text: test.name },
-        { type: 'text', text: ` (failed ${test.realFailures} ${failText}, ${test.totalRetries} ${retryText})`, style: { bold: true } }
-      ];
+        // Build elements for this test
+        const elements = [
+          { type: 'text', text: `  ${globalIndex}. ` }, // 2 spaces indent
+          { type: 'link', url: fileUrl, text: test.name },
+          {
+            type: 'text',
+            text: ` (failed ${test.realFailures} ${failText}, ${test.totalRetries} ${retryText})`,
+            style: { bold: true },
+          },
+        ];
 
-      if (test.lastRealFailureJobId && test.lastRealFailureRunId) {
-        const jobUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastRealFailureRunId}/job/${test.lastRealFailureJobId}`;
-        elements.push(
-          { type: 'text', text: ' - ' },
-          { type: 'link', url: jobUrl, text: 'last log' }
-        );
-      }
+        if (test.lastRealFailureJobId && test.lastRealFailureRunId) {
+          const jobUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastRealFailureRunId}/job/${test.lastRealFailureJobId}`;
+          elements.push(
+            { type: 'text', text: ' - ' },
+            { type: 'link', url: jobUrl, text: 'last log' },
+          );
+        }
 
-      blocks.push({
-        type: 'rich_text',
-        elements: [{
-          type: 'rich_text_section',
-          elements: elements
-        }]
-      });
-
-      // Error message (if exists)
-      const error = test.lastRealFailureError;
-      if (error) {
-        const errorPreview = error.length > 150 ? error.substring(0, 150) + '...' : error;
         blocks.push({
           type: 'rich_text',
-          elements: [{
-            type: 'rich_text_section',
-            elements: [
-              { type: 'text', text: `  ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
-            ]
-          }]
+          elements: [
+            {
+              type: 'rich_text_section',
+              elements: elements,
+            },
+          ],
         });
-      }
-    });
+
+        // Error message (if exists)
+        const error = test.lastRealFailureError;
+        if (error) {
+          const errorPreview =
+            error.length > 150 ? error.substring(0, 150) + '...' : error;
+          blocks.push({
+            type: 'rich_text',
+            elements: [
+              {
+                type: 'rich_text_section',
+                elements: [
+                  {
+                    type: 'text',
+                    text: `  ${errorPreview.replace(/\n/g, ' ')}`,
+                    style: { italic: true },
+                  },
+                ],
+              },
+            ],
+          });
+        }
+      });
   }
 
   if (realFailures.length >= 10) {
@@ -467,14 +525,20 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
     // Title
     blocks.push({
       type: 'rich_text',
-      elements: [{
-        type: 'rich_text_section',
-        elements: [
-          { type: 'emoji', name: 'large_yellow_circle' },
-          { type: 'text', text: ' ' },
-          { type: 'text', text: 'Flaky (eventually passed)', style: { bold: true } }
-        ]
-      }]
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'emoji', name: 'large_yellow_circle' },
+            { type: 'text', text: ' ' },
+            {
+              type: 'text',
+              text: 'Flaky (eventually passed)',
+              style: { bold: true },
+            },
+          ],
+        },
+      ],
     });
 
     // Each flaky test (respecting the 10-item limit)
@@ -491,39 +555,52 @@ function createSlackBlocks(summary, dateDisplay, workflowCount = 0, failedCount 
 
       // Build elements for this test
       const elements = [
-        { type: 'text', text: `  ${globalIndex}. ` },  // 2 spaces indent
+        { type: 'text', text: `  ${globalIndex}. ` }, // 2 spaces indent
         { type: 'link', url: fileUrl, text: test.name },
-        { type: 'text', text: ` (${test.totalRetries} ${retryText})`, style: { bold: true } }
+        {
+          type: 'text',
+          text: ` (${test.totalRetries} ${retryText})`,
+          style: { bold: true },
+        },
       ];
 
       if (test.flakyFailureJobId && test.flakyFailureRunId) {
         const jobUrl = `https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.flakyFailureRunId}/job/${test.flakyFailureJobId}`;
         elements.push(
           { type: 'text', text: ' - ' },
-          { type: 'link', url: jobUrl, text: 'last log' }
+          { type: 'link', url: jobUrl, text: 'last log' },
         );
       }
 
       blocks.push({
         type: 'rich_text',
-        elements: [{
-          type: 'rich_text_section',
-          elements: elements
-        }]
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: elements,
+          },
+        ],
       });
 
       // Error message (if exists)
       const error = test.flakyFailureError;
       if (error) {
-        const errorPreview = error.length > 150 ? error.substring(0, 150) + '...' : error;
+        const errorPreview =
+          error.length > 150 ? error.substring(0, 150) + '...' : error;
         blocks.push({
           type: 'rich_text',
-          elements: [{
-            type: 'rich_text_section',
-            elements: [
-              { type: 'text', text: `     ${errorPreview.replace(/\n/g, ' ')}`, style: { italic: true } }
-            ]
-          }]
+          elements: [
+            {
+              type: 'rich_text_section',
+              elements: [
+                {
+                  type: 'text',
+                  text: `     ${errorPreview.replace(/\n/g, ' ')}`,
+                  style: { italic: true },
+                },
+              ],
+            },
+          ],
         });
       }
     });
@@ -542,13 +619,19 @@ function displayResults(summary, dateDisplay) {
     return;
   }
 
-  const realFailures = summary.filter(test => test.realFailures > 0);
-  const flakyTests = summary.filter(test => test.realFailures === 0);
+  const realFailures = summary.filter((test) => test.realFailures > 0);
+  const flakyTests = summary.filter((test) => test.realFailures === 0);
 
-  console.log(`${realFailures.length} real failures (failed even after retries)`);
-  console.log(`${flakyTests.length} flaky tests (eventually passed after retries)`);
+  console.log(
+    `${realFailures.length} real failures (failed even after retries)`,
+  );
+  console.log(
+    `${flakyTests.length} flaky tests (eventually passed after retries)`,
+  );
   console.log(`\n📌 Sorted by: 1) Number of failures ↓  2) Total retries ↓`);
-  console.log(`📊 Numbers shown are cumulative across all runs in the time period\n`);
+  console.log(
+    `📊 Numbers shown are cumulative across all runs in the time period\n`,
+  );
 
   const top10 = summary.slice(0, 10);
 
@@ -560,37 +643,52 @@ function displayResults(summary, dateDisplay) {
       // Real failures (tests that failed even after retries)
       const failurePlural = test.realFailures > 1 ? 's' : '';
       const retryPlural = test.totalRetries > 1 ? 'retries' : 'retry';
-      const retryText = test.totalRetries > 0 ? ` (${test.totalRetries} total ${retryPlural})` : '';
-      console.log(`    ❌ Failed: ${test.realFailures} time${failurePlural}${retryText}`);
+      const retryText =
+        test.totalRetries > 0
+          ? ` (${test.totalRetries} total ${retryPlural})`
+          : '';
+      console.log(
+        `    ❌ Failed: ${test.realFailures} time${failurePlural}${retryText}`,
+      );
 
       // Show logs for real failures
       if (test.lastRealFailureJobId && test.lastRealFailureRunId) {
-        console.log(`    🔗 Logs: https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastRealFailureRunId}/job/${test.lastRealFailureJobId}`);
+        console.log(
+          `    🔗 Logs: https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.lastRealFailureRunId}/job/${test.lastRealFailureJobId}`,
+        );
       }
 
       // Show error for real failures
       if (test.lastRealFailureError) {
-        const errorPreview = test.lastRealFailureError.length > 100
-          ? test.lastRealFailureError.substring(0, 100) + '...'
-          : test.lastRealFailureError;
+        const errorPreview =
+          test.lastRealFailureError.length > 100
+            ? test.lastRealFailureError.substring(0, 100) + '...'
+            : test.lastRealFailureError;
         console.log(`    💥 Error: ${errorPreview.replace(/\n/g, ' ')}`);
       }
     } else {
       // Flaky tests (failed initially but eventually passed)
       const retryPlural = test.totalRetries > 1 ? 'retries' : 'retry';
-      console.log(`    🟡 Flaky: eventually passed (${test.totalRetries} total ${retryPlural})`);
+      console.log(
+        `    🟡 Flaky: eventually passed (${test.totalRetries} total ${retryPlural})`,
+      );
 
       // Show logs from when it failed (before retry succeeded)
       if (test.flakyFailureJobId && test.flakyFailureRunId) {
-        console.log(`    🔗 Logs: https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.flakyFailureRunId}/job/${test.flakyFailureJobId}`);
+        console.log(
+          `    🔗 Logs: https://github.com/${env.OWNER}/${env.REPOSITORY}/actions/runs/${test.flakyFailureRunId}/job/${test.flakyFailureJobId}`,
+        );
       }
 
       // Show error from initial failure
       if (test.flakyFailureError) {
-        const errorPreview = test.flakyFailureError.length > 100
-          ? test.flakyFailureError.substring(0, 100) + '...'
-          : test.flakyFailureError;
-        console.log(`    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`);
+        const errorPreview =
+          test.flakyFailureError.length > 100
+            ? test.flakyFailureError.substring(0, 100) + '...'
+            : test.flakyFailureError;
+        console.log(
+          `    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`,
+        );
       }
     }
 
@@ -612,7 +710,11 @@ async function main() {
 
   try {
     console.log('Fetching workflow runs...');
-    const workflowRuns = await getWorkflowRuns(github, dateRange.from, dateRange.to);
+    const workflowRuns = await getWorkflowRuns(
+      github,
+      dateRange.from,
+      dateRange.to,
+    );
 
     if (workflowRuns.length === 0) {
       console.log('⚠️ No workflow runs found.');
@@ -622,8 +724,12 @@ async function main() {
     console.log(`Found ${workflowRuns.length} workflow run(s)`);
 
     // Count failed runs
-    const failedRuns = workflowRuns.filter(run => run.conclusion === 'failure');
-    console.log(`Failed CI Runs: ${failedRuns.length}/${workflowRuns.length} from ${env.BRANCH}`);
+    const failedRuns = workflowRuns.filter(
+      (run) => run.conclusion === 'failure',
+    );
+    console.log(
+      `Failed CI Runs: ${failedRuns.length}/${workflowRuns.length} from ${env.BRANCH}`,
+    );
 
     console.log('Downloading their test artifacts...');
     const testData = await downloadTestArtifacts(github, workflowRuns);
@@ -641,18 +747,24 @@ async function main() {
 
     const summary = summarizeFailures(realFailures, flakyTests);
     displayResults(summary, dateRange.display);
-    await sendSlackReport(summary, dateRange.display, workflowRuns.length, failedRuns.length);
-
+    await sendSlackReport(
+      summary,
+      dateRange.display,
+      workflowRuns.length,
+      failedRuns.length,
+    );
   } catch (error) {
     console.error('❌ Error:', error.message);
     if (error.status === 401) {
-      console.log('\n💡 This might be a GitHub token issue. Make sure your token has the right permissions.');
+      console.log(
+        '\n💡 This might be a GitHub token issue. Make sure your token has the right permissions.',
+      );
     }
     process.exit(1);
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error('\n❌ Unexpected error:', error);
   process.exit(1);
 });

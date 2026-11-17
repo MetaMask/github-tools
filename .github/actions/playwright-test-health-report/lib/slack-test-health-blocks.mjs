@@ -1,4 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
+
 import {
   allocateBucketSlots,
   formatRunRate,
@@ -12,10 +13,13 @@ export function normalizeErrorForSlack(message, maxLength = 120) {
     return 'No error details';
   }
 
-  const withoutEmojiShortcodes = String(message).replace(/:[a-z0-9_+\-]+:/gi, ' ');
+  const withoutEmojiShortcodes = String(message).replace(
+    /:[a-z0-9_+\-]+:/gi,
+    ' ',
+  );
   const firstMeaningfulLine = withoutEmojiShortcodes
     .split(/\r?\n/)
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .find(Boolean);
   const normalized = (firstMeaningfulLine || withoutEmojiShortcodes)
     .replace(/\s+/g, ' ')
@@ -25,7 +29,9 @@ export function normalizeErrorForSlack(message, maxLength = 120) {
     return 'No error details';
   }
 
-  return normalized.length > maxLength ? `${normalized.substring(0, maxLength - 3)}...` : normalized;
+  return normalized.length > maxLength
+    ? `${normalized.substring(0, maxLength - 3)}...`
+    : normalized;
 }
 
 export function truncateError(message, maxLength = 120) {
@@ -68,8 +74,22 @@ function pushSectionHeader(blocks, emoji, title) {
   });
 }
 
-function pushTestLine(blocks, { index, owner, repository, branch, test, statusText, runKind, testSourcePrefix }) {
-  const repoPath = normalizeRepoFilePath(test.path, { prefix: testSourcePrefix });
+function pushTestLine(
+  blocks,
+  {
+    index,
+    owner,
+    repository,
+    branch,
+    test,
+    statusText,
+    runKind,
+    testSourcePrefix,
+  },
+) {
+  const repoPath = normalizeRepoFilePath(test.path, {
+    prefix: testSourcePrefix,
+  });
   const fileUrl = `https://github.com/${owner}/${repository}/blob/${branch}/${repoPath}`;
   const runUrl = buildRunUrl(owner, repository, test, runKind);
 
@@ -83,7 +103,12 @@ function pushTestLine(blocks, { index, owner, repository, branch, test, statusTe
           { type: 'link', url: fileUrl, text: test.name },
           { type: 'text', text: ` (${test.projectName}) ` },
           { type: 'text', text: statusText, style: { bold: true } },
-          ...(runUrl ? [{ type: 'text', text: ' - ' }, { type: 'link', url: runUrl, text: 'run log' }] : []),
+          ...(runUrl
+            ? [
+                { type: 'text', text: ' - ' },
+                { type: 'link', url: runUrl, text: 'run log' },
+              ]
+            : []),
         ],
       },
     ],
@@ -96,7 +121,13 @@ function pushErrorLine(blocks, message) {
     elements: [
       {
         type: 'rich_text_section',
-        elements: [{ type: 'text', text: truncateError(message), style: { italic: true } }],
+        elements: [
+          {
+            type: 'text',
+            text: truncateError(message),
+            style: { italic: true },
+          },
+        ],
       },
     ],
   });
@@ -117,13 +148,17 @@ export function createSlackBlocks(summary, dateDisplay, options) {
     testSourcePrefix,
   } = options;
 
-  const { brokenItems, flakyItems, watchItems, infraItems } = partitionSummary(summary);
-  const { maxBroken, maxFlaky, maxWatch, maxInfra } = allocateBucketSlots(topN, {
-    broken: brokenItems.length,
-    flaky: flakyItems.length,
-    watch: watchItems.length,
-    infra: infraItems.length,
-  });
+  const { brokenItems, flakyItems, watchItems, infraItems } =
+    partitionSummary(summary);
+  const { maxBroken, maxFlaky, maxWatch, maxInfra } = allocateBucketSlots(
+    topN,
+    {
+      broken: brokenItems.length,
+      flaky: flakyItems.length,
+      watch: watchItems.length,
+      infra: infraItems.length,
+    },
+  );
 
   const broken = brokenItems.slice(0, maxBroken);
   const infra = infraItems.slice(0, maxInfra);
@@ -162,7 +197,12 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       elements: [
         {
           type: 'rich_text_section',
-          elements: [{ type: 'text', text: 'No failing, infra, flaky, or watch issues found ✅' }],
+          elements: [
+            {
+              type: 'text',
+              text: 'No failing, infra, flaky, or watch issues found ✅',
+            },
+          ],
         },
       ],
     });
@@ -177,34 +217,34 @@ export function createSlackBlocks(summary, dateDisplay, options) {
       emoji: 'x',
       title: 'Failing (latest run failed)',
       runKind: 'broken',
-      statusText: test =>
+      statusText: (test) =>
         `failed ${formatRunRate(test.historicalBrokenCount ?? test.brokenCount, test.totalRuns)}`,
-      error: test => test.lastBrokenError,
+      error: (test) => test.lastBrokenError,
     },
     {
       items: infra,
       emoji: 'warning',
       title: 'Infra (setup failed, no tests ran)',
       runKind: 'infra',
-      statusText: test =>
+      statusText: (test) =>
         `setup failed ${formatRunRate(test.historicalInfraCount ?? test.infraCount, test.totalRuns)}`,
-      error: test => test.lastInfraError,
+      error: (test) => test.lastInfraError,
     },
     {
       items: flaky,
       emoji: 'large_yellow_circle',
       title: 'Flaky (latest run flaky)',
       runKind: 'flaky',
-      statusText: test =>
+      statusText: (test) =>
         `flaky ${formatRunRate(test.historicalFlakyCount ?? test.flakyCount, test.totalRuns)}`,
-      error: test => test.lastFlakyError,
+      error: (test) => test.lastFlakyError,
     },
     {
       items: watch,
       emoji: 'large_green_circle',
       title: 'Watch (unstable in window, passing now)',
       runKind: 'broken',
-      statusText: test => `now passing (${formatWatchHistory(test)})`,
+      statusText: (test) => `now passing (${formatWatchHistory(test)})`,
       error: () => null,
     },
   ];

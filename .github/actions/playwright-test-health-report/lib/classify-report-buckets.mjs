@@ -12,20 +12,20 @@ export function instabilityScore(test) {
 
 export function partitionSummary(summary) {
   const infraItems = summary
-    .filter(test => test.latestClassification === 'infra')
+    .filter((test) => test.latestClassification === 'infra')
     .sort((a, b) => (b.infraCount ?? 0) - (a.infraCount ?? 0));
 
   const brokenItems = summary
-    .filter(test => test.latestClassification === 'broken')
+    .filter((test) => test.latestClassification === 'broken')
     .sort((a, b) => historicalBroken(b) - historicalBroken(a));
 
   const flakyItems = summary
-    .filter(test => test.latestClassification === 'flaky')
+    .filter((test) => test.latestClassification === 'flaky')
     .sort((a, b) => historicalFlaky(b) - historicalFlaky(a));
 
   const watchItems = summary
     .filter(
-      test =>
+      (test) =>
         test.latestClassification === 'passed' &&
         (historicalBroken(test) > 0 || historicalFlaky(test) > 0),
     )
@@ -44,9 +44,18 @@ export function partitionSummary(summary) {
 export function allocateBucketSlots(topN, counts) {
   const { broken = 0, flaky = 0, watch = 0, infra = 0 } = counts;
 
-  let maxBroken = Math.min(broken, Math.max(Math.ceil(topN * 0.4), broken > 0 ? 2 : 0));
-  let maxFlaky = Math.min(flaky, Math.max(Math.ceil(topN * 0.25), flaky > 0 ? 2 : 0));
-  let maxInfra = Math.min(infra, Math.max(Math.ceil(topN * 0.1), infra > 0 ? 1 : 0));
+  let maxBroken = Math.min(
+    broken,
+    Math.max(Math.ceil(topN * 0.4), broken > 0 ? 2 : 0),
+  );
+  let maxFlaky = Math.min(
+    flaky,
+    Math.max(Math.ceil(topN * 0.25), flaky > 0 ? 2 : 0),
+  );
+  let maxInfra = Math.min(
+    infra,
+    Math.max(Math.ceil(topN * 0.1), infra > 0 ? 1 : 0),
+  );
   let maxWatch = Math.min(watch, topN - maxBroken - maxFlaky - maxInfra);
 
   let remaining = topN - (maxBroken + maxFlaky + maxWatch + maxInfra);
@@ -67,7 +76,9 @@ export function allocateBucketSlots(topN, counts) {
     remaining -= extra;
   }
 
-  const byKey = Object.fromEntries(buckets.map(bucket => [bucket.key, bucket.max]));
+  const byKey = Object.fromEntries(
+    buckets.map((bucket) => [bucket.key, bucket.max]),
+  );
 
   return {
     maxBroken: byKey.broken,

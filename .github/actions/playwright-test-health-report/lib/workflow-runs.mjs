@@ -1,6 +1,8 @@
 export function getDateRange(lookbackDays = 1) {
   const today = new Date();
-  const daysAgo = new Date(today.getTime() - (lookbackDays * 24 * 60 * 60 * 1000));
+  const daysAgo = new Date(
+    today.getTime() - lookbackDays * 24 * 60 * 60 * 1000,
+  );
 
   const fromDisplay = daysAgo.toLocaleDateString('en-US', {
     month: 'short',
@@ -23,24 +25,28 @@ export function getDateRange(lookbackDays = 1) {
   };
 }
 
-export async function getWorkflowRuns(github, { owner, repo, workflowId, branch, from, to }) {
+export async function getWorkflowRuns(
+  github,
+  { owner, repo, workflowId, branch, from, to },
+) {
   try {
-    const runs = await github.paginate(
-      github.rest.actions.listWorkflowRuns,
-      {
-        owner,
-        repo,
-        workflow_id: workflowId,
-        branch,
-        created: `${from}..${to}`,
-        per_page: 100,
-      },
-    );
+    const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+      owner,
+      repo,
+      workflow_id: workflowId,
+      branch,
+      created: `${from}..${to}`,
+      per_page: 100,
+    });
 
     const completedRuns = runs.filter(
-      run => run.status === 'completed' && (run.event === 'push' || run.event === 'schedule'),
+      (run) =>
+        run.status === 'completed' &&
+        (run.event === 'push' || run.event === 'schedule'),
     );
-    completedRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    completedRuns.sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
 
     return completedRuns;
   } catch (error) {

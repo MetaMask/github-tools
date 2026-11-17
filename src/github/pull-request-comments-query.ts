@@ -1,5 +1,5 @@
-import { graphql } from './octokit';
 import { log } from '../logging-utils';
+import { graphql } from './octokit';
 
 type GitHubActorTypename =
   | 'EnterpriseUserAccount'
