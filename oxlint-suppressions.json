@@ -269,109 +269,14 @@
       "count": 1
     }
   },
-  "src/cache-utils.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
-  "src/changelog-check.mts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "src/error-utils.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "src/fs-utils.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "src/get-review-metrics.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "src/github/octokit.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
-  "src/scripts/count-references-to-contributor-docs/cli.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/analytics-model.ts": {
-    "unicorn/no-useless-undefined": {
-      "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/apply-changes.ts": {
-    "import/consistent-type-specifier-style": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 2
-    }
-  },
-  "src/segment-schema-draft-pr/cli.ts": {
-    "import/consistent-type-specifier-style": {
-      "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/diff-models.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 6
-    }
-  },
-  "src/segment-schema-draft-pr/generate.test.ts": {
-    "typescript/return-await": {
-      "count": 2
     }
   },
   "src/segment-schema-draft-pr/github-output.ts": {
     "node/no-sync": {
       "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/publish.test.ts": {
-    "import/consistent-type-specifier-style": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "src/segment-schema-draft-pr/schema-index.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 2
     }
   },
   "yarn.config.cjs": {

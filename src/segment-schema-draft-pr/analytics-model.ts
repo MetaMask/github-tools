@@ -25,7 +25,7 @@ export function extractAnalyticsModel(
   filePath: string,
   sourceText: string,
   config: PlatformConfig,
-  sharedCatalog: EventCatalog | undefined = undefined,
+  sharedCatalog?: EventCatalog | undefined,
 ): AnalyticsModel {
   const sourceFile = ts.createSourceFile(
     filePath,

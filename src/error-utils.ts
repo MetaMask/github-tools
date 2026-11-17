@@ -41,7 +41,7 @@ export function isErrorWithCode(error: unknown): error is { code: string } {
  * something throwable).
  * @returns A new error object.
  */
-export function wrapError(message: string, originalError: unknown) {
+export function wrapError(message: string, originalError: unknown): Error {
   if (isError(originalError)) {
     const error: Error & { code?: string } = new Error(message, {
       cause: originalError,

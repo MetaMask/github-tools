@@ -529,7 +529,7 @@ async function getChangedPackages(
 /**
  * Main function to run the changelog check.
  */
-async function main() {
+async function main(): Promise<void> {
   // Parse command-line arguments
   const args = process.argv.slice(2);
 
@@ -623,7 +623,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch((error: { message: string }) => {
   logError(error.message);
   // eslint-disable-next-line n/no-process-exit
   process.exit(1);

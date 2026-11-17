@@ -28,6 +28,7 @@ const DEFAULT_MAX_AGE = 60 * 60 * 1000; // 1 hour
  * considered "fresh". Affects subsequent calls: if `fetchOrPopulateFileCache`
  * is called again with the same file path within the duration specified here,
  * `getDataToCache` will not get called again, otherwise it will.
+ * @returns The cached data if it is fresh, otherwise the newly generated data.
  */
 export async function fetchOrPopulateFileCache<Data extends Json>({
   filePath,
