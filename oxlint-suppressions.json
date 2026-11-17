@@ -112,47 +112,8 @@
     }
   },
   ".github/scripts/post-merge-validation-tracker.mjs": {
-    "curly": {
-      "count": 23
-    },
-    "id-denylist": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 27
-    },
-    "no-eq-null": {
-      "count": 1
-    },
-    "no-negated-condition": {
-      "count": 1
-    },
-    "no-plusplus": {
-      "count": 2
-    },
-    "no-shadow": {
-      "count": 10
-    },
-    "no-unused-vars": {
-      "count": 2
-    },
     "node/no-process-env": {
       "count": 6
-    },
-    "object-shorthand": {
-      "count": 2
-    },
-    "prefer-const": {
-      "count": 2
-    },
-    "prefer-destructuring": {
-      "count": 1
-    },
-    "radix": {
-      "count": 2
-    },
-    "require-unicode-regexp": {
-      "count": 18
     },
     "unicorn/no-process-exit": {
       "count": 1

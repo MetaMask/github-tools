@@ -7,30 +7,37 @@ const spreadsheetId = process.env.SHEET_ID; // 1uSERA-Mczy0pjlrr1vv...
 // GOOGLE_APPLICATION_CREDENTIALS_BASE64 can be found in MM QA 1pasword vault
 const googleApplicationCredentialsBase64 =
   process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
-const repo = process.env.REPO || 'MetaMask/metamask-extension';
-const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1');
-const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7');
+const targetRepo = process.env.REPO || 'MetaMask/metamask-extension';
+const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS ?? '1', 10);
+const START_HOUR_UTC = parseInt(process.env.START_HOUR_UTC ?? '7', 10);
 
 const START_MINUTE_UTC = 0;
 const RELEVANT_TITLE_REGEX =
-  /^(feat|perf|fix|chore|refactor)\s*(\(|:|!|\/)|\bbump\b/i;
+  /^(feat|perf|fix|chore|refactor)\s*(\(|:|!|\/)|\bbump\b/iu;
 const TEAM_LABEL_PREFIX = 'team-';
 const SIZE_LABEL_PREFIX = 'size-';
 const AUTOMATED_TEST_PATTERNS = [
-  /\.test\.(js|ts|tsx)$/,
-  /\.spec\.(js|ts|tsx)$/,
-  /\.(test|spec)\.(js|ts|tsx)\.snap$/,
-  /(^|\/)test\//,
-  /(^|\/)e2e\//,
-  /(^|\/)wdio\//,
+  /\.test\.(js|ts|tsx)$/u,
+  /\.spec\.(js|ts|tsx)$/u,
+  /\.(test|spec)\.(js|ts|tsx)\.snap$/u,
+  /(^|\/)test\//u,
+  /(^|\/)e2e\//u,
+  /(^|\/)wdio\//u,
 ];
 const SKIP_RELEASE_VALIDATION_LABEL = 'skip-release-validation';
 
-if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
-if (!spreadsheetId) throw new Error('Missing SHEET_ID env var');
-if (!googleApplicationCredentialsBase64)
+if (!githubToken) {
+  throw new Error('Missing GITHUB_TOKEN env var');
+}
+if (!spreadsheetId) {
+  throw new Error('Missing SHEET_ID env var');
+}
+if (!googleApplicationCredentialsBase64) {
   throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS_BASE64 env var');
-if (!repo) throw new Error('Missing REPO env var');
+}
+if (!targetRepo) {
+  throw new Error('Missing REPO env var');
+}
 
 const octokit = new Octokit({ auth: githubToken });
 const sheets = google.sheets('v4');
@@ -47,17 +54,22 @@ async function getGoogleAuth() {
 }
 
 function parseRepo() {
-  const [owner, repoName] = repo.split('/');
-  if (!owner || !repoName)
+  const [owner, repoName] = targetRepo.split('/');
+  if (!owner || !repoName) {
     throw new Error(
-      `Invalid repo format "${repo}". Expected format: "owner/repo"`,
+      `Invalid repo format "${targetRepo}". Expected format: "owner/repo"`,
     );
+  }
   return { owner, repo: repoName };
 }
 
 function repoType(repo) {
-  if (repo.endsWith('-extension')) return 'extension';
-  if (repo.endsWith('-mobile')) return 'mobile';
+  if (repo.endsWith('-extension')) {
+    return 'extension';
+  }
+  if (repo.endsWith('-mobile')) {
+    return 'mobile';
+  }
   return repo;
 }
 
@@ -66,15 +78,19 @@ function tabTitleFor(repo, releaseLabel) {
 }
 
 function platformLabelFor(type) {
-  const t = String(type).toLowerCase();
-  if (t === 'mobile') return '📱 Mobile - Pull requests';
-  if (t === 'extension') return '🔌 Extension - Pull requests';
-  return t;
+  const typeLower = String(type).toLowerCase();
+  if (typeLower === 'mobile') {
+    return '📱 Mobile - Pull requests';
+  }
+  if (typeLower === 'extension') {
+    return '🔌 Extension - Pull requests';
+  }
+  return typeLower;
 }
 
 function headerRowFor(type) {
-  const t = String(type).toLowerCase();
-  const isMobile = t === 'mobile';
+  const typeLower = String(type).toLowerCase();
+  const isMobile = typeLower === 'mobile';
   const colG = isMobile ? 'Validated (Android)' : 'Validated (Chrome)';
   const colH = isMobile ? 'Validated (iOS)' : 'Validated (Firefox)';
   return [
@@ -99,19 +115,20 @@ async function ensureSheetExists(authClient, title, platformType) {
   const sheetsList = meta.data.sheets || [];
 
   // First, try to find the exact title (with "pre-" prefix)
-  let existing = sheetsList.find((s) => s.properties?.title === title);
-  if (existing)
+  let existing = sheetsList.find((sheet) => sheet.properties?.title === title);
+  if (existing) {
     return {
       sheetId: existing.properties.sheetId,
       actualTitle: title,
       isNew: false,
     };
+  }
 
   // If not found and title starts with "pre-", try without the "pre-" prefix
   if (title.startsWith('pre-')) {
-    const titleWithoutPrefix = title.replace(/^pre-/, '');
+    const titleWithoutPrefix = title.replace(/^pre-/u, '');
     existing = sheetsList.find(
-      (s) => s.properties?.title === titleWithoutPrefix,
+      (sheet) => sheet.properties?.title === titleWithoutPrefix,
     );
     if (existing) {
       console.log(
@@ -142,11 +159,12 @@ async function createSheetFromTemplateOrBlank(
 ) {
   // Try to duplicate from a template tab (single template name: 'template')
   const templateCandidates = ['template'];
-  const template = sheetsList.find((s) =>
-    templateCandidates.includes(s.properties?.title || ''),
+  const template = sheetsList.find((sheet) =>
+    templateCandidates.includes(sheet.properties?.title || ''),
   );
 
-  if (template?.properties?.sheetId != null) {
+  const templateSheetId = template?.properties?.sheetId;
+  if (templateSheetId !== null && templateSheetId !== undefined) {
     const duplicateRes = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       auth: authClient,
@@ -255,14 +273,16 @@ async function readRows(authClient, title) {
       range: `${title}!A2:J`,
     });
     return res.data.values || [];
-  } catch (e) {
+  } catch {
     // If the sheet or range doesn't exist yet
     return [];
   }
 }
 
 async function appendRows(authClient, title, rows) {
-  if (!rows.length) return;
+  if (!rows.length) {
+    return;
+  }
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
@@ -278,38 +298,44 @@ function uniqKey(number) {
 }
 
 function formatDateHumanUTC(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const mi = String(d.getUTCMinutes()).padStart(2, '0');
+  if (!iso) {
+    return '';
+  }
+  const date = new Date(iso);
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const hh = String(date.getUTCHours()).padStart(2, '0');
+  const mi = String(date.getUTCMinutes()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
 function makePrHyperlinkCell(url, title, number) {
   const label = `${title} (#${number})`;
   // Sheets formula
-  const escapedUrl = url.replace(/"/g, '');
-  const escapedLabel = label.replace(/"/g, '');
+  const escapedUrl = url.replace(/"/gu, '');
+  const escapedLabel = label.replace(/"/gu, '');
   return `=HYPERLINK("${escapedUrl}","${escapedLabel}")`;
 }
 
 function extractTeam(labels) {
-  const found = labels.find((l) => l.name?.startsWith(TEAM_LABEL_PREFIX));
+  const found = labels.find((label) =>
+    label.name?.startsWith(TEAM_LABEL_PREFIX),
+  );
   return found ? found.name : 'unknown';
 }
 
 function extractSize(labels) {
-  const found = labels.find((l) => l.name?.startsWith(SIZE_LABEL_PREFIX));
+  const found = labels.find((label) =>
+    label.name?.startsWith(SIZE_LABEL_PREFIX),
+  );
   return found ? found.name : 'unknown';
 }
 
 function isoSinceAtUTC(days, hour = 2, minute = 0) {
   // Returns an ISO timestamp at (today - days) with specific UTC hour:minute, e.g., 02:00Z
   const now = new Date();
-  const d = new Date(
+  const targetDate = new Date(
     Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
@@ -320,9 +346,9 @@ function isoSinceAtUTC(days, hour = 2, minute = 0) {
       0,
     ),
   );
-  d.setUTCDate(d.getUTCDate() - days);
-  d.setUTCHours(hour, minute, 0, 0);
-  return d.toISOString();
+  targetDate.setUTCDate(targetDate.getUTCDate() - days);
+  targetDate.setUTCHours(hour, minute, 0, 0);
+  return targetDate.toISOString();
 }
 
 async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
@@ -349,7 +375,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         advanced_search: true,
       });
 
-      if (!data.items.length) break;
+      if (!data.items.length) {
+        break;
+      }
       console.log(`Found ${data.items.length} PRs on page ${page}`);
 
       for (const item of data.items) {
@@ -369,11 +397,13 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         }
       }
 
-      if (data.items.length < 100) break;
-      page++;
+      if (data.items.length < 100) {
+        break;
+      }
+      page += 1;
       await sleep(200);
-    } catch (e) {
-      console.log(`❌ Search API error: ${e.message}`);
+    } catch (error) {
+      console.log(`❌ Search API error: ${error.message}`);
       break;
     }
   }
@@ -385,22 +415,26 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
 }
 
 function isRelevantTitle(title) {
-  if (!title) return false;
+  if (!title) {
+    return false;
+  }
   return RELEVANT_TITLE_REGEX.test(String(title));
 }
 
 function extractLabelText(formulaOrText) {
-  const s = String(formulaOrText || '');
+  const text = String(formulaOrText || '');
   // If it's a HYPERLINK formula like =HYPERLINK("url","Label") extract Label
-  const m = s.match(/HYPERLINK\([^,]+,\s*"([^"]+)"\)/i);
-  if (m) return m[1];
-  return s;
+  const match = text.match(/HYPERLINK\([^,]+,\s*"([^"]+)"\)/iu);
+  if (match) {
+    return match[1];
+  }
+  return text;
 }
 
 function parsePrNumberFromCell(cell) {
   const text = extractLabelText(cell);
-  const m = String(text).match(/#(\d+)/);
-  return m ? Number(m[1]) : null;
+  const match = String(text).match(/#(\d+)/u);
+  return match ? Number(match[1]) : null;
 }
 
 async function sleep(ms) {
@@ -427,7 +461,7 @@ function getAutoSkipLabelsForPR(labels, repoName) {
   const hasSkipAll = labelNames.includes(SKIP_RELEASE_VALIDATION_LABEL);
 
   const granularLabels = labelNames.filter((name) =>
-    /^skip-release-validation\[(android|ios|design|chrome|firefox)\]$/i.test(
+    /^skip-release-validation\[(android|ios|design|chrome|firefox)\]$/iu.test(
       name,
     ),
   );
@@ -509,10 +543,10 @@ function applyAutoSkipToRow(row, labels, repoName) {
 }
 
 // Add efficient version detection with caching
-let versionCache = new Map(); // Cache version bumps per repo
+const versionCache = new Map(); // Cache version bumps per repo
 
 // Automated test detection cache
-let automatedTestCache = new Map(); // Cache automated test results per PR: "owner/repo/prNumber" -> "Yes"|"No"|"Unknown"
+const automatedTestCache = new Map(); // Cache automated test results per PR: "owner/repo/prNumber" -> "Yes"|"No"|"Unknown"
 
 async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
   const cacheKey = `${owner}/${repo}`;
@@ -535,7 +569,7 @@ async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
   // Create timeline: [newest bump, older bump, ..., oldest bump]
   const timeline = {
     currentVersion: normalizeVersion(currentVersion),
-    versionBumps: versionBumps, // Already sorted newest first
+    versionBumps, // Already sorted newest first
     sinceDate: new Date(sinceDateISO),
   };
 
@@ -569,8 +603,8 @@ async function getCurrentPackageVersion(owner, repo) {
     const content = Buffer.from(data.content, 'base64').toString('utf8');
     const packageJson = JSON.parse(content);
     return packageJson.version;
-  } catch (e) {
-    console.log(`⚠️ Failed to fetch package.json version: ${e.message}`);
+  } catch (error) {
+    console.log(`⚠️ Failed to fetch package.json version: ${error.message}`);
     return null;
   }
 }
@@ -582,12 +616,16 @@ function parseVersionFromPatch(patch) {
 
   for (const line of lines) {
     if (line.startsWith('-') && line.includes('"version":')) {
-      const match = line.match(/"version":\s*"([^"]+)"/);
-      if (match) oldVersion = match[1];
+      const match = line.match(/"version":\s*"([^"]+)"/u);
+      if (match) {
+        oldVersion = match[1];
+      }
     }
     if (line.startsWith('+') && line.includes('"version":')) {
-      const match = line.match(/"version":\s*"([^"]+)"/);
-      if (match) newVersion = match[1];
+      const match = line.match(/"version":\s*"([^"]+)"/u);
+      if (match) {
+        newVersion = match[1];
+      }
     }
   }
 
@@ -598,12 +636,14 @@ function parseVersionFromPatch(patch) {
 }
 
 function normalizeVersion(version) {
-  if (!version) return null;
+  if (!version) {
+    return null;
+  }
   return version.startsWith('v') ? version : `v${version}`;
 }
 
 function determineReleaseVersionFromTimeline(mergedAt, versionTimeline) {
-  const { currentVersion, versionBumps, sinceDate } = versionTimeline;
+  const { currentVersion, versionBumps } = versionTimeline;
   const mergedDate = new Date(mergedAt);
 
   // If no version bumps in our lookback period, everything goes to current version
@@ -653,7 +693,9 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
       pr.closed_at,
       versionTimeline,
     );
-    if (!releaseVersion) continue;
+    if (!releaseVersion) {
+      continue;
+    }
 
     if (!prsByVersion.has(releaseVersion)) {
       prsByVersion.set(releaseVersion, []);
@@ -729,7 +771,7 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
         });
 
         const packageJsonFile = commitData.files?.find(
-          (f) => f.filename === 'package.json',
+          (file) => file.filename === 'package.json',
         );
         if (packageJsonFile?.patch) {
           const versionChange = parseVersionFromPatch(packageJsonFile.patch);
@@ -742,8 +784,10 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
             };
           }
         }
-      } catch (e) {
-        console.log(`⚠️ Failed to analyze commit ${commit.sha}: ${e.message}`);
+      } catch (error) {
+        console.log(
+          `⚠️ Failed to analyze commit ${commit.sha}: ${error.message}`,
+        );
       }
       return null;
     });
@@ -753,8 +797,8 @@ async function findVersionBumpCommits(owner, repo, sinceDateISO) {
 
     // Sort by date (newest first)
     return versionBumps.sort((a, b) => new Date(b.date) - new Date(a.date));
-  } catch (e) {
-    console.log(`⚠️ Failed to find version bumps: ${e.message}`);
+  } catch (error) {
+    console.log(`⚠️ Failed to find version bumps: ${error.message}`);
     return [];
   }
 }
@@ -777,21 +821,27 @@ async function fetchPRFiles(owner, repo, prNumber) {
       allFiles.push(...files);
 
       // If we got less than 100 files, we've reached the end
-      if (files.length < 100) break;
+      if (files.length < 100) {
+        break;
+      }
 
-      page++;
+      page += 1;
       await sleep(100);
     }
 
     return allFiles.map((file) => file.filename);
-  } catch (e) {
-    console.log(`⚠️ Failed to fetch files for PR #${prNumber}: ${e.message}`);
+  } catch (error) {
+    console.log(
+      `⚠️ Failed to fetch files for PR #${prNumber}: ${error.message}`,
+    );
     return null; // Return null to indicate API failure
   }
 }
 
 function checkFilesForAutomatedTestPatterns(filenames) {
-  if (!filenames || filenames.length === 0) return false;
+  if (!filenames || filenames.length === 0) {
+    return false;
+  }
 
   // Debug logging to help identify pattern matching issues
   const matches = filenames.filter((filename) =>
@@ -832,7 +882,7 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
       return false;
     }
 
-    const newTitle = sheetTitle.replace(/^pre-/, '');
+    const newTitle = sheetTitle.replace(/^pre-/u, '');
 
     // Get sheet metadata to find the sheetId
     const meta = await sheets.spreadsheets.get({
@@ -842,14 +892,14 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
     });
 
     const sheet = meta.data.sheets?.find(
-      (s) => s.properties?.title === sheetTitle,
+      (candidate) => candidate.properties?.title === sheetTitle,
     );
     if (!sheet) {
       console.log(`⚠️ Sheet "${sheetTitle}" not found for renaming`);
       return false;
     }
 
-    const sheetId = sheet.properties.sheetId;
+    const { sheetId } = sheet.properties;
 
     // Rename the sheet by removing "pre-" prefix
     await sheets.spreadsheets.batchUpdate({
@@ -860,7 +910,7 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
           {
             updateSheetProperties: {
               properties: {
-                sheetId: sheetId,
+                sheetId,
                 title: newTitle,
               },
               fields: 'title',
@@ -872,8 +922,8 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
 
     console.log(`✅ Renamed sheet: "${sheetTitle}" → "${newTitle}"`);
     return true;
-  } catch (e) {
-    console.log(`⚠️ Failed to rename "${sheetTitle}": ${e.message}`);
+  } catch (error) {
+    console.log(`⚠️ Failed to rename "${sheetTitle}": ${error.message}`);
     return false;
   }
 }
@@ -890,21 +940,23 @@ async function processTab(authClient, title, entries, platformType) {
   );
   const existingKeys = new Set(
     existing
-      .map((r) => parsePrNumberFromCell(r[0]))
-      .filter((n) => n !== null)
-      .map((n) => uniqKey(n)),
+      .map((row) => parsePrNumberFromCell(row[0]))
+      .filter((number) => number !== null)
+      .map((number) => uniqKey(number)),
   );
   const sortedRows = entries
     .slice()
     .sort((a, b) => new Date(a.mergedAtIso) - new Date(b.mergedAtIso))
-    .map((e) => applyAutoSkipToRow(e.row, e.labels, repo));
+    .map((entry) => applyAutoSkipToRow(entry.row, entry.labels, targetRepo));
   const deduped = [];
-  for (const r of sortedRows) {
-    const num = parsePrNumberFromCell(r[0]);
-    const key = num !== null ? uniqKey(num) : null;
+  for (const row of sortedRows) {
+    const prNumber = parsePrNumberFromCell(row[0]);
+    const key = prNumber === null ? null : uniqKey(prNumber);
     if (!key || !existingKeys.has(key)) {
-      deduped.push(r);
-      if (key) existingKeys.add(key);
+      deduped.push(row);
+      if (key) {
+        existingKeys.add(key);
+      }
     }
   }
   console.log(`Tab=${actualTitle} toInsertAfterDedup=${deduped.length}`);
@@ -955,8 +1007,8 @@ async function processRepo(authClient, owner, repo, since) {
 
   // Sort tabs by extracting version numbers for proper ordering
   tabsArray.sort((a, b) => {
-    const versionA = a.title.match(/v[\d.]+/)?.[0] || '';
-    const versionB = b.title.match(/v[\d.]+/)?.[0] || '';
+    const versionA = a.title.match(/v[\d.]+/u)?.[0] || '';
+    const versionB = b.title.match(/v[\d.]+/u)?.[0] || '';
     return versionB.localeCompare(versionA, undefined, { numeric: true });
   });
 
@@ -1000,7 +1052,7 @@ async function main() {
   await processRepo(authClient, owner, repoName, since);
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });
