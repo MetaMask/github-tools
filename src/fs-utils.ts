@@ -54,7 +54,7 @@ export async function readJsonFile<Value extends Json>(
 ): Promise<Value> {
   try {
     const content = await readFile(filePath);
-    return JSON.parse(content);
+    return JSON.parse(content) as Value;
   } catch (error) {
     throw wrapError(`Could not read JSON file '${filePath}'`, error);
   }

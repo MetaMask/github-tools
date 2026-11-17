@@ -9,6 +9,7 @@ import { getRequiredEnvironmentVariable } from '../env-utils';
  *
  * @param args - The same arguments that
  * [`graphql`](https://github.com/octokit/graphql.js) takes.
+ * @returns The response data of the GraphQL request.
  */
 export async function graphql<ResponseData>(
   ...args: Parameters<typeof octokitGraphql>
