@@ -14,7 +14,7 @@ export function normalizeErrorForSlack(message, maxLength = 120) {
   }
 
   const withoutEmojiShortcodes = String(message).replace(
-    /:[a-z0-9_+\-]+:/gi,
+    /:[a-z0-9_+-]+:/gi,
     ' ',
   );
   const firstMeaningfulLine = withoutEmojiShortcodes

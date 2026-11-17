@@ -5,7 +5,8 @@ import type { Document as YamlDocument } from 'yaml';
 
 import { TODO_DESCRIPTION } from './constants';
 import { uniqueKebabSlug } from './names';
-import { defaultPropKeys, type SchemaIndex } from './schema-index';
+import { defaultPropKeys } from './schema-index';
+import type { SchemaIndex } from './schema-index';
 import type {
   AnalyticsChangeSet,
   IntendedFileChange,
@@ -454,7 +455,7 @@ function yamlKey(value: unknown): string | undefined {
     return value;
   }
   if (value && typeof value === 'object' && 'value' in value) {
-    const inner = (value as { value: unknown }).value;
+    const inner = value.value;
     if (typeof inner === 'string') {
       return inner;
     }
@@ -476,7 +477,7 @@ function isYamlMap(value: unknown): value is {
     typeof value === 'object' &&
     value !== null &&
     'items' in value &&
-    Array.isArray((value as { items: unknown }).items)
+    Array.isArray(value.items)
   );
 }
 

@@ -36,7 +36,7 @@ async function getGoogleAuth() {
 
   // Initialize GoogleAuth with credentials object directly
   const auth = new google.auth.GoogleAuth({
-    credentials: credentials,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
@@ -130,9 +130,8 @@ async function findPullRequestUrlByBranch(owner, repo, branchName) {
     if (data.length > 0) {
       // Assuming you want the first PR that matches
       return data[0].html_url; // Return the URL of the first matching PR
-    } else {
-      throw new Error(`No pull requests found for branch ${branchName}`);
     }
+    throw new Error(`No pull requests found for branch ${branchName}`);
   } catch (error) {
     console.error('Error fetching pull requests:', error);
     throw error;
@@ -258,7 +257,7 @@ async function getReleaseBlockers(release, team) {
     const { data } = await octokit.rest.issues.listForRepo({
       owner,
       repo,
-      labels: labels,
+      labels,
       state: 'open', // Optionally, filter by state (open, closed, all)
     });
 
@@ -291,9 +290,8 @@ async function getPublishChannelName(release) {
   // Allows for local testing without publishing actual release channels
   if (testOnly()) {
     return `${channel}-testonly`;
-  } else {
-    return channel;
   }
+  return channel;
 }
 
 async function fmtSlackHandle(team) {
@@ -337,11 +335,11 @@ async function publishReleaseTestingStatus(release) {
     `Publishing testing status for release ${release.SemanticVersion} on platform ${release.Platform} to channel ${channel}`,
   );
 
-  var header =
+  let header =
     `:blablablocker:* [${fmtPlatform}] - ${release.SemanticVersion} Release Validation.*\n` +
     `_*Testing Plan and Progress Tracker Summary*_ (<https://docs.google.com/spreadsheets/d/${release.DocumentId}/edit#gid=${release.sheetId}|${release.SemanticVersion}>):`;
 
-  var body = `*Teams Sign Off ${release.SemanticVersion} Release on <${releasePrUrl}|GH>:*\n`;
+  let body = `*Teams Sign Off ${release.SemanticVersion} Release on <${releasePrUrl}|GH>:*\n`;
 
   const hasPendingSignoffs = teamResults.some(
     (team) => team.status !== 'Completed',
@@ -350,12 +348,12 @@ async function publishReleaseTestingStatus(release) {
   let releaseBlockerCount = 0;
 
   for (const team of teamResults) {
-    let slackHandlePart = await fmtSlackHandle(team);
+    const slackHandlePart = await fmtSlackHandle(team);
     //Grab RCs for a specific team/release
     const releaseBlockers = await getReleaseBlockers(release, team.team);
     //Accumulate the total release blocker count
     releaseBlockerCount += releaseBlockers.count;
-    let releaseBlockerParts =
+    const releaseBlockerParts =
       releaseBlockers.count > 0
         ? ` - <${releaseBlockers.url}|${releaseBlockers.count} Release Blockers>`
         : '';
@@ -373,7 +371,7 @@ async function publishReleaseTestingStatus(release) {
 
   try {
     await slackClient.chat.postMessage({
-      channel: channel,
+      channel,
       text: slackMessage,
       unfurl_links: false,
       unfurl_media: false,

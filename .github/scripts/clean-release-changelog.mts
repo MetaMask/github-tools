@@ -525,7 +525,7 @@ export async function requestGhApiWithRetry(
   request: GhApiRequest = executeGhApi,
   sleep?: (milliseconds: number) => Promise<void>,
 ): Promise<string> {
-  return await retry(async () => request(argumentsList), {
+  return await retry(async () => await request(argumentsList), {
     delayMilliseconds: GH_API_RETRY_DELAY_MS,
     maxAttempts: GH_API_MAX_ATTEMPTS,
     onRetry: ({ attempt, delayMilliseconds }) => {
@@ -763,7 +763,7 @@ export async function requestCleanRoomRewrite({
     ],
   };
 
-  return retry(
+  return await retry(
     async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -839,7 +839,7 @@ export async function requestValidatedRewrite(
   prNumbers: readonly string[],
   maxAttempts = MAX_VALIDATION_ATTEMPTS,
 ): Promise<string> {
-  return retry(
+  return await retry(
     async () => {
       const section = await requestCleanRoomRewrite(options);
       try {

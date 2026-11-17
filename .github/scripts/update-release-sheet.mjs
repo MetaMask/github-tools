@@ -28,7 +28,7 @@ async function getGoogleAuth() {
 
   // Initialize GoogleAuth with credentials object directly
   const auth = new google.auth.GoogleAuth({
-    credentials: credentials,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
@@ -281,7 +281,7 @@ async function main() {
 
   const releases = await getAllReleases(documentId);
 
-  var sheetExists = false;
+  let sheetExists = false;
 
   releases.forEach((release) => {
     console.log(
@@ -358,7 +358,9 @@ function parseCSVv2(filePath) {
 
     // Start from the second line to skip headers
     for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim() === '') continue; // Skip empty lines
+      if (lines[i].trim() === '') {
+        continue;
+      } // Skip empty lines
 
       // Split the line into columns based on commas
       const columns = lines[i].split(',');

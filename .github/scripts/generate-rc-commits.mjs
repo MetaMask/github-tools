@@ -37,7 +37,7 @@ async function getTeam(repository, prNumber) {
       console.error(
         `Invalid response when fetching topology.json: ${response.status}`,
       );
-      return undefined;
+      return;
     }
 
     const topologyJson = response.data;
@@ -59,13 +59,13 @@ async function getTeam(repository, prNumber) {
     }
 
     // Return undefined if author not found in any team
-    return undefined;
+    return;
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
       error.message || error,
     );
-    return undefined;
+    return;
   }
 }
 
@@ -75,7 +75,7 @@ async function filterCommitsByTeam(platform, refA, refB) {
   const MAX_COMMITS = 500; // Limit the number of commits to process
   console.log('Filtering commits by team...');
 
-  var repository = '';
+  let repository = '';
 
   switch (platform) {
     case 'mobile':
@@ -190,22 +190,25 @@ function escapeCSV(field) {
 }
 // Helper function to create change type
 function assignChangeType(field) {
-  if (field.includes('feat')) return 'Added';
-  else if (
+  if (field.includes('feat')) {
+    return 'Added';
+  } else if (
     field.includes('cherry') ||
     field.includes('bump') ||
     field.includes('release')
-  )
+  ) {
     return 'Ops';
-  else if (
+  } else if (
     field.includes('chore') ||
     field.includes('test') ||
     field.includes('ci') ||
     field.includes('docs') ||
     field.includes('refactor')
-  )
+  ) {
     return 'Changed';
-  else if (field.includes('fix')) return 'Fixed';
+  } else if (field.includes('fix')) {
+    return 'Fixed';
+  }
 
   return 'Unknown';
 }

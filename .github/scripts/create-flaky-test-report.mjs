@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 // Based on the original script done by @itsyoboieltr on Extension repo
 
 import { Octokit } from '@octokit/rest';
@@ -7,7 +5,9 @@ import { IncomingWebhook } from '@slack/webhook';
 import unzipper from 'unzipper';
 
 const githubToken = process.env.GITHUB_TOKEN;
-if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
+if (!githubToken) {
+  throw new Error('Missing GITHUB_TOKEN env var');
+}
 
 const env = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
@@ -184,7 +184,7 @@ function extractRealFailures(testData) {
               jobId: testSuite.job?.id,
               runId: testSuite.job?.runId,
               date: new Date(testSuite.date || Date.now()),
-              retryCount: retryCount,
+              retryCount,
               type: 'real_failure',
             });
           }
@@ -237,7 +237,7 @@ function extractFlakyTests(testData) {
                 jobId: failureInfo.jobId,
                 runId: failureInfo.runId,
                 date: failureInfo.date,
-                retryCount: retryCount,
+                retryCount,
                 type: 'flaky',
               });
             }
@@ -482,7 +482,7 @@ function createSlackBlocks(
           elements: [
             {
               type: 'rich_text_section',
-              elements: elements,
+              elements,
             },
           ],
         });
@@ -491,7 +491,7 @@ function createSlackBlocks(
         const error = test.lastRealFailureError;
         if (error) {
           const errorPreview =
-            error.length > 150 ? error.substring(0, 150) + '...' : error;
+            error.length > 150 ? `${error.substring(0, 150)}...` : error;
           blocks.push({
             type: 'rich_text',
             elements: [
@@ -577,7 +577,7 @@ function createSlackBlocks(
         elements: [
           {
             type: 'rich_text_section',
-            elements: elements,
+            elements,
           },
         ],
       });
@@ -586,7 +586,7 @@ function createSlackBlocks(
       const error = test.flakyFailureError;
       if (error) {
         const errorPreview =
-          error.length > 150 ? error.substring(0, 150) + '...' : error;
+          error.length > 150 ? `${error.substring(0, 150)}...` : error;
         blocks.push({
           type: 'rich_text',
           elements: [
@@ -610,7 +610,7 @@ function createSlackBlocks(
 }
 
 function displayResults(summary, dateDisplay) {
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log(`📊 REPORT - ${dateDisplay}`);
   console.log('='.repeat(80));
 
@@ -662,7 +662,7 @@ function displayResults(summary, dateDisplay) {
       if (test.lastRealFailureError) {
         const errorPreview =
           test.lastRealFailureError.length > 100
-            ? test.lastRealFailureError.substring(0, 100) + '...'
+            ? `${test.lastRealFailureError.substring(0, 100)}...`
             : test.lastRealFailureError;
         console.log(`    💥 Error: ${errorPreview.replace(/\n/g, ' ')}`);
       }
@@ -684,7 +684,7 @@ function displayResults(summary, dateDisplay) {
       if (test.flakyFailureError) {
         const errorPreview =
           test.flakyFailureError.length > 100
-            ? test.flakyFailureError.substring(0, 100) + '...'
+            ? `${test.flakyFailureError.substring(0, 100)}...`
             : test.flakyFailureError;
         console.log(
           `    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`,

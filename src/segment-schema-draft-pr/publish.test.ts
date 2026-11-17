@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest';
-import { describe, expect, it, vi, type Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { PROPOSAL_MARKER } from './constants';
 import type { CliArgs } from './parse-args';

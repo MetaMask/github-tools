@@ -34,8 +34,8 @@ import { writeReport } from './shared/report.mts';
 import {
   removeNewerReleases,
   selectChangelogBaseline,
-  type ChangelogBaseline,
 } from './update-release-changelog-baseline.mts';
+import type { ChangelogBaseline } from './update-release-changelog-baseline.mts';
 
 type ProofreadingStatus = 'succeeded' | 'failed' | 'no-new-prs' | 'unchanged';
 

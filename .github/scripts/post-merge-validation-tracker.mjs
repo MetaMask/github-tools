@@ -26,11 +26,18 @@ const AUTOMATED_TEST_PATTERNS = [
 ];
 const SKIP_RELEASE_VALIDATION_LABEL = 'skip-release-validation';
 
-if (!githubToken) throw new Error('Missing GITHUB_TOKEN env var');
-if (!spreadsheetId) throw new Error('Missing SHEET_ID env var');
-if (!googleApplicationCredentialsBase64)
+if (!githubToken) {
+  throw new Error('Missing GITHUB_TOKEN env var');
+}
+if (!spreadsheetId) {
+  throw new Error('Missing SHEET_ID env var');
+}
+if (!googleApplicationCredentialsBase64) {
   throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS_BASE64 env var');
-if (!repo) throw new Error('Missing REPO env var');
+}
+if (!repo) {
+  throw new Error('Missing REPO env var');
+}
 
 const octokit = new Octokit({ auth: githubToken });
 const sheets = google.sheets('v4');
@@ -48,16 +55,21 @@ async function getGoogleAuth() {
 
 function parseRepo() {
   const [owner, repoName] = repo.split('/');
-  if (!owner || !repoName)
+  if (!owner || !repoName) {
     throw new Error(
       `Invalid repo format "${repo}". Expected format: "owner/repo"`,
     );
+  }
   return { owner, repo: repoName };
 }
 
 function repoType(repo) {
-  if (repo.endsWith('-extension')) return 'extension';
-  if (repo.endsWith('-mobile')) return 'mobile';
+  if (repo.endsWith('-extension')) {
+    return 'extension';
+  }
+  if (repo.endsWith('-mobile')) {
+    return 'mobile';
+  }
   return repo;
 }
 
@@ -67,8 +79,12 @@ function tabTitleFor(repo, releaseLabel) {
 
 function platformLabelFor(type) {
   const t = String(type).toLowerCase();
-  if (t === 'mobile') return '📱 Mobile - Pull requests';
-  if (t === 'extension') return '🔌 Extension - Pull requests';
+  if (t === 'mobile') {
+    return '📱 Mobile - Pull requests';
+  }
+  if (t === 'extension') {
+    return '🔌 Extension - Pull requests';
+  }
   return t;
 }
 
@@ -100,12 +116,13 @@ async function ensureSheetExists(authClient, title, platformType) {
 
   // First, try to find the exact title (with "pre-" prefix)
   let existing = sheetsList.find((s) => s.properties?.title === title);
-  if (existing)
+  if (existing) {
     return {
       sheetId: existing.properties.sheetId,
       actualTitle: title,
       isNew: false,
     };
+  }
 
   // If not found and title starts with "pre-", try without the "pre-" prefix
   if (title.startsWith('pre-')) {
@@ -262,7 +279,9 @@ async function readRows(authClient, title) {
 }
 
 async function appendRows(authClient, title, rows) {
-  if (!rows.length) return;
+  if (!rows.length) {
+    return;
+  }
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     auth: authClient,
@@ -278,7 +297,9 @@ function uniqKey(number) {
 }
 
 function formatDateHumanUTC(iso) {
-  if (!iso) return '';
+  if (!iso) {
+    return '';
+  }
   const d = new Date(iso);
   const yyyy = d.getUTCFullYear();
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -349,7 +370,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         advanced_search: true,
       });
 
-      if (!data.items.length) break;
+      if (!data.items.length) {
+        break;
+      }
       console.log(`Found ${data.items.length} PRs on page ${page}`);
 
       for (const item of data.items) {
@@ -369,7 +392,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
         }
       }
 
-      if (data.items.length < 100) break;
+      if (data.items.length < 100) {
+        break;
+      }
       page++;
       await sleep(200);
     } catch (e) {
@@ -385,7 +410,9 @@ async function fetchMergedPRsSince(owner, repo, sinceDateISO) {
 }
 
 function isRelevantTitle(title) {
-  if (!title) return false;
+  if (!title) {
+    return false;
+  }
   return RELEVANT_TITLE_REGEX.test(String(title));
 }
 
@@ -393,7 +420,9 @@ function extractLabelText(formulaOrText) {
   const s = String(formulaOrText || '');
   // If it's a HYPERLINK formula like =HYPERLINK("url","Label") extract Label
   const m = s.match(/HYPERLINK\([^,]+,\s*"([^"]+)"\)/i);
-  if (m) return m[1];
+  if (m) {
+    return m[1];
+  }
   return s;
 }
 
@@ -509,10 +538,10 @@ function applyAutoSkipToRow(row, labels, repoName) {
 }
 
 // Add efficient version detection with caching
-let versionCache = new Map(); // Cache version bumps per repo
+const versionCache = new Map(); // Cache version bumps per repo
 
 // Automated test detection cache
-let automatedTestCache = new Map(); // Cache automated test results per PR: "owner/repo/prNumber" -> "Yes"|"No"|"Unknown"
+const automatedTestCache = new Map(); // Cache automated test results per PR: "owner/repo/prNumber" -> "Yes"|"No"|"Unknown"
 
 async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
   const cacheKey = `${owner}/${repo}`;
@@ -535,7 +564,7 @@ async function getVersionTimelineForRepo(owner, repo, sinceDateISO) {
   // Create timeline: [newest bump, older bump, ..., oldest bump]
   const timeline = {
     currentVersion: normalizeVersion(currentVersion),
-    versionBumps: versionBumps, // Already sorted newest first
+    versionBumps, // Already sorted newest first
     sinceDate: new Date(sinceDateISO),
   };
 
@@ -583,11 +612,15 @@ function parseVersionFromPatch(patch) {
   for (const line of lines) {
     if (line.startsWith('-') && line.includes('"version":')) {
       const match = line.match(/"version":\s*"([^"]+)"/);
-      if (match) oldVersion = match[1];
+      if (match) {
+        oldVersion = match[1];
+      }
     }
     if (line.startsWith('+') && line.includes('"version":')) {
       const match = line.match(/"version":\s*"([^"]+)"/);
-      if (match) newVersion = match[1];
+      if (match) {
+        newVersion = match[1];
+      }
     }
   }
 
@@ -598,7 +631,9 @@ function parseVersionFromPatch(patch) {
 }
 
 function normalizeVersion(version) {
-  if (!version) return null;
+  if (!version) {
+    return null;
+  }
   return version.startsWith('v') ? version : `v${version}`;
 }
 
@@ -653,7 +688,9 @@ async function buildTabGrouping(owner, repo, relevantItems, sinceDateISO) {
       pr.closed_at,
       versionTimeline,
     );
-    if (!releaseVersion) continue;
+    if (!releaseVersion) {
+      continue;
+    }
 
     if (!prsByVersion.has(releaseVersion)) {
       prsByVersion.set(releaseVersion, []);
@@ -777,7 +814,9 @@ async function fetchPRFiles(owner, repo, prNumber) {
       allFiles.push(...files);
 
       // If we got less than 100 files, we've reached the end
-      if (files.length < 100) break;
+      if (files.length < 100) {
+        break;
+      }
 
       page++;
       await sleep(100);
@@ -791,7 +830,9 @@ async function fetchPRFiles(owner, repo, prNumber) {
 }
 
 function checkFilesForAutomatedTestPatterns(filenames) {
-  if (!filenames || filenames.length === 0) return false;
+  if (!filenames || filenames.length === 0) {
+    return false;
+  }
 
   // Debug logging to help identify pattern matching issues
   const matches = filenames.filter((filename) =>
@@ -849,7 +890,7 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
       return false;
     }
 
-    const sheetId = sheet.properties.sheetId;
+    const { sheetId } = sheet.properties;
 
     // Rename the sheet by removing "pre-" prefix
     await sheets.spreadsheets.batchUpdate({
@@ -860,7 +901,7 @@ async function removePrePrefixFromSheet(authClient, sheetTitle) {
           {
             updateSheetProperties: {
               properties: {
-                sheetId: sheetId,
+                sheetId,
                 title: newTitle,
               },
               fields: 'title',
@@ -901,10 +942,12 @@ async function processTab(authClient, title, entries, platformType) {
   const deduped = [];
   for (const r of sortedRows) {
     const num = parsePrNumberFromCell(r[0]);
-    const key = num !== null ? uniqKey(num) : null;
+    const key = num === null ? null : uniqKey(num);
     if (!key || !existingKeys.has(key)) {
       deduped.push(r);
-      if (key) existingKeys.add(key);
+      if (key) {
+        existingKeys.add(key);
+      }
     }
   }
   console.log(`Tab=${actualTitle} toInsertAfterDedup=${deduped.length}`);
