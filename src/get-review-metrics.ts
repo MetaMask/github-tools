@@ -33,8 +33,9 @@ const pullRequests: {
  * Get all review comments for the repository specified.
  *
  * @param page - The page number of results to fetch.
+ * @returns Whether the last page of results has been reached.
  */
-async function getAllComments(page = 1) {
+async function getAllComments(page = 1): Promise<boolean> {
   const { data } = await octokit.rest.pulls.listReviewCommentsForRepo({
     owner: 'MetaMask',
     repo: 'metamask-extension',
@@ -75,7 +76,9 @@ async function execute(): Promise<void> {
   });
   const pulls = Object.keys(pullRequests);
   for (const pull of pulls) {
-    const { data } = await octokit.request(pull);
+    const { data } = (await octokit.request(pull)) as {
+      data: { user: { login: string } };
+    };
     if (TEAM.includes(data.user.login) && pullRequests[pull]) {
       (pullRequests[pull] as PullRequestData).isInternal = true;
     }
