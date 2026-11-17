@@ -154,7 +154,8 @@ describe('publishGenerateResult', () => {
         body: expect.stringContaining(PROPOSAL_MARKER),
       }),
     );
-    expect(updateComment.mock.calls[0]?.[0].body).toContain(
+    const [updateArgs] = updateComment.mock.calls[0] as [{ body: string }];
+    expect(updateArgs.body).toContain(
       'https://github.com/Consensys/segment-schema/pull/9',
     );
     expect(createComment).not.toHaveBeenCalled();

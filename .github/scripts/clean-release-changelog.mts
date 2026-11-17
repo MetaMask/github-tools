@@ -153,7 +153,7 @@ export function splitReleaseSectionIntoChunks(
   const entries: CategorizedEntry[] = [];
   let category: string | undefined;
   let currentEntry: string[] = [];
-  const endEntry = () => {
+  const endEntry = (): void => {
     if (category && currentEntry.length > 0) {
       entries.push({ category, text: currentEntry.join('\n').trimEnd() });
     }
@@ -179,7 +179,7 @@ export function splitReleaseSectionIntoChunks(
   let chunkEntries = new Map<string, string[]>();
   let chunkEntryCount = 0;
   let chunkPrNumbers: string[] = [];
-  const addChunk = () => {
+  const addChunk = (): void => {
     if (chunkEntryCount === 0) {
       return;
     }
@@ -291,7 +291,7 @@ function getCategorizedBlocks(
   const blocks = new Map<string, string[]>();
   let category: string | undefined;
   let categoryEntries: string[] = [];
-  const addCategory = () => {
+  const addCategory = (): void => {
     if (!category) {
       return;
     }
@@ -382,7 +382,7 @@ export function validateReplacement(
   const categoryNames = new Set<string>();
   let category: string | undefined;
   let categoryEntryCount = 0;
-  const endCategory = () => {
+  const endCategory = (): void => {
     if (category && categoryEntryCount === 0) {
       throw new Error(`Category ${category} must not be empty`);
     }

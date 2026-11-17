@@ -26,10 +26,10 @@ async function getTeam(repository, prNumber) {
 
     const topologyJsonUrl =
       'https://raw.githubusercontent.com/MetaMask/MetaMask-planning/refs/heads/main/topology.json';
-    const githubToken = process.env.GITHUB_TOKEN;
+    const topologyToken = process.env.GITHUB_TOKEN;
 
     const response = await axios.get(topologyJsonUrl, {
-      headers: { Authorization: `token ${githubToken}` },
+      headers: { Authorization: `token ${topologyToken}` },
     });
 
     // Check if the response is successful and contains data
@@ -59,13 +59,11 @@ async function getTeam(repository, prNumber) {
     }
 
     // Return undefined if author not found in any team
-    return;
   } catch (error) {
     console.error(
       `Error fetching team for PR #${prNumber}:`,
       error.message || error,
     );
-    return;
   }
 }
 
@@ -163,7 +161,7 @@ function formatAsCSV(commitsByTeam) {
         stripDelimiter(commit.author, ','),
         commit.prLink,
         stripDelimiter(team, ','),
-        ,
+        '',
         assignChangeType(commit.message),
       ];
       csvContent.push(row.join(','));
@@ -177,17 +175,10 @@ function formatAsCSV(commitsByTeam) {
 // Helper function to strip delimiter from CSV fields so they can be properly imported automatically later
 function stripDelimiter(inputString, delimiter) {
   // Create a regex dynamically based on the provided delimiter
-  const regex = new RegExp(delimiter, 'g');
+  const regex = new RegExp(delimiter, 'gu');
   return inputString.replace(regex, '');
 }
 
-// Helper function to escape CSV fields
-function escapeCSV(field) {
-  if (field.includes(',') || field.includes('"') || field.includes('\n')) {
-    return `"${field.replace(/"/g, '""')}"`; // Encapsulate in double quotes and escape existing quotes
-  }
-  return field;
-}
 // Helper function to create change type
 function assignChangeType(field) {
   if (field.includes('feat')) {

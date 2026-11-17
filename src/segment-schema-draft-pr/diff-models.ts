@@ -3,6 +3,7 @@ import type {
   AnalyticsModel,
   EventChange,
   PropertyChange,
+  PropertyType,
   RemovedProperty,
   RenameChange,
   UnresolvedProperty,
@@ -54,8 +55,10 @@ export function diffModels(
       continue;
     }
 
-    const baseProps = base.events.get(eventName)?.properties ?? new Map();
-    const headProps = head.events.get(eventName)?.properties ?? new Map();
+    const baseProps =
+      base.events.get(eventName)?.properties ?? new Map<string, PropertyType>();
+    const headProps =
+      head.events.get(eventName)?.properties ?? new Map<string, PropertyType>();
 
     for (const [key, type] of headProps) {
       const previous = baseProps.get(key);

@@ -28,6 +28,7 @@ import {
   restoreGeneratedCategories,
   splitLines,
 } from './release-section.mts';
+import type { ReleaseBranch } from './release-version-utils.mts';
 import { compareSemver, parseReleaseBranch } from './release-version-utils.mts';
 import { getEnvironmentWithoutAiKey } from './shared/environment.mts';
 import { writeReport } from './shared/report.mts';
@@ -373,7 +374,7 @@ function getStableVersions(): string[] {
  *
  * @returns The parsed release branches.
  */
-function getReleaseBranches() {
+function getReleaseBranches(): ReleaseBranch[] {
   // strip=3 drops `refs/remotes/origin/`, leaving `release/X.Y.Z`.
   return capture('git', [
     'for-each-ref',
@@ -2066,12 +2067,12 @@ function main(): void {
     );
   }
 
-  const readChangelog = () => readFileSync('CHANGELOG.md', 'utf8');
-  const writeChangelog = (content: string) =>
+  const readChangelog = (): string => readFileSync('CHANGELOG.md', 'utf8');
+  const writeChangelog = (content: string): void =>
     writeFileSync('CHANGELOG.md', content);
-  const readCurrentReleaseSection = () =>
+  const readCurrentReleaseSection = (): string =>
     extractReleaseSection(readChangelog(), version).section;
-  const writeCurrentReleaseSection = (section: string) =>
+  const writeCurrentReleaseSection = (section: string): void =>
     writeChangelog(replaceReleaseSection(readChangelog(), version, section));
 
   const authorEmail =
@@ -2344,7 +2345,7 @@ function main(): void {
   }
   runChangelogValidation(proofreading, version);
 
-  const assertSourcesUnchanged = () => {
+  const assertSourcesUnchanged = (): void => {
     try {
       assertRemoteRefUnchanged({
         ref: `origin/${releaseBranch}`,

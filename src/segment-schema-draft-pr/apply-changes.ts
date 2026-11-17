@@ -127,7 +127,7 @@ function newEventNames(
   const names: string[] = [];
   const seen = new Set<string>();
 
-  const consider = (eventName: string) => {
+  const consider = (eventName: string): void => {
     if (seen.has(eventName) || index.eventsByName.has(eventName)) {
       return;
     }

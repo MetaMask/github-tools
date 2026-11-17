@@ -11,7 +11,7 @@ if (!githubToken) {
 
 const env = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-  LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1'),
+  LOOKBACK_DAYS: parseInt(process.env.LOOKBACK_DAYS ?? '1', 10),
   TEST_RESULTS_FILE_PATTERN:
     process.env.TEST_RESULTS_FILE_PATTERN || 'test-runs',
   OWNER: process.env.OWNER || 'MetaMask',
@@ -450,7 +450,7 @@ function createSlackBlocks(
     // Each failure
     top10
       .filter((test) => test.realFailures > 0)
-      .forEach((test, idx) => {
+      .forEach((test) => {
         const globalIndex = top10.indexOf(test) + 1;
         const failText = test.realFailures === 1 ? 'time' : 'times';
         const retryText = test.totalRetries === 1 ? 'retry' : 'retries';
@@ -500,7 +500,7 @@ function createSlackBlocks(
                 elements: [
                   {
                     type: 'text',
-                    text: `  ${errorPreview.replace(/\n/g, ' ')}`,
+                    text: `  ${errorPreview.replace(/\n/gu, ' ')}`,
                     style: { italic: true },
                   },
                 ],
@@ -595,7 +595,7 @@ function createSlackBlocks(
               elements: [
                 {
                   type: 'text',
-                  text: `     ${errorPreview.replace(/\n/g, ' ')}`,
+                  text: `     ${errorPreview.replace(/\n/gu, ' ')}`,
                   style: { italic: true },
                 },
               ],
@@ -664,7 +664,7 @@ function displayResults(summary, dateDisplay) {
           test.lastRealFailureError.length > 100
             ? `${test.lastRealFailureError.substring(0, 100)}...`
             : test.lastRealFailureError;
-        console.log(`    💥 Error: ${errorPreview.replace(/\n/g, ' ')}`);
+        console.log(`    💥 Error: ${errorPreview.replace(/\n/gu, ' ')}`);
       }
     } else {
       // Flaky tests (failed initially but eventually passed)
@@ -687,7 +687,7 @@ function displayResults(summary, dateDisplay) {
             ? `${test.flakyFailureError.substring(0, 100)}...`
             : test.flakyFailureError;
         console.log(
-          `    💥 Initial error: ${errorPreview.replace(/\n/g, ' ')}`,
+          `    💥 Initial error: ${errorPreview.replace(/\n/gu, ' ')}`,
         );
       }
     }
