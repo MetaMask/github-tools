@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, expect, it } from 'vitest';
 
 import {
   normalizeTeam,
@@ -8,19 +7,19 @@ import {
 
 describe('normalizeTeam', () => {
   it('lowercases and strips the @ and metamask/ prefixes', () => {
-    assert.equal(normalizeTeam('@MetaMask/Core-Platform'), 'core-platform');
+    expect(normalizeTeam('@MetaMask/Core-Platform')).toBe('core-platform');
   });
 });
 
 describe('parseOwnerTeams', () => {
   it('returns undefined for undefined, empty, and whitespace input', () => {
-    assert.equal(parseOwnerTeams(undefined), undefined);
-    assert.equal(parseOwnerTeams(''), undefined);
-    assert.equal(parseOwnerTeams('  \n '), undefined);
-    assert.equal(parseOwnerTeams(' , ,'), undefined);
+    expect(parseOwnerTeams(undefined)).toBeUndefined();
+    expect(parseOwnerTeams('')).toBeUndefined();
+    expect(parseOwnerTeams('  \n ')).toBeUndefined();
+    expect(parseOwnerTeams(' , ,')).toBeUndefined();
   });
 
   it('splits, trims, and drops empty entries', () => {
-    assert.deepEqual(parseOwnerTeams(' a, b ,,c '), ['a', 'b', 'c']);
+    expect(parseOwnerTeams(' a, b ,,c ')).toStrictEqual(['a', 'b', 'c']);
   });
 });

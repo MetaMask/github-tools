@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type { PullRequest } from './types.mts';
 import { retry } from '../shared/retry.mts';
+import type { PullRequest } from './types.mts';
 
 const execFileAsync = promisify(execFile);
 
