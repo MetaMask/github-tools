@@ -2,6 +2,7 @@ import type { Octokit } from '@octokit/rest';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { describe, expect, it, vi } from 'vitest';
 
 import { generateSchemaDraft } from './generate';
 
@@ -49,7 +50,7 @@ function encodedFile(text: string): { data: { content: string } } {
 function mockClientOctokit(
   contents: Record<string, Record<string, string>>,
 ): Octokit {
-  const paginate = jest.fn().mockResolvedValue([
+  const paginate = vi.fn().mockResolvedValue([
     {
       filename: CATALOG,
       patch: "+NEW_EVENT = 'New Event'",
@@ -59,7 +60,7 @@ function mockClientOctokit(
       patch: '+createEventBuilder(MetaMetricsEvents.NEW_EVENT)',
     },
   ]);
-  const getContent = jest
+  const getContent = vi
     .fn()
     .mockImplementation(
       async ({ path: filePath, ref }: { path: string; ref: string }) => {
