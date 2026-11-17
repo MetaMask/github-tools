@@ -50,11 +50,11 @@ describe('summarizeTestHealth', () => {
       },
     ]);
 
-    const test = summary[0];
-    expect(test.latestClassification).toBe('passed');
-    expect(test.historicalBrokenCount).toBe(1);
-    expect(test.historicalFlakyCount).toBe(1);
-    expect(test.totalRuns).toBe(3);
+    const [first] = summary;
+    expect(first.latestClassification).toBe('passed');
+    expect(first.historicalBrokenCount).toBe(1);
+    expect(first.historicalFlakyCount).toBe(1);
+    expect(first.totalRuns).toBe(3);
   });
 });
 
@@ -72,9 +72,9 @@ describe('partitionSummary', () => {
       },
     ]);
 
-    expect(watchItems.length).toBe(1);
-    expect(flakyItems.length).toBe(0);
-    expect(brokenItems.length).toBe(0);
+    expect(watchItems).toHaveLength(1);
+    expect(flakyItems).toHaveLength(0);
+    expect(brokenItems).toHaveLength(0);
   });
 });
 
@@ -103,8 +103,8 @@ describe('formatWatchHistory', () => {
       totalRuns: 8,
     });
 
-    expect(text).toMatch(/failed 2\/8 runs/);
-    expect(text).toMatch(/flaky 3\/8 runs/);
+    expect(text).toMatch(/failed 2\/8 runs/u);
+    expect(text).toMatch(/flaky 3\/8 runs/u);
   });
 });
 
@@ -190,15 +190,16 @@ describe('createSlackBlocks path links', () => {
       },
     );
 
-    const link = blocks
-      .flatMap((block) => block.elements || [])
-      .flatMap((element) => element.elements || [])
-      .find(
-        (element) => element.type === 'link' && element.text === 'toggles sync',
-      );
+    const elements = blocks
+      .flatMap(({ elements: blockElements = [] }) => blockElements)
+      .flatMap(({ elements: innerElements = [] }) => innerElements);
 
-    expect(link?.url).toBe(
-      'https://github.com/MetaMask/metamask-mobile/blob/main/tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
+    expect(elements).toContainEqual(
+      expect.objectContaining({
+        type: 'link',
+        text: 'toggles sync',
+        url: 'https://github.com/MetaMask/metamask-mobile/blob/main/tests/smoke-appium/accounts/account-syncing-settings-toggle.spec.ts',
+      }),
     );
   });
 });

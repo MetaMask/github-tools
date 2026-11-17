@@ -195,7 +195,7 @@ describe('release changelog Git behavior', () => {
 
       expect(() =>
         git(work, 'config', '--get', `branch.${CHANGELOG_BRANCH}.remote`),
-      ).toThrow();
+      ).toThrow(/Command failed/u);
     });
 
     it('fails when the baseline has no CHANGELOG.md', () => {
@@ -229,7 +229,7 @@ describe('release changelog Git behavior', () => {
             throw new Error('must not query PRs on a first run');
           },
         }),
-      ).toBe(undefined);
+      ).toBeUndefined();
     });
 
     it('refuses a stale changelog branch that has no open PR', () => {
@@ -250,7 +250,7 @@ describe('release changelog Git behavior', () => {
           isUpdaterOnlyBranch: () => true,
           getOpenPrNumber: () => undefined,
         }),
-      ).toBe(undefined);
+      ).toBeUndefined();
     });
 
     it('strips trailing whitespace from a reviewed section', () => {
@@ -268,7 +268,7 @@ describe('release changelog Git behavior', () => {
           ...input,
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           getOpenPrNumber: () => '7',
-        }) ?? '',
+        }),
       ).not.toMatch(/[ \t]$/mu);
     });
 
@@ -280,7 +280,7 @@ describe('release changelog Git behavior', () => {
           allowMissingOpenPr: true,
           getOpenPrNumber: () => undefined,
         }),
-      ).toBe(undefined);
+      ).toBeUndefined();
     });
 
     it('still preserves an open PR when the target already has the section', () => {
@@ -291,7 +291,7 @@ describe('release changelog Git behavior', () => {
           changelogBranchSha: getRemoteBranchSha(CHANGELOG_BRANCH),
           allowMissingOpenPr: true,
           getOpenPrNumber: () => '7',
-        }) ?? '',
+        }),
       ).toMatch(/Added a reviewed feature \(#101\)/u);
     });
 
@@ -526,20 +526,18 @@ describe('release changelog Git behavior', () => {
       expect(
         getChangelogBranchCommits(CHANGELOG_BRANCH, TARGET)[0]
           ?.generatedThrough,
-      ).toBe(undefined);
+      ).toBeUndefined();
     });
   });
 
   describe('assertRemoteRefUnchanged', () => {
     it('accepts an unchanged ref and rejects a moved one', () => {
       const sha = getRemoteBranchSha(TARGET);
-      if (sha === undefined) {
-        throw new Error('Expected the target release branch to exist');
-      }
+      expect(sha).toBeDefined();
       expect(() =>
         assertRemoteRefUnchanged({
           ref: `origin/${TARGET}`,
-          expectedSha: sha,
+          expectedSha: sha as string,
           description: 'Target release branch',
         }),
       ).not.toThrow();
@@ -551,7 +549,7 @@ describe('release changelog Git behavior', () => {
       expect(() =>
         assertRemoteRefUnchanged({
           ref: `origin/${TARGET}`,
-          expectedSha: sha,
+          expectedSha: sha as string,
           description: 'Target release branch',
         }),
       ).toThrow(/changed during changelog generation/u);
