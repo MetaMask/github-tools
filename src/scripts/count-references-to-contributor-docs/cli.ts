@@ -30,7 +30,7 @@ main().catch(console.error);
  * This script counts the number of references to the `contributor-docs` repo
  * across a selection of MetaMask repositories.
  */
-async function main() {
+async function main(): Promise<void> {
   const spinner = ora();
 
   console.log(
