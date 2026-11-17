@@ -17,7 +17,8 @@ export function normalizeRepoFilePath(filePath, { prefix } = {}) {
 
   let normalized = String(filePath).replace(/\\/g, '/');
 
-  const isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized);
+  const isAbsolute =
+    normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized);
   if (isAbsolute) {
     const testsMatch = normalized.match(/(?:^|\/)(tests\/.+)$/);
     if (testsMatch) {
@@ -34,7 +35,10 @@ export function normalizeRepoFilePath(filePath, { prefix } = {}) {
 
   normalized = normalized.replace(/^\/+/, '');
 
-  const cleanPrefix = prefix?.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  const cleanPrefix = prefix
+    ?.trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '');
   if (cleanPrefix) {
     const alreadyPrefixed =
       normalized === cleanPrefix ||

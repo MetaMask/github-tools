@@ -29,12 +29,18 @@ jobs:
           fi
 
   test:
+    name: Test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x, 24.x, 26.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
 
       - run: yarn test
 

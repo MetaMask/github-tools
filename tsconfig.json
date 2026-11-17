@@ -14,6 +14,12 @@
     "strict": true,
     "target": "es2020"
   },
-  "include": ["src", ".github/scripts/**/*.mts"],
+  "include": [
+    "src",
+    "knip.config.mts",
+    "oxlint.config.mts",
+    "yarn.config.cjs",
+    ".github/scripts/**/*.mts"
+  ],
   "exclude": ["./dist/**/*"]
 }

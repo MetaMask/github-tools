@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { applyChanges } from './apply-changes';
 import { getPlatformConfig } from './config';

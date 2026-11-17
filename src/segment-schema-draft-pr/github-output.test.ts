@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { describe, expect, it, vi } from 'vitest';
 
 import { writeGithubOutput } from './github-output';
 
@@ -20,7 +21,7 @@ describe('writeGithubOutput', () => {
   });
 
   it('prints lines when GITHUB_OUTPUT is unset', () => {
-    const log = jest.spyOn(console, 'log').mockImplementation();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     writeGithubOutput(undefined, [['skip', 'true']]);
     expect(log).toHaveBeenCalledWith('skip=true');
     log.mockRestore();
