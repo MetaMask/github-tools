@@ -1,4 +1,4 @@
-import { normalizeTeam } from './teams.mts';
+import { normalizeTeamSlug } from '../shared/topology.mts';
 import type { PullRequest, Reminder } from './types.mts';
 
 /**
@@ -18,7 +18,7 @@ export function classifyPullRequests(
   pullRequests: PullRequest[],
   options: { ownerTeams?: string[]; fallbackTeam: string },
 ): Reminder {
-  const ownerTeams = options.ownerTeams?.map(normalizeTeam);
+  const ownerTeams = options.ownerTeams?.map(normalizeTeamSlug);
   const reminder: Reminder = {
     byTeam: {},
     fallback: { failingCi: [], readyToMerge: [], needsOwner: [] },
@@ -31,7 +31,7 @@ export function classifyPullRequests(
     }
 
     const teams = pullRequest.requestedTeams
-      .map(normalizeTeam)
+      .map(normalizeTeamSlug)
       .filter((team) => !ownerTeams || ownerTeams.includes(team));
 
     if (teams.length > 0) {

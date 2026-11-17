@@ -162,3 +162,49 @@ describe('buildSlackPayload limits and lookup', () => {
     expect(payload?.text).toMatch(/<!subteam\^S1>/u);
   });
 });
+
+describe('buildSlackPayload mentions and titles', () => {
+  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
+  const fallback = { failingCi: [], readyToMerge: [], needsOwner: [] };
+
+  it('does not turn @ text in titles into mentions', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr({ title: 'Bump @here/x' })] }, fallback },
+      {},
+      options,
+    );
+    assert.ok(payload);
+    expect(payload).not.toHaveProperty('link_names');
+  });
+
+  it('shortens long titles before wrapping them in a link', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr({ title: `${'x'.repeat(500)} & more` })] }, fallback },
+      {},
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.blocks[1]?.text.text).toMatch(/x…>$/u);
+    expect(payload.blocks[1]?.text.text).not.toContain('&amp;');
+  });
+
+  it('only pings teams whose section is shown', () => {
+    const byTeam: Reminder['byTeam'] = {};
+    const topology: Record<
+      string,
+      { githubHandle: string; slackHandle: { team: string } }
+    > = {};
+    for (let index = 0; index < 80; index++) {
+      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
+      topology[`t${index}`] = {
+        githubHandle: `MetaMask/team-${index}`,
+        slackHandle: { team: `S${index}` },
+      };
+    }
+    const payload = buildSlackPayload({ byTeam, fallback }, topology, options);
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(50);
+    expect(payload.text).toContain('<!subteam^S0>');
+    expect(payload.text).not.toContain('<!subteam^S79>');
+  });
+});

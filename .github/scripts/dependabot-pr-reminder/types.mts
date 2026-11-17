@@ -15,8 +15,3 @@ export type Reminder = {
     needsOwner: PullRequest[];
   };
 };
-
-export type Topology = Record<
-  string,
-  { githubHandle?: string; slackHandle?: { team?: string } } | null
->;
