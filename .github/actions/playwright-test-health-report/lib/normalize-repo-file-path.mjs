@@ -6,8 +6,8 @@
  * - Optional testDir prefix (e.g. accounts/foo.spec.ts → tests/smoke-appium/accounts/foo.spec.ts)
  * - Idempotent when the path already starts with the prefix or `tests/`
  *
- * @param {string} filePath The test file path to normalize.
- * @param {{ prefix?: string }} [options] Optional settings.
+ * @param {string} filePath - The test file path to normalize.
+ * @param {{ prefix?: string }} [options] - The options, where `prefix` is the test directory prepended to relative paths.
  * @returns {string} The normalized repo relative path.
  */
 export function normalizeRepoFilePath(filePath, { prefix } = {}) {

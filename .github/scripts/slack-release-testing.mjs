@@ -279,7 +279,7 @@ async function getReleaseBlockers(release, team) {
 
 /**
  * Determine the Slack channel name to publish to based on the release
- * @param {*} release The release entry to publish.
+ * @param {*} release - The release entry to publish.
  * @returns {Promise<string>} The Slack channel name to publish to.
  */
 async function getPublishChannelName(release) {
