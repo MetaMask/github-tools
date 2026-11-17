@@ -5,9 +5,9 @@ import {
 } from './release-section.mts';
 import {
   compareSemver,
-  type ReleaseBranch,
   selectHighestLowerVersion,
 } from './release-version-utils.mts';
+import type { ReleaseBranch } from './release-version-utils.mts';
 
 const RELEASE_LINK_REFERENCE = /^\[(\d+\.\d+\.\d+)\]: /u;
 
