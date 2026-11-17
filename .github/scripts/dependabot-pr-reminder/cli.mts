@@ -1,4 +1,4 @@
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -96,7 +96,7 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
 
   if (!payload) {
     console.log('No open Dependabot pull requests to report.');
-    appendFileSync(outputPath, 'has-prs=false\n');
+    await appendFile(outputPath, 'has-prs=false\n');
     return;
   }
 
@@ -104,8 +104,8 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     environment.RUNNER_TEMP ?? '.',
     'dependabot-reminder-payload.json',
   );
-  writeFileSync(payloadPath, JSON.stringify(payload));
-  appendFileSync(outputPath, `has-prs=true\npayload-path=${payloadPath}\n`);
+  await writeFile(payloadPath, JSON.stringify(payload));
+  await appendFile(outputPath, `has-prs=true\npayload-path=${payloadPath}\n`);
   console.log(`Wrote Slack payload with ${payload.blocks.length} sections.`);
 }
 
