@@ -14,15 +14,15 @@ export function normalizeErrorForSlack(message, maxLength = 120) {
   }
 
   const withoutEmojiShortcodes = String(message).replace(
-    /:[a-z0-9_+\-]+:/gi,
+    /:[a-z0-9_+-]+:/giu,
     ' ',
   );
   const firstMeaningfulLine = withoutEmojiShortcodes
-    .split(/\r?\n/)
+    .split(/\r?\n/u)
     .map((line) => line.trim())
     .find(Boolean);
   const normalized = (firstMeaningfulLine || withoutEmojiShortcodes)
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/gu, ' ')
     .trim();
 
   if (!normalized) {
