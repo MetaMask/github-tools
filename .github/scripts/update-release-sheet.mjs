@@ -358,9 +358,10 @@ function parseCSVv2(filePath) {
 
     // Start from the second line to skip headers
     for (let i = 1; i < lines.length; i++) {
+      // Skip empty lines
       if (lines[i].trim() === '') {
         continue;
-      } // Skip empty lines
+      }
 
       // Split the line into columns based on commas
       const columns = lines[i].split(',');
