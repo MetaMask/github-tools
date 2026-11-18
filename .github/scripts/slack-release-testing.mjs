@@ -36,7 +36,7 @@ async function getGoogleAuth() {
 
   // Initialize GoogleAuth with credentials object directly
   const auth = new google.auth.GoogleAuth({
-    credentials: credentials,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
@@ -86,19 +86,19 @@ function parseReleaseUpdates(data) {
   const result = [];
 
   const regex =
-    /(.*?):\s+\*(.*?)\*\s+-\s+@(.*?)\s+There (?:is|are) (\d+) .*? changes\. \*Pending validation:\* (\d+)\. \*Status:\* (.*)/;
+    /(.*?):\s+\*(.*?)\*\s+-\s+@(.*?)\s+There (?:is|are) (\d+) .*? changes\. \*Pending validation:\* (\d+)\. \*Status:\* (.*)/u;
 
   lines.forEach((line) => {
     const match = line.match(regex);
     if (match) {
-      const [_, emoji, team, slackHandle, changes, pendingValidations, status] =
+      const [, emoji, team, slackHandle, changes, pendingValidations, status] =
         match;
       result.push({
         emoji: emoji.trim(),
         team: team.trim(),
         slackHandle: slackHandle.trim(),
-        changes: parseInt(changes),
-        pendingValidations: parseInt(pendingValidations),
+        changes: parseInt(changes, 10),
+        pendingValidations: parseInt(pendingValidations, 10),
         status: status.trim(),
       });
     }
@@ -130,9 +130,8 @@ async function findPullRequestUrlByBranch(owner, repo, branchName) {
     if (data.length > 0) {
       // Assuming you want the first PR that matches
       return data[0].html_url; // Return the URL of the first matching PR
-    } else {
-      throw new Error(`No pull requests found for branch ${branchName}`);
     }
+    throw new Error(`No pull requests found for branch ${branchName}`);
   } catch (error) {
     console.error('Error fetching pull requests:', error);
     throw error;
@@ -174,8 +173,8 @@ async function getActiveReleases(documentId) {
       .filter((sheet) => !sheet.properties.hidden)
       .map(async (sheet) => {
         const { title } = sheet.properties;
-        const versionMatch = title.match(/v(\d+\.\d+\.\d+)/);
-        const platformMatch = title.match(/\(([^)]+)\)/);
+        const versionMatch = title.match(/v(\d+\.\d+\.\d+)/u);
+        const platformMatch = title.match(/\(([^)]+)\)/u);
 
         if (!versionMatch) {
           console.log(`Skipping sheet: ${title} - Semantic version not found.`);
@@ -203,9 +202,9 @@ async function getActiveReleases(documentId) {
     // Filter out null values (sheets that were skipped) and resolve all promises
     const results = await Promise.all(promises);
     return results.filter((result) => result !== null);
-  } catch (err) {
-    console.error('Failed to retrieve spreadsheet data:', err);
-    throw err;
+  } catch (error) {
+    console.error('Failed to retrieve spreadsheet data:', error);
+    throw error;
   }
 }
 
@@ -228,9 +227,9 @@ async function readSheetData(spreadsheetId, sheetName, cellRange) {
     });
 
     return result.data.values;
-  } catch (err) {
-    console.error('Failed to read data from the sheet:', err);
-    throw err;
+  } catch (error) {
+    console.error('Failed to read data from the sheet:', error);
+    throw error;
   }
 }
 
@@ -258,7 +257,7 @@ async function getReleaseBlockers(release, team) {
     const { data } = await octokit.rest.issues.listForRepo({
       owner,
       repo,
-      labels: labels,
+      labels,
       state: 'open', // Optionally, filter by state (open, closed, all)
     });
 
@@ -280,20 +279,20 @@ async function getReleaseBlockers(release, team) {
 
 /**
  * Determine the Slack channel name to publish to based on the release
- * @param {*} release
+ * @param {*} release - The release entry to publish.
+ * @returns {Promise<string>} The Slack channel name to publish to.
  */
 async function getPublishChannelName(release) {
   // convert the version to a format that can be used in a channel name
-  const formattedVersion = release.SemanticVersion.replace(/\./g, '-');
+  const formattedVersion = release.SemanticVersion.replace(/\./gu, '-');
 
   const channel = `#release-${release.Platform}-${formattedVersion}`;
 
   // Allows for local testing without publishing actual release channels
   if (testOnly()) {
     return `${channel}-testonly`;
-  } else {
-    return channel;
   }
+  return channel;
 }
 
 async function fmtSlackHandle(team) {
@@ -337,11 +336,11 @@ async function publishReleaseTestingStatus(release) {
     `Publishing testing status for release ${release.SemanticVersion} on platform ${release.Platform} to channel ${channel}`,
   );
 
-  var header =
+  let header =
     `:blablablocker:* [${fmtPlatform}] - ${release.SemanticVersion} Release Validation.*\n` +
     `_*Testing Plan and Progress Tracker Summary*_ (<https://docs.google.com/spreadsheets/d/${release.DocumentId}/edit#gid=${release.sheetId}|${release.SemanticVersion}>):`;
 
-  var body = `*Teams Sign Off ${release.SemanticVersion} Release on <${releasePrUrl}|GH>:*\n`;
+  let body = `*Teams Sign Off ${release.SemanticVersion} Release on <${releasePrUrl}|GH>:*\n`;
 
   const hasPendingSignoffs = teamResults.some(
     (team) => team.status !== 'Completed',
@@ -350,12 +349,12 @@ async function publishReleaseTestingStatus(release) {
   let releaseBlockerCount = 0;
 
   for (const team of teamResults) {
-    let slackHandlePart = await fmtSlackHandle(team);
+    const slackHandlePart = await fmtSlackHandle(team);
     //Grab RCs for a specific team/release
     const releaseBlockers = await getReleaseBlockers(release, team.team);
     //Accumulate the total release blocker count
     releaseBlockerCount += releaseBlockers.count;
-    let releaseBlockerParts =
+    const releaseBlockerParts =
       releaseBlockers.count > 0
         ? ` - <${releaseBlockers.url}|${releaseBlockers.count} Release Blockers>`
         : '';
@@ -373,7 +372,7 @@ async function publishReleaseTestingStatus(release) {
 
   try {
     await slackClient.chat.postMessage({
-      channel: channel,
+      channel,
       text: slackMessage,
       unfurl_links: false,
       unfurl_media: false,
@@ -457,8 +456,4 @@ function formatTitle(val) {
 
 function testOnly() {
   return process.env.TEST_ONLY === 'true';
-}
-
-function createSheetUrl(documentId, sheetId) {
-  return `https://docs.google.com/spreadsheets/d/${documentId}/edit#gid=${sheetId}`;
 }

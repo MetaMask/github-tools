@@ -77,9 +77,9 @@ const validateRelayResponseShape = (data) => {
 
 const computeTotalUsd = (balances) =>
   balances
-    .map((b) => parseAmountUsd(b?.amountUsd))
-    .filter((v) => Number.isFinite(v))
-    .reduce((sum, v) => sum + v, 0);
+    .map((balance) => parseAmountUsd(balance?.amountUsd))
+    .filter((value) => Number.isFinite(value))
+    .reduce((sum, value) => sum + value, 0);
 
 const formatAsOfDate = (date) =>
   new Intl.DateTimeFormat('en-US', {
