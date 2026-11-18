@@ -79,11 +79,17 @@ runs:
     - uses: actions/setup-node@v6
       with:
         node-version-file: ./github-tools/.nvmrc
+    - shell: bash
+      working-directory: ./github-tools
+      run: corepack enable
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
         cache: yarn
         cache-dependency-path: ./github-tools/yarn.lock
     - shell: bash
       working-directory: ./github-tools
-      run: corepack enable && yarn --immutable
+      run: yarn --immutable
     - shell: bash
       working-directory: ./github-tools
       env:
