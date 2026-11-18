@@ -44,19 +44,19 @@ export function partitionSummary(summary) {
 export function allocateBucketSlots(topN, counts) {
   const { broken = 0, flaky = 0, watch = 0, infra = 0 } = counts;
 
-  let maxBroken = Math.min(
+  const maxBroken = Math.min(
     broken,
     Math.max(Math.ceil(topN * 0.4), broken > 0 ? 2 : 0),
   );
-  let maxFlaky = Math.min(
+  const maxFlaky = Math.min(
     flaky,
     Math.max(Math.ceil(topN * 0.25), flaky > 0 ? 2 : 0),
   );
-  let maxInfra = Math.min(
+  const maxInfra = Math.min(
     infra,
     Math.max(Math.ceil(topN * 0.1), infra > 0 ? 1 : 0),
   );
-  let maxWatch = Math.min(watch, topN - maxBroken - maxFlaky - maxInfra);
+  const maxWatch = Math.min(watch, topN - maxBroken - maxFlaky - maxInfra);
 
   let remaining = topN - (maxBroken + maxFlaky + maxWatch + maxInfra);
 

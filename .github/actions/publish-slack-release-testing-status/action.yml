@@ -44,13 +44,18 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version-file: ./github-tools/.nvmrc
-        cache-dependency-path: ./github-tools/yarn.lock
-        cache: yarn
 
     - name: Enable Corepack
       run: corepack enable
       shell: bash
       working-directory: ./github-tools
+
+    - name: Cache Yarn
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ./github-tools/.nvmrc
+        cache-dependency-path: ./github-tools/yarn.lock
+        cache: yarn
 
     - name: Install dependencies
       run: yarn --immutable
