@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1]
+
+### Uncategorized
+
+- fix(publish-preview-oidc): continue publishing when a package fails ([#344](https://github.com/MetaMask/github-tools/pull/344))
+- fix: enable Corepack before the Yarn cache in the remaining actions ([#343](https://github.com/MetaMask/github-tools/pull/343))
+- chore: fix the oxlint violations in the reporting and release helper scripts ([#336](https://github.com/MetaMask/github-tools/pull/336))
+- fix(flaky-test-report): enable Corepack before Yarn cache setup ([#342](https://github.com/MetaMask/github-tools/pull/342))
+- chore: fix the oxlint violations in the post merge validation tracker ([#333](https://github.com/MetaMask/github-tools/pull/333))
+- chore: fix the oxlint violations in the release changelog scripts ([#335](https://github.com/MetaMask/github-tools/pull/335))
+- chore: fix the oxlint violations in src ([#337](https://github.com/MetaMask/github-tools/pull/337))
+
 ## [1.26.0]
 
 ### Changed
@@ -353,7 +365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.1...HEAD
+[1.26.1]: https://github.com/MetaMask/github-tools/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/MetaMask/github-tools/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/MetaMask/github-tools/compare/v1.23.0...v1.24.0
