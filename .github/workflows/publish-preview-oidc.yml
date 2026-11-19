@@ -150,7 +150,14 @@ jobs:
 
       - name: Publish preview builds (monorepo)
         if: ${{ inputs.is-monorepo && !inputs.dry-run }}
-        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        run: |
+          while IFS=$'\t' read -r name location; do
+            echo "::group::Publishing $name"
+            if ! (cd "$location" && yarn npm publish --tag preview); then
+              echo "::warning::Failed to publish $name"
+            fi
+            echo "::endgroup::"
+          done < <(yarn workspaces list --no-private --json | jq -r '[.name, .location] | @tsv')
         env:
           YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
 
