@@ -9,15 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.26.1]
 
-### Uncategorized
+### Fixed
 
-- fix(publish-preview-oidc): continue publishing when a package fails ([#344](https://github.com/MetaMask/github-tools/pull/344))
-- fix: enable Corepack before the Yarn cache in the remaining actions ([#343](https://github.com/MetaMask/github-tools/pull/343))
-- chore: fix the oxlint violations in the reporting and release helper scripts ([#336](https://github.com/MetaMask/github-tools/pull/336))
-- fix(flaky-test-report): enable Corepack before Yarn cache setup ([#342](https://github.com/MetaMask/github-tools/pull/342))
-- chore: fix the oxlint violations in the post merge validation tracker ([#333](https://github.com/MetaMask/github-tools/pull/333))
-- chore: fix the oxlint violations in the release changelog scripts ([#335](https://github.com/MetaMask/github-tools/pull/335))
-- chore: fix the oxlint violations in src ([#337](https://github.com/MetaMask/github-tools/pull/337))
+- Enable Corepack before the Yarn cache setup in the `flaky-test-report`, `post-merge-validation`, `playwright-test-health-report` and `publish-slack-release-testing-status` actions ([#342](https://github.com/MetaMask/github-tools/pull/342), [#343](https://github.com/MetaMask/github-tools/pull/343))
+  - The cache setup ran with Yarn 1, which refuses a `package.json` that declares `yarn@4.18.1`.
+- Continue publishing the remaining packages in the `publish-preview-oidc` workflow when one package fails, and list the failed packages in the preview build message ([#344](https://github.com/MetaMask/github-tools/pull/344))
 
 ## [1.26.0]
 
