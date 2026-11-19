@@ -12,6 +12,16 @@ on:
         required: false
         type: string
         default: ''
+      packages:
+        description: 'Comma-separated list of packages to publish (monorepo only), e.g., "@metamask/network-controller, permission-controller". Names without a scope get the source scope. Mutually exclusive with "only-changed-packages".'
+        type: string
+        required: false
+        default: ''
+      only-changed-packages:
+        description: 'Only publish packages changed compared to the base branch of the pull request, or the default branch (monorepo only). Mutually exclusive with "packages".'
+        type: boolean
+        required: false
+        default: false
       npm-scope:
         description: 'Target NPM scope for preview packages'
         type: string
@@ -69,6 +79,8 @@ jobs:
     with:
       pull-request: ${{ inputs.pull-request }}
       branch: ${{ inputs.branch }}
+      packages: ${{ inputs.packages }}
+      only-changed-packages: ${{ inputs.only-changed-packages }}
       npm-scope: ${{ inputs.npm-scope }}
       source-scope: ${{ inputs.source-scope }}
       build-command: ${{ inputs.build-command }}
@@ -151,7 +163,17 @@ jobs:
       - name: Publish preview builds (monorepo)
         if: ${{ inputs.is-monorepo && !inputs.dry-run }}
         run: |
-          while IFS=$'\t' read -r name location; do
+          mapfile -t workspaces < <(
+            yarn workspaces list --no-private --json \
+              | jq -r --argjson selected "${PUBLISH_LOCATIONS:-null}" '
+                  select($selected == null or (.location | IN($selected[])))
+                  | [.name, .location]
+                  | @tsv
+                '
+          )
+
+          for workspace in "${workspaces[@]}"; do
+            IFS=$'\t' read -r name location <<< "$workspace"
             version="$(jq -r '.version' "$location/package.json")"
             echo "::group::Publishing $name"
             if (cd "$location" && yarn npm publish --tag preview); then
@@ -161,8 +183,9 @@ jobs:
               echo "${name}@${version}" >> "$RUNNER_TEMP/failed.txt"
             fi
             echo "::endgroup::"
-          done < <(yarn workspaces list --no-private --json | jq -r '[.name, .location] | @tsv')
+          done
         env:
+          PUBLISH_LOCATIONS: ${{ needs.build.outputs.publish-locations }}
           YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
 
       - name: Publish preview builds (polyrepo)

@@ -28,6 +28,16 @@ on:
         required: false
         type: string
         default: ''
+      packages:
+        description: 'Comma-separated list of packages to publish (monorepo only). Names without a scope get the source scope. Mutually exclusive with "only-changed-packages". Empty = all packages.'
+        type: string
+        required: false
+        default: ''
+      only-changed-packages:
+        description: 'Only publish packages changed compared to the base branch of the pull request, or the default branch (monorepo only). Mutually exclusive with "packages".'
+        type: boolean
+        required: false
+        default: false
       rename-after-install-and-build:
         description: 'Whether packages are renamed to the preview build scope after (true) or before (false) the install and build steps.'
         type: boolean
@@ -40,6 +50,9 @@ on:
       is-fork:
         description: 'Whether the pull request is from a fork. The build is skipped when it is.'
         value: ${{ jobs.is-fork-pull-request.outputs.IS_FORK }}
+      publish-locations:
+        description: 'JSON array of the workspace locations to publish. Empty = all workspaces.'
+        value: ${{ jobs.build-preview.outputs.publish-locations }}
     secrets:
       BUILD_ENV:
         description: 'JSON object of environment variables to pass to the build step.'
@@ -59,9 +72,22 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
           BRANCH: ${{ inputs.branch }}
+          PACKAGES: ${{ inputs.packages }}
+          ONLY_CHANGED_PACKAGES: ${{ inputs.only-changed-packages }}
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
         run: |
           if [[ -n "$PR_NUMBER" && -n "$BRANCH" ]]; then
             echo "::error::Provide either a pull request number or a branch, not both."
+            exit 1
+          fi
+
+          if [[ -n "$PACKAGES" && "$ONLY_CHANGED_PACKAGES" == "true" ]]; then
+            echo "::error::Provide either a list of packages or only publish changed packages, not both."
+            exit 1
+          fi
+
+          if [[ "$IS_MONOREPO" != "true" && ( -n "$PACKAGES" || "$ONLY_CHANGED_PACKAGES" == "true" ) ]]; then
+            echo "::error::Selecting packages is only supported in monorepos."
             exit 1
           fi
 
@@ -117,6 +143,8 @@ jobs:
     needs: is-fork-pull-request
     if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
     runs-on: ubuntu-latest
+    outputs:
+      publish-locations: ${{ steps.select-packages.outputs.publish-locations }}
     steps:
       - uses: actions/checkout@v6
 
@@ -143,6 +171,77 @@ jobs:
       - name: Get commit SHA
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Select packages to publish
+        id: select-packages
+        if: ${{ inputs.is-monorepo && (inputs.packages != '' || inputs.only-changed-packages) }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pull-request || github.event.issue.number }}
+          PACKAGES: ${{ inputs.packages }}
+          SOURCE_SCOPE: ${{ inputs.source-scope }}
+        run: |
+          workspaces="$(yarn workspaces list --no-private --json)"
+          locations=()
+
+          if [[ -n "$PACKAGES" ]]; then
+            mapfile -t names < <(jq -rn --arg input "$PACKAGES" --arg scope "$SOURCE_SCOPE" '
+              $input
+              | split(",")
+              | map(gsub("^\\s+|\\s+$"; ""))
+              | map(select(. != ""))
+              | map(if startswith("@") then . else $scope + . end)
+              | unique
+              | .[]
+            ')
+
+            if [[ ${#names[@]} -eq 0 ]]; then
+              echo "::error::No package names found in \"$PACKAGES\"."
+              exit 1
+            fi
+
+            has_unknown_packages=false
+            for name in "${names[@]}"; do
+              location="$(jq -r --arg name "$name" 'select(.name == $name) | .location' <<< "$workspaces")"
+              if [[ -z "$location" ]]; then
+                echo "::error::Unknown package: ${name}."
+                has_unknown_packages=true
+              else
+                locations+=("$location")
+              fi
+            done
+
+            if [[ "$has_unknown_packages" == "true" ]]; then
+              exit 1
+            fi
+          else
+            if [[ -n "$PR_NUMBER" ]]; then
+              base="$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName')"
+            else
+              base="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.default_branch')"
+            fi
+
+            # Get the merge base from the GitHub API, so only that commit has to
+            # be fetched instead of the history leading up to it.
+            head="$(git rev-parse HEAD)"
+            merge_base="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${base}...${head}" --jq '.merge_base_commit.sha')"
+            git fetch --no-tags --depth=1 origin "$merge_base"
+
+            changed_files="$(git diff --name-only --no-renames "$merge_base" "$head")"
+            mapfile -t locations < <(jq -r --arg files "$changed_files" '
+              select(.location as $location | $files | split("\n") | any(startswith($location + "/")))
+              | .location
+            ' <<< "$workspaces")
+
+            if [[ ${#locations[@]} -eq 0 ]]; then
+              echo "::warning::No packages changed compared to ${base}."
+            fi
+          fi
+
+          for location in "${locations[@]}"; do
+            echo "- $location"
+          done
+          echo "publish-locations=$(jq -cn '$ARGS.positional' --args "${locations[@]}")" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies (pre-build)
         if: ${{ inputs.rename-after-install-and-build }}

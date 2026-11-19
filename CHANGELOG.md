@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo
+  - `packages` takes a comma-separated list of package names. Names without a scope get the source scope, e.g., `foo` becomes `@metamask/foo`.
+  - `only-changed-packages` publishes only the packages changed compared to the base branch of the pull request, or the default branch.
+  - All packages are still built.
+
 ## [1.26.1]
 
 ### Fixed
