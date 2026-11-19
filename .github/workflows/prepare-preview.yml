@@ -238,6 +238,7 @@ jobs:
             fi
           fi
 
+          echo "Packages to publish:"
           for location in "${locations[@]}"; do
             echo "- $location"
           done
