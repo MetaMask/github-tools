@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1]
+
+### Fixed
+
+- Enable Corepack before the Yarn cache setup in the `flaky-test-report`, `post-merge-validation`, `playwright-test-health-report` and `publish-slack-release-testing-status` actions ([#342](https://github.com/MetaMask/github-tools/pull/342), [#343](https://github.com/MetaMask/github-tools/pull/343))
+  - The cache setup ran with Yarn 1, which refuses a `package.json` that declares `yarn@4.18.1`.
+- Continue publishing the remaining packages in the `publish-preview-oidc` workflow when one package fails, and list the failed packages in the preview build message ([#344](https://github.com/MetaMask/github-tools/pull/344))
+
 ## [1.26.0]
 
 ### Changed
@@ -353,7 +361,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.1...HEAD
+[1.26.1]: https://github.com/MetaMask/github-tools/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/MetaMask/github-tools/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/MetaMask/github-tools/compare/v1.23.0...v1.24.0
