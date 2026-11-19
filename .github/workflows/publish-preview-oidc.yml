@@ -150,7 +150,18 @@ jobs:
 
       - name: Publish preview builds (monorepo)
         if: ${{ inputs.is-monorepo && !inputs.dry-run }}
-        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        run: |
+          while IFS=$'\t' read -r name location; do
+            version="$(jq -r '.version' "$location/package.json")"
+            echo "::group::Publishing $name"
+            if (cd "$location" && yarn npm publish --tag preview); then
+              echo "${name}@${version}" >> "$RUNNER_TEMP/published.txt"
+            else
+              echo "::warning::Failed to publish $name"
+              echo "${name}@${version}" >> "$RUNNER_TEMP/failed.txt"
+            fi
+            echo "::endgroup::"
+          done < <(yarn workspaces list --no-private --json | jq -r '[.name, .location] | @tsv')
         env:
           YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
 
@@ -175,27 +186,39 @@ jobs:
           fi
 
           if [[ "$IS_MONOREPO" == "true" ]]; then
-            packages="$(
-              yarn workspaces list --no-private --json \
-                | jq --raw-output '.location' \
-                | xargs -I{} cat '{}/package.json' \
-                | jq --raw-output '"\(.name)@\(.version)"'
-            )"
-            echo -n "Preview builds have been published." > preview-build-message.txt
-            if [[ -n "$docs_link" ]]; then
-              echo -n " ${docs_link}" >> preview-build-message.txt
-            fi
-            cat <<-MSGEOF >> preview-build-message.txt
+            published="$(cat "$RUNNER_TEMP/published.txt" 2>/dev/null || true)"
+            failed="$(cat "$RUNNER_TEMP/failed.txt" 2>/dev/null || true)"
+
+            if [[ -n "$published" ]]; then
+              echo -n "Preview builds have been published." > preview-build-message.txt
+              if [[ -n "$docs_link" ]]; then
+                echo -n " ${docs_link}" >> preview-build-message.txt
+              fi
+              cat <<-MSGEOF >> preview-build-message.txt
 
           <details>
           <summary>Expand for full list of packages and versions.</summary>
 
           \`\`\`
-          ${packages}
+          ${published}
           \`\`\`
 
           </details>
           MSGEOF
+            else
+              echo "No preview builds were published." > preview-build-message.txt
+            fi
+
+            if [[ -n "$failed" ]]; then
+              cat <<-MSGEOF >> preview-build-message.txt
+
+          The following packages failed to publish. [See the workflow run for details](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}).
+
+          \`\`\`
+          ${failed}
+          \`\`\`
+          MSGEOF
+            fi
           else
             name="$(jq -r '.name' package.json)"
             version="$(jq -r '.version' package.json)"
