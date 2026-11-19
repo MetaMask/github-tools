@@ -29,7 +29,7 @@ on:
         type: string
         default: ''
       packages:
-        description: 'Comma-separated list of packages to publish (monorepo only). Names without a scope get the source scope. Mutually exclusive with "only-changed-packages". Empty = all packages.'
+        description: 'Comma-separated list of packages to publish (monorepo only). Names without a scope get the source scope. Mutually exclusive with "only-changed-packages".'
         type: string
         required: false
         default: ''
