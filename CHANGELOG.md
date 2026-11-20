@@ -9,14 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.27.0]
 
-### Uncategorized
-
-- chore: turn off no-process-env and no-sync for the workflow scripts ([#332](https://github.com/MetaMask/github-tools/pull/332))
-- feat(publish-preview-oidc): allow publishing a subset of packages ([#346](https://github.com/MetaMask/github-tools/pull/346))
-
 ### Added
 
-- Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo
+- Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo ([#346](https://github.com/MetaMask/github-tools/pull/346))
   - `packages` takes a comma-separated list of package names. Names without a scope get the source scope, e.g., `foo` becomes `@metamask/foo`.
   - `only-changed-packages` publishes only the packages changed compared to the base branch of the pull request, or the default branch.
   - All packages are still built.
