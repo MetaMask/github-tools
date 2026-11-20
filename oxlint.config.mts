@@ -13,9 +13,6 @@ export default createConfig({
     typeAware: true,
   },
 
-  // `createConfig` types `overrides` as an intersection of two array types.
-  // TypeScript below 5.4 rejects that when every override has an `extends`
-  // entry, so the array is cast. Remove the cast once TypeScript is upgraded.
   overrides: [
     {
       files: ['**/*.ts', '**/*.mts', '**/*.cts'],
@@ -44,32 +41,22 @@ export default createConfig({
         '.github/**/*.test.{mjs,mts}',
         '.github/scripts/tests/**',
       ],
-      extends: [
-        nodejs,
-        vitest,
-        {
-          // Tests read the environment and use synchronous APIs for fixtures.
-          rules: {
-            'node/no-process-env': 'off',
-            'node/no-sync': 'off',
-          },
-        },
-      ],
+      extends: [nodejs, vitest],
+      rules: {
+        'node/no-process-env': 'off',
+        'node/no-sync': 'off',
+      },
     },
 
     {
       // The workflow scripts are command line programs: they read their inputs
       // from the environment and can use synchronous APIs.
       files: ['.github/**/*.{js,mjs,mts,ts}'],
-      extends: [
-        nodejs,
-        {
-          rules: {
-            'node/no-process-env': 'off',
-            'node/no-sync': 'off',
-          },
-        },
-      ],
+      extends: [nodejs],
+      rules: {
+        'node/no-process-env': 'off',
+        'node/no-sync': 'off',
+      },
     },
-  ] as NonNullable<Parameters<typeof createConfig>[0]['overrides']>,
+  ],
 });
