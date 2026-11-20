@@ -41,23 +41,18 @@ export default createConfig({
         '.github/**/*.test.{mjs,mts}',
         '.github/scripts/tests/**',
       ],
-      extends: [
-        nodejs,
-        vitest,
-        {
-          // Tests read the environment and use synchronous APIs for fixtures.
-          rules: {
-            'node/no-process-env': 'off',
-            'node/no-sync': 'off',
-          },
-        },
-      ],
+      extends: [nodejs, vitest],
+      rules: {
+        'node/no-process-env': 'off',
+        'node/no-sync': 'off',
+      },
     },
 
     {
       // The workflow scripts are command line programs: they read their inputs
       // from the environment and can use synchronous APIs.
-      files: ['.github/**'],
+      files: ['.github/**/*.{js,mjs,mts,ts}'],
+      extends: [nodejs],
       rules: {
         'node/no-process-env': 'off',
         'node/no-sync': 'off',
