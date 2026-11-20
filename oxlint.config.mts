@@ -13,6 +13,9 @@ const relaxedNodeRules: OxlintConfig = {
   },
 };
 
+// `createConfig` types `overrides` as an intersection of two array types.
+// TypeScript below 5.4 rejects that when every override has an `extends` entry,
+// so the array below is cast. Remove the cast once TypeScript is upgraded.
 type Overrides = NonNullable<Parameters<typeof createConfig>[0]['overrides']>;
 
 export default createConfig({
