@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0]
+
 ### Added
 
-- Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo
+- Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo ([#346](https://github.com/MetaMask/github-tools/pull/346))
   - `packages` takes a comma-separated list of package names. Names without a scope get the source scope, e.g., `foo` becomes `@metamask/foo`.
   - `only-changed-packages` publishes only the packages changed compared to the base branch of the pull request, or the default branch.
   - All packages are still built.
@@ -368,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/MetaMask/github-tools/compare/v1.26.1...v1.27.0
 [1.26.1]: https://github.com/MetaMask/github-tools/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/MetaMask/github-tools/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
