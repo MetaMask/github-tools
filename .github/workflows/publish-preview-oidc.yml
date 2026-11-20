@@ -12,6 +12,16 @@ on:
         required: false
         type: string
         default: ''
+      packages:
+        description: 'Comma-separated list of packages to publish (monorepo only), e.g., "@metamask/network-controller, permission-controller". Names without a scope get the source scope. Mutually exclusive with "only-changed-packages".'
+        type: string
+        required: false
+        default: ''
+      only-changed-packages:
+        description: 'Only publish packages changed compared to the base branch of the pull request, or the default branch (monorepo only). Mutually exclusive with "packages".'
+        type: boolean
+        required: false
+        default: false
       npm-scope:
         description: 'Target NPM scope for preview packages'
         type: string
@@ -69,6 +79,8 @@ jobs:
     with:
       pull-request: ${{ inputs.pull-request }}
       branch: ${{ inputs.branch }}
+      packages: ${{ inputs.packages }}
+      only-changed-packages: ${{ inputs.only-changed-packages }}
       npm-scope: ${{ inputs.npm-scope }}
       source-scope: ${{ inputs.source-scope }}
       build-command: ${{ inputs.build-command }}
@@ -150,8 +162,30 @@ jobs:
 
       - name: Publish preview builds (monorepo)
         if: ${{ inputs.is-monorepo && !inputs.dry-run }}
-        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        run: |
+          mapfile -t workspaces < <(
+            yarn workspaces list --no-private --json \
+              | jq -r --argjson selected "${PUBLISH_LOCATIONS:-null}" '
+                  select($selected == null or (.location | IN($selected[])))
+                  | [.name, .location]
+                  | @tsv
+                '
+          )
+
+          for workspace in "${workspaces[@]}"; do
+            IFS=$'\t' read -r name location <<< "$workspace"
+            version="$(jq -r '.version' "$location/package.json")"
+            echo "::group::Publishing $name"
+            if (cd "$location" && yarn npm publish --tag preview); then
+              echo "${name}@${version}" >> "$RUNNER_TEMP/published.txt"
+            else
+              echo "::warning::Failed to publish $name"
+              echo "${name}@${version}" >> "$RUNNER_TEMP/failed.txt"
+            fi
+            echo "::endgroup::"
+          done
         env:
+          PUBLISH_LOCATIONS: ${{ needs.build.outputs.publish-locations }}
           YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
 
       - name: Publish preview builds (polyrepo)
@@ -175,27 +209,39 @@ jobs:
           fi
 
           if [[ "$IS_MONOREPO" == "true" ]]; then
-            packages="$(
-              yarn workspaces list --no-private --json \
-                | jq --raw-output '.location' \
-                | xargs -I{} cat '{}/package.json' \
-                | jq --raw-output '"\(.name)@\(.version)"'
-            )"
-            echo -n "Preview builds have been published." > preview-build-message.txt
-            if [[ -n "$docs_link" ]]; then
-              echo -n " ${docs_link}" >> preview-build-message.txt
-            fi
-            cat <<-MSGEOF >> preview-build-message.txt
+            published="$(cat "$RUNNER_TEMP/published.txt" 2>/dev/null || true)"
+            failed="$(cat "$RUNNER_TEMP/failed.txt" 2>/dev/null || true)"
+
+            if [[ -n "$published" ]]; then
+              echo -n "Preview builds have been published." > preview-build-message.txt
+              if [[ -n "$docs_link" ]]; then
+                echo -n " ${docs_link}" >> preview-build-message.txt
+              fi
+              cat <<-MSGEOF >> preview-build-message.txt
 
           <details>
           <summary>Expand for full list of packages and versions.</summary>
 
           \`\`\`
-          ${packages}
+          ${published}
           \`\`\`
 
           </details>
           MSGEOF
+            else
+              echo "No preview builds were published." > preview-build-message.txt
+            fi
+
+            if [[ -n "$failed" ]]; then
+              cat <<-MSGEOF >> preview-build-message.txt
+
+          The following packages failed to publish. [See the workflow run for details](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}).
+
+          \`\`\`
+          ${failed}
+          \`\`\`
+          MSGEOF
+            fi
           else
             name="$(jq -r '.name' package.json)"
             version="$(jq -r '.version' package.json)"
