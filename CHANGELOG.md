@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0]
+
+### Uncategorized
+
+- chore: turn off no-process-env and no-sync for the workflow scripts ([#332](https://github.com/MetaMask/github-tools/pull/332))
+- feat(publish-preview-oidc): allow publishing a subset of packages ([#346](https://github.com/MetaMask/github-tools/pull/346))
+
 ### Added
 
 - Add `packages` and `only-changed-packages` inputs to the `publish-preview-oidc` workflow, to publish a subset of the packages in a monorepo
@@ -368,7 +375,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.26.1...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/MetaMask/github-tools/compare/v1.26.1...v1.27.0
 [1.26.1]: https://github.com/MetaMask/github-tools/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/MetaMask/github-tools/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/MetaMask/github-tools/compare/v1.24.0...v1.25.0
