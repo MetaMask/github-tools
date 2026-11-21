@@ -1,21 +1,83 @@
 // Note: These packages are installed at runtime in the GitHub Actions workflow
-// @ts-ignore - @actions/core is not in devDependencies
-import * as core from '@actions/core';
-// @ts-ignore - @actions/github is not in devDependencies
-import { context, getOctokit } from '@actions/github';
-// @ts-ignore - googleapis types may not be available locally
-import { google } from 'googleapis';
+// @ts-expect-error - @actions/core is not in devDependencies
+import * as rawCore from '@actions/core';
+// @ts-expect-error - @actions/github is not in devDependencies
+import {
+  context as rawContext,
+  getOctokit as rawGetOctokit,
+} from '@actions/github';
+// @ts-expect-error - googleapis types may not be available locally
+import { google as rawGoogle } from 'googleapis';
+
+// Minimal local types for the runtime-installed packages (their own types are
+// not available locally), describing only what this script uses.
+type CoreLike = {
+  setFailed: (message: string) => void;
+  warning: (message: string) => void;
+};
+
+type RepoContext = {
+  repo: { owner: string; repo: string };
+};
+
+type OctokitLike = {
+  graphql: (
+    query: string,
+    variables: Record<string, unknown>,
+  ) => Promise<GetIssuesWithRcaLabelResponse>;
+  rest: {
+    issues: {
+      removeLabel: (params: {
+        owner: string;
+        repo: string;
+        issue_number: number;
+        name: string;
+      }) => Promise<unknown>;
+    };
+  };
+};
+
+type SheetsV4 = {
+  spreadsheets: {
+    values: {
+      get: (params: { spreadsheetId: string; range: string }) => Promise<{
+        data: { values?: string[][] | null };
+      }>;
+    };
+  };
+};
+
+type GoogleLike = {
+  auth: {
+    GoogleAuth: new (options: {
+      credentials: unknown;
+      scopes: string[];
+    }) => unknown;
+  };
+  sheets: (options: { version: string; auth: unknown }) => SheetsV4;
+};
+
+// Shape of the errors we read `message` / `status` from
+type ErrorLike = {
+  message?: string;
+  status?: number;
+};
+
+const core = rawCore as CoreLike;
+const context = rawContext as RepoContext;
+const getOctokit = rawGetOctokit as (token: string) => OctokitLike;
+const google = rawGoogle as GoogleLike;
 
 // HTTP status codes enum for better maintainability
 enum HttpStatusCode {
   NotFound = 404,
 }
 
-interface Label {
+type Label = {
   name: string;
   color: string;
   description: string;
-}
+};
 
 const RCA_NEEDED_LABEL: Label = {
   name: 'RCA-needed',
@@ -23,15 +85,11 @@ const RCA_NEEDED_LABEL: Label = {
   description: 'Issue requires Root Cause Analysis',
 };
 
-// Type alias for Google Sheets v4 API
-// @ts-ignore - googleapis types may not be available locally
-type SheetsV4 = ReturnType<typeof google.sheets>;
-
 // Google Sheets configuration from environment variables
-// @ts-ignore - process is available at runtime in GitHub Actions
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-// @ts-ignore - process is available at runtime in GitHub Actions
-const SHEET_NAME = process.env.SHEET_NAME;
+// @ts-expect-error - process is available at runtime in GitHub Actions
+const { SPREADSHEET_ID } = process.env;
+// @ts-expect-error - process is available at runtime in GitHub Actions
+const { SHEET_NAME } = process.env;
 
 /**
  * Represents a single response row from the RCA (Root Cause Analysis) Google Form.
@@ -40,19 +98,19 @@ const SHEET_NAME = process.env.SHEET_NAME;
  * @property [key: string] - Any additional form fields captured from the Google Form.
  *   The keys correspond to column headers in the Google Sheet, and the values are the user responses.
  */
-interface RcaFormResponse {
+type RcaFormResponse = {
   issueNumber: string;
   timestamp: string;
-  [key: string]: any;
-}
+  [key: string]: unknown;
+};
 
 // GitHub GraphQL types
-interface GitHubLabel {
+type GitHubLabel = {
   id: string;
   name: string;
-}
+};
 
-interface GitHubIssue {
+type GitHubIssue = {
   id: string;
   number: number;
   title: string;
@@ -61,9 +119,9 @@ interface GitHubIssue {
   labels: {
     nodes: GitHubLabel[];
   };
-}
+};
 
-interface GetIssuesWithRcaLabelResponse {
+type GetIssuesWithRcaLabelResponse = {
   repository: {
     issues: {
       nodes: GitHubIssue[];
@@ -73,11 +131,11 @@ interface GetIssuesWithRcaLabelResponse {
       };
     };
   };
-}
+};
 
 async function main(): Promise<void> {
   try {
-    // @ts-ignore - process is available at runtime in GitHub Actions
+    // @ts-expect-error - process is available at runtime in GitHub Actions
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       core.setFailed('GITHUB_TOKEN not found');
@@ -85,7 +143,7 @@ async function main(): Promise<void> {
     }
 
     // Google Sheets API credentials (base64 encoded service account JSON)
-    // @ts-ignore - process is available at runtime in GitHub Actions
+    // @ts-expect-error - process is available at runtime in GitHub Actions
     const googleCredentials = process.env.GOOGLE_SHEETS_CREDENTIALS;
     if (!googleCredentials) {
       core.setFailed('GOOGLE_SHEETS_CREDENTIALS not found');
@@ -102,7 +160,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    // @ts-ignore - process is available at runtime in GitHub Actions
+    // @ts-expect-error - process is available at runtime in GitHub Actions
     const isDryRun = process.env.DRY_RUN === 'true';
 
     const octokit = getOctokit(githubToken);
@@ -154,7 +212,12 @@ async function main(): Promise<void> {
             `✅ RCA response found in Google Sheets for issue #${issue.number}`,
           );
 
-          if (!isDryRun) {
+          if (isDryRun) {
+            console.log(
+              `🔍 [DRY RUN] Would remove label from issue #${issue.number}`,
+            );
+            removedCount += 1;
+          } else {
             // Remove the RCA-needed label
             await removeLabelFromIssue(
               octokit,
@@ -167,24 +230,19 @@ async function main(): Promise<void> {
             console.log(
               `✅ Successfully removed RCA-needed label from issue #${issue.number}`,
             );
-            removedCount++;
-          } else {
-            console.log(
-              `🔍 [DRY RUN] Would remove label from issue #${issue.number}`,
-            );
-            removedCount++;
+            removedCount += 1;
           }
         } else {
           console.log(
             `⏳ No RCA found in sheet for issue #${issue.number} - skipping`,
           );
-          skippedCount++;
+          skippedCount += 1;
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(
-          `❌ Failed to process issue #${issue.number}: ${error?.message || String(error)}`,
+          `❌ Failed to process issue #${issue.number}: ${(error as ErrorLike | undefined)?.message || String(error)}`,
         );
-        failedCount++;
+        failedCount += 1;
         failedIssues.push(issue.number);
         // Continue processing other issues
       }
@@ -207,7 +265,6 @@ async function main(): Promise<void> {
     // Set appropriate exit status
     if (failedCount > 0 && removedCount === 0) {
       core.setFailed('All label removal attempts failed');
-      return;
     } else if (failedCount > 0) {
       console.log(
         `\n⚠️  Completed with ${failedCount} failures. Check logs for details.`,
@@ -215,17 +272,17 @@ async function main(): Promise<void> {
     } else {
       console.log(`\n✅ All operations completed successfully!`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     core.setFailed(
-      `Error in Google Sheets RCA label removal: ${error?.message || String(error)}`,
+      `Error in Google Sheets RCA label removal: ${(error as ErrorLike | undefined)?.message || String(error)}`,
     );
   }
 }
 
 async function initializeGoogleSheets(credentials: string): Promise<SheetsV4> {
   // Decode base64 credentials
-  const credentialsJson = JSON.parse(
-    // @ts-ignore - Buffer is available at runtime in GitHub Actions
+  const credentialsJson: unknown = JSON.parse(
+    // @ts-expect-error - Buffer is available at runtime in GitHub Actions
     Buffer.from(credentials, 'base64').toString('utf-8'),
   );
 
@@ -258,7 +315,7 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
     const headerRow = rows[0] || [];
     const ISSUE_NUMBER_HEADER = 'Issue Number';
     const issueNumberColumnIndex = headerRow.findIndex(
-      (col: string) => col && col.trim() === ISSUE_NUMBER_HEADER,
+      (col: string) => col?.trim() === ISSUE_NUMBER_HEADER,
     );
 
     if (issueNumberColumnIndex === -1) {
@@ -279,7 +336,7 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
       // Get issue number from dynamically determined column
       const issueNumberValue = row[issueNumberColumnIndex];
 
-      if (issueNumberValue != null) {
+      if (issueNumberValue !== null && issueNumberValue !== undefined) {
         // Extract just the numeric part from the issue number
         // Handles formats like: "18454", "#18454", or leading/trailing whitespace
         const trimmedValue = issueNumberValue.toString().trim();
@@ -287,11 +344,11 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
           continue; // Skip if empty string after trimming
         }
 
-        const issueMatch = trimmedValue.match(/^#?(\d+)$/);
+        const issueMatch = trimmedValue.match(/^#?(\d+)$/u);
         if (issueMatch) {
           const issueNumber = issueMatch[1];
           responses.push({
-            issueNumber: issueNumber,
+            issueNumber,
             timestamp: row[0] || '', // Column A: Timestamp
             // Additional fields can be added if needed:
             // repository: row[2], // Column C: Github Repository
@@ -305,17 +362,17 @@ async function fetchRcaResponses(sheets: SheetsV4): Promise<RcaFormResponse[]> {
     }
 
     return responses;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       'Error fetching Google Sheets data:',
-      error?.message || String(error),
+      (error as ErrorLike | undefined)?.message || String(error),
     );
     throw error;
   }
 }
 
 async function getIssuesWithRcaLabel(
-  octokit: ReturnType<typeof getOctokit>,
+  octokit: OctokitLike,
   owner: string,
   repo: string,
 ): Promise<GitHubIssue[]> {
@@ -367,7 +424,7 @@ async function getIssuesWithRcaLabel(
       labelNames: LABEL_NAMES,
       pageSize: PAGE_SIZE,
     });
-    const issues = result.repository.issues;
+    const { issues } = result.repository;
 
     allIssues.push(...(issues.nodes || []));
     hasNextPage = issues.pageInfo.hasNextPage;
@@ -382,7 +439,7 @@ async function getIssuesWithRcaLabel(
 }
 
 async function removeLabelFromIssue(
-  octokit: ReturnType<typeof getOctokit>,
+  octokit: OctokitLike,
   owner: string,
   repo: string,
   issueNumber: number,
@@ -396,18 +453,20 @@ async function removeLabelFromIssue(
       issue_number: issueNumber,
       name: labelName,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If label doesn't exist on issue, the API will throw 404
     // This is not an error for our use case, so we can safely ignore it
-    if (error?.status !== HttpStatusCode.NotFound) {
+    if ((error as ErrorLike | undefined)?.status !== HttpStatusCode.NotFound) {
       throw error;
     }
   }
 }
 
 // Run the main function
-main().catch((error: any): void => {
+main().catch((error: unknown): void => {
   console.error('Unhandled error:', error);
-  core.setFailed(`Unhandled error: ${error?.message || String(error)}`);
+  core.setFailed(
+    `Unhandled error: ${(error as ErrorLike | undefined)?.message || String(error)}`,
+  );
   // core.setFailed() sets the action's exit code to 1, causing the workflow to fail
 });

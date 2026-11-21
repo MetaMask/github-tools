@@ -28,53 +28,8 @@
     }
   },
   ".github/scripts/remove-rca-needed-label-sheets.ts": {
-    "no-eq-null": {
-      "count": 1
-    },
-    "no-negated-condition": {
-      "count": 1
-    },
-    "no-plusplus": {
-      "count": 4
-    },
-    "no-useless-return": {
-      "count": 1
-    },
-    "object-shorthand": {
-      "count": 1
-    },
-    "prefer-destructuring": {
-      "count": 3
-    },
-    "require-unicode-regexp": {
-      "count": 1
-    },
-    "typescript/ban-ts-comment": {
-      "count": 10
-    },
-    "typescript/consistent-type-definitions": {
-      "count": 5
-    },
-    "typescript/no-explicit-any": {
-      "count": 6
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 4
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 12
-    },
-    "typescript/no-unsafe-call": {
-      "count": 14
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    },
     "typescript/prefer-nullish-coalescing": {
-      "count": 6
-    },
-    "typescript/prefer-optional-chain": {
-      "count": 1
+      "count": 5
     }
   },
   ".github/scripts/stable-sync.js": {
