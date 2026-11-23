@@ -46,6 +46,11 @@ on:
         description: 'Days to retain build artifacts'
         type: number
         required: true
+      pack:
+        description: 'Whether to upload packed tarballs of the packages to publish ("preview-build-tarballs"), instead of the workspace ("preview-build-artifacts").'
+        type: boolean
+        required: false
+        default: false
     outputs:
       is-fork:
         description: 'Whether the pull request is from a fork. The build is skipped when it is.'
@@ -185,7 +190,7 @@ jobs:
           locations=()
 
           if [[ -n "$PACKAGES" ]]; then
-            mapfile -t names < <(jq -rn --arg input "$PACKAGES" --arg scope "$SOURCE_SCOPE" '
+            selected_names="$(jq -rn --arg input "$PACKAGES" --arg scope "$SOURCE_SCOPE" '
               $input
               | split(",")
               | map(gsub("^\\s+|\\s+$"; ""))
@@ -193,7 +198,12 @@ jobs:
               | map(if startswith("@") then . else $scope + . end)
               | unique
               | .[]
-            ')
+            ')"
+
+            names=()
+            if [[ -n "$selected_names" ]]; then
+              mapfile -t names <<< "$selected_names"
+            fi
 
             if [[ ${#names[@]} -eq 0 ]]; then
               echo "::error::No package names found in \"$PACKAGES\"."
@@ -228,10 +238,14 @@ jobs:
             git fetch --no-tags --depth=1 origin "$merge_base"
 
             changed_files="$(git diff --name-only --no-renames "$merge_base" "$head")"
-            mapfile -t locations < <(jq -r --arg files "$changed_files" '
+            changed_locations="$(jq -r --arg files "$changed_files" '
               select(.location as $location | $files | split("\n") | any(startswith($location + "/")))
               | .location
-            ' <<< "$workspaces")
+            ' <<< "$workspaces")"
+
+            if [[ -n "$changed_locations" ]]; then
+              mapfile -t locations <<< "$changed_locations"
+            fi
 
             if [[ ${#locations[@]} -eq 0 ]]; then
               echo "::warning::No packages changed compared to ${base}."
@@ -323,8 +337,51 @@ jobs:
         env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
+      - name: Pack packages
+        if: ${{ inputs.pack }}
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+          PUBLISH_LOCATIONS: ${{ steps.select-packages.outputs.publish-locations }}
+        run: |
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            workspaces="$(yarn workspaces list --no-private --json)"
+            selected="$(jq -r --argjson selected "${PUBLISH_LOCATIONS:-null}" '
+              select($selected == null or (.location | IN($selected[])))
+              | .location
+            ' <<< "$workspaces")"
+
+            locations=()
+            if [[ -n "$selected" ]]; then
+              mapfile -t locations <<< "$selected"
+            fi
+          else
+            locations=(.)
+          fi
+
+          tarballs="${RUNNER_TEMP}/preview-build-tarballs"
+          mkdir -p "$tarballs"
+
+          for location in "${locations[@]}"; do
+            manifest="$location/package.json"
+            jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)?(pack|publish|prepare)$") | not)) else . end' "$manifest" > temp.json
+            mv temp.json "$manifest"
+
+            name="$(jq -r '.name' "$manifest")"
+            echo "::group::Packing $name"
+            (cd "$location" && yarn pack --out "${tarballs}/${name//\//-}.tgz")
+            echo "::endgroup::"
+          done
+
+      - name: Upload tarballs
+        if: ${{ inputs.pack }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-build-tarballs
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: ${{ runner.temp }}/preview-build-tarballs/*.tgz
+
       - name: Upload build artifacts (monorepo)
-        if: ${{ inputs.is-monorepo }}
+        if: ${{ !inputs.pack && inputs.is-monorepo }}
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts
@@ -340,7 +397,7 @@ jobs:
             !./packages/**/*.test.*
 
       - name: Upload build artifacts (polyrepo)
-        if: ${{ !inputs.is-monorepo }}
+        if: ${{ !inputs.pack && !inputs.is-monorepo }}
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts
