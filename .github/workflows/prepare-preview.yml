@@ -46,6 +46,11 @@ on:
         description: 'Days to retain build artifacts'
         type: number
         required: true
+      pack:
+        description: 'Whether to upload packed tarballs of the packages to publish ("preview-build-tarballs"), instead of the workspace ("preview-build-artifacts").'
+        type: boolean
+        required: false
+        default: false
     outputs:
       is-fork:
         description: 'Whether the pull request is from a fork. The build is skipped when it is.'
@@ -323,8 +328,48 @@ jobs:
         env: ${{ fromJSON(secrets.BUILD_ENV || '{}') }}
         run: ${{ inputs.build-command }}
 
+      - name: Pack packages
+        if: ${{ inputs.pack }}
+        env:
+          IS_MONOREPO: ${{ inputs.is-monorepo }}
+          PUBLISH_LOCATIONS: ${{ steps.select-packages.outputs.publish-locations }}
+        run: |
+          if [[ "$IS_MONOREPO" == "true" ]]; then
+            mapfile -t locations < <(
+              yarn workspaces list --no-private --json \
+                | jq -r --argjson selected "${PUBLISH_LOCATIONS:-null}" '
+                    select($selected == null or (.location | IN($selected[])))
+                    | .location
+                  '
+            )
+          else
+            locations=(.)
+          fi
+
+          tarballs="${RUNNER_TEMP}/preview-build-tarballs"
+          mkdir -p "$tarballs"
+
+          for location in "${locations[@]}"; do
+            manifest="$location/package.json"
+            jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)?(pack|publish|prepare)$") | not)) else . end' "$manifest" > temp.json
+            mv temp.json "$manifest"
+
+            name="$(jq -r '.name' "$manifest")"
+            echo "::group::Packing $name"
+            (cd "$location" && yarn pack --out "${tarballs}/${name//\//-}.tgz")
+            echo "::endgroup::"
+          done
+
+      - name: Upload tarballs
+        if: ${{ inputs.pack }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-build-tarballs
+          retention-days: ${{ inputs.artifact-retention-days }}
+          path: ${{ runner.temp }}/preview-build-tarballs/*.tgz
+
       - name: Upload build artifacts (monorepo)
-        if: ${{ inputs.is-monorepo }}
+        if: ${{ !inputs.pack && inputs.is-monorepo }}
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts
@@ -340,7 +385,7 @@ jobs:
             !./packages/**/*.test.*
 
       - name: Upload build artifacts (polyrepo)
-        if: ${{ !inputs.is-monorepo }}
+        if: ${{ !inputs.pack && !inputs.is-monorepo }}
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-artifacts

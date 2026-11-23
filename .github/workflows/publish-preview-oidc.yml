@@ -87,6 +87,7 @@ jobs:
       is-monorepo: ${{ inputs.is-monorepo }}
       rename-after-install-and-build: ${{ inputs.rename-after-install-and-build }}
       artifact-retention-days: ${{ inputs.artifact-retention-days }}
+      pack: true
     secrets:
       BUILD_ENV: ${{ secrets.BUILD_ENV }}
 
@@ -101,106 +102,103 @@ jobs:
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: true
-
-      - name: Restore build artifacts
+      - name: Download tarballs
+        if: ${{ needs.build.outputs.publish-locations != '[]' }}
         uses: actions/download-artifact@v8
         with:
-          name: preview-build-artifacts
+          name: preview-build-tarballs
+          path: ${{ runner.temp }}/preview-build-tarballs
 
-      # The artifact package.json files come from the PR branch.
-      # A malicious PR could inject lifecycle scripts (prepack/postpack) that
-      # execute during `yarn npm publish` with the NPM token in the environment
-      # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
-      # It could also override publishConfig.registry to exfiltrate the token.
-      # We strip dangerous lifecycle scripts (they already ran during build)
-      # and block unexpected registries outright.
-      - name: Sanitize and validate artifact manifests
+      - name: Validate tarballs
         env:
-          IS_MONOREPO: ${{ inputs.is-monorepo }}
+          NPM_SCOPE: ${{ inputs.npm-scope }}
         run: |
-          bad=0
-          if [[ "$IS_MONOREPO" == "true" ]]; then
-            mapfile -t manifests < <(find packages -name package.json -not -path '*/node_modules/*')
-          else
-            manifests=(package.json)
-          fi
-          if [[ ${#manifests[@]} -eq 0 ]]; then
-            echo "::error::No package.json files found to validate"
-            exit 1
-          fi
-          # Strip registry overrides from .yarnrc.yml to prevent registry
-          # redirects that could exfiltrate the NPM token. npmPublishRegistry
-          # takes precedence over npmRegistryServer for yarn npm publish, and
-          # npmScopes can override per-scope. YARN_NPM_REGISTRY_SERVER env var
-          # only overrides npmRegistryServer, not the others.
-          if [[ -f .yarnrc.yml ]]; then
-            echo "Stripping registry config from .yarnrc.yml"
-            yq -i 'del(.npmRegistryServer) | del(.npmPublishRegistry) | del(.npmScopes)' .yarnrc.yml
-          fi
-          for f in "${manifests[@]}"; do
-            # Strip lifecycle scripts that run during pack/publish
-            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)?(pack|publish|prepare)$"))' "$f" > /dev/null 2>&1; then
-              echo "Stripping lifecycle scripts from $f"
-              jq 'if .scripts then .scripts |= with_entries(select(.key | test("^(pre|post)?(pack|publish|prepare)$") | not)) else . end' "$f" > "${f}.tmp"
-              mv "${f}.tmp" "$f"
+          shopt -s nullglob
+          has_invalid_tarballs=false
+
+          for tarball in "$RUNNER_TEMP"/preview-build-tarballs/*.tgz; do
+            file="$(basename "$tarball")"
+
+            if ! entries="$(tar -tzf "$tarball")"; then
+              echo "::error::${file} isn't a valid tarball."
+              has_invalid_tarballs=true
+              continue
             fi
-            # Block unexpected registries
-            reg=$(jq -r '.publishConfig.registry // ""' "$f")
-            if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
-              echo "::error::Unexpected registry in $f: $reg"
-              bad=1
+
+            if grep -qv '^package/' <<< "$entries" || grep -qE '//|(^|/)\.\.?(/|$)' <<< "$entries"; then
+              echo "::error::${file} contains unexpected paths."
+              has_invalid_tarballs=true
+              continue
+            fi
+
+            if [[ "$(grep -cx 'package/package.json' <<< "$entries")" -ne 1 ]]; then
+              echo "::error::${file} must contain exactly one package/package.json."
+              has_invalid_tarballs=true
+              continue
+            fi
+
+            # The name must be in the preview scope, and the version must be a
+            # preview version. publishConfig may only set the access and the
+            # npm registry, since npm applies it when publishing.
+            if ! tar -xzOf "$tarball" package/package.json | jq -e --arg scope "${NPM_SCOPE}/" '
+              (.name | type == "string" and startswith($scope))
+              and (.version | type == "string" and test("-preview-[0-9a-f]+$"))
+              and ((.publishConfig // {}) | type == "object"
+                and (keys - ["access", "registry"] | length == 0)
+                and ((.registry // "https://registry.npmjs.org/") == "https://registry.npmjs.org/"))
+            ' > /dev/null; then
+              echo "::error::${file} has an invalid name, version, or publishConfig."
+              has_invalid_tarballs=true
             fi
           done
-          exit "$bad"
 
-      - name: Reconcile workspace state
-        run: yarn install --no-immutable
+          if [[ "$has_invalid_tarballs" == "true" ]]; then
+            exit 1
+          fi
 
       - name: Publish preview builds (monorepo)
         if: ${{ inputs.is-monorepo && !inputs.dry-run }}
         run: |
-          mapfile -t workspaces < <(
-            yarn workspaces list --no-private --json \
-              | jq -r --argjson selected "${PUBLISH_LOCATIONS:-null}" '
-                  select($selected == null or (.location | IN($selected[])))
-                  | [.name, .location]
-                  | @tsv
-                '
-          )
+          shopt -s nullglob
 
-          for workspace in "${workspaces[@]}"; do
-            IFS=$'\t' read -r name location <<< "$workspace"
-            version="$(jq -r '.version' "$location/package.json")"
-            echo "::group::Publishing $name"
-            if (cd "$location" && yarn npm publish --tag preview); then
-              echo "${name}@${version}" >> "$RUNNER_TEMP/published.txt"
+          for tarball in "$RUNNER_TEMP"/preview-build-tarballs/*.tgz; do
+            package="$(tar -xzOf "$tarball" package/package.json | jq -r '"\(.name)@\(.version)"')"
+            echo "::group::Publishing $package"
+            if npm publish "$tarball" \
+              --tag preview \
+              --ignore-scripts \
+              --provenance=false \
+              --registry https://registry.npmjs.org/; then
+              echo "$package" >> "$RUNNER_TEMP/published.txt"
             else
-              echo "::warning::Failed to publish $name"
-              echo "${name}@${version}" >> "$RUNNER_TEMP/failed.txt"
+              echo "::warning::Failed to publish $package"
+              echo "$package" >> "$RUNNER_TEMP/failed.txt"
             fi
             echo "::endgroup::"
           done
-        env:
-          PUBLISH_LOCATIONS: ${{ needs.build.outputs.publish-locations }}
-          YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
 
-      - name: Publish preview builds (polyrepo)
+      - name: Publish preview build (polyrepo)
         if: ${{ !inputs.is-monorepo && !inputs.dry-run }}
-        run: yarn npm publish --tag preview
-        env:
-          YARN_NPM_REGISTRY_SERVER: 'https://registry.npmjs.org'
+        run: |
+          tarballs=("$RUNNER_TEMP"/preview-build-tarballs/*.tgz)
+          if [[ ${#tarballs[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one tarball, found ${#tarballs[@]}."
+            exit 1
+          fi
+
+          npm publish "${tarballs[0]}" \
+            --tag preview \
+            --ignore-scripts \
+            --provenance=false \
+            --registry https://registry.npmjs.org/
 
       - name: Dry run notice
         if: ${{ inputs.dry-run }}
         run: echo "Dry run — skipping publish"
 
-      - name: Generate preview build message
+      - name: Generate preview build message (monorepo)
+        if: ${{ inputs.is-monorepo }}
         env:
-          IS_MONOREPO: ${{ inputs.is-monorepo }}
           DOCS_URL: ${{ inputs.docs-url }}
         run: |
           docs_link=""
@@ -208,16 +206,15 @@ jobs:
             docs_link="[Learn how to use preview builds in other projects](${DOCS_URL})."
           fi
 
-          if [[ "$IS_MONOREPO" == "true" ]]; then
-            published="$(cat "$RUNNER_TEMP/published.txt" 2>/dev/null || true)"
-            failed="$(cat "$RUNNER_TEMP/failed.txt" 2>/dev/null || true)"
+          published="$(cat "$RUNNER_TEMP/published.txt" 2>/dev/null || true)"
+          failed="$(cat "$RUNNER_TEMP/failed.txt" 2>/dev/null || true)"
 
-            if [[ -n "$published" ]]; then
-              echo -n "Preview builds have been published." > preview-build-message.txt
-              if [[ -n "$docs_link" ]]; then
-                echo -n " ${docs_link}" >> preview-build-message.txt
-              fi
-              cat <<-MSGEOF >> preview-build-message.txt
+          if [[ -n "$published" ]]; then
+            echo -n "Preview builds have been published." > preview-build-message.txt
+            if [[ -n "$docs_link" ]]; then
+              echo -n " ${docs_link}" >> preview-build-message.txt
+            fi
+            cat <<-MSGEOF >> preview-build-message.txt
 
           <details>
           <summary>Expand for full list of packages and versions.</summary>
@@ -228,12 +225,12 @@ jobs:
 
           </details>
           MSGEOF
-            else
-              echo "No preview builds were published." > preview-build-message.txt
-            fi
+          else
+            echo "No preview builds were published." > preview-build-message.txt
+          fi
 
-            if [[ -n "$failed" ]]; then
-              cat <<-MSGEOF >> preview-build-message.txt
+          if [[ -n "$failed" ]]; then
+            cat <<-MSGEOF >> preview-build-message.txt
 
           The following packages failed to publish. [See the workflow run for details](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}).
 
@@ -241,20 +238,23 @@ jobs:
           ${failed}
           \`\`\`
           MSGEOF
-            fi
-          else
-            name="$(jq -r '.name' package.json)"
-            version="$(jq -r '.version' package.json)"
-            cat <<-MSGEOF > preview-build-message.txt
+          fi
+
+      - name: Generate preview build message (polyrepo)
+        if: ${{ !inputs.is-monorepo }}
+        env:
+          DOCS_URL: ${{ inputs.docs-url }}
+        run: |
+          package="$(tar -xzOf "$RUNNER_TEMP"/preview-build-tarballs/*.tgz package/package.json | jq -r '"\(.name)@\(.version)"')"
+          cat <<-MSGEOF > preview-build-message.txt
           The following preview build has been published:
 
           \`\`\`
-          ${name}@${version}
+          ${package}
           \`\`\`
           MSGEOF
-            if [[ -n "$docs_link" ]]; then
-              printf '\n%s\n' "$docs_link" >> preview-build-message.txt
-            fi
+          if [[ -n "$DOCS_URL" ]]; then
+            printf '\n%s\n' "[Learn how to use preview builds in other projects](${DOCS_URL})." >> preview-build-message.txt
           fi
 
       - name: Add build preview to the job summary
@@ -264,5 +264,6 @@ jobs:
         if: ${{ inputs.pull-request }}
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
         env:
+          GH_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pull-request }}
