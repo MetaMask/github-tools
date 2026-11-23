@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0]
+
 ### Added
 
 - Comment on the pull request when the `publish-preview-oidc` workflow fails ([#349](https://github.com/MetaMask/github-tools/pull/349))
@@ -380,7 +382,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some inputs were renamed for consistency across actions.
 - Bump `actions/checkout` and `actions/setup-node` to `v6` ([#173](https://github.com/MetaMask/github-tools/pull/173))
 
-[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/MetaMask/github-tools/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/MetaMask/github-tools/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/MetaMask/github-tools/compare/v1.26.1...v1.27.0
 [1.26.1]: https://github.com/MetaMask/github-tools/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/MetaMask/github-tools/compare/v1.25.0...v1.26.0
