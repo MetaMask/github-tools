@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Comment on the pull request when the `publish-preview-oidc` workflow fails
+- Comment on the pull request when the `publish-preview-oidc` workflow fails ([#349](https://github.com/MetaMask/github-tools/pull/349))
 
 ### Changed
 
