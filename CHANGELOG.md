@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Comment on the pull request when the `publish-preview-oidc` workflow fails
+
 ### Changed
 
 - Publish tarballs packed in the build job in the `publish-preview-oidc` workflow, instead of the workspace ([#348](https://github.com/MetaMask/github-tools/pull/348))
