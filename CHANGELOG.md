@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Publish tarballs packed in the build job in the `publish-preview-oidc` workflow, instead of the workspace
+- Publish tarballs packed in the build job in the `publish-preview-oidc` workflow, instead of the workspace ([#348](https://github.com/MetaMask/github-tools/pull/348))
   - The publish job no longer checks out the repository or runs Yarn. It publishes the tarballs with `npm publish`, after checking that each package is in the preview scope and has a preview version.
   - Add a `pack` input to the `prepare-preview` workflow, to upload the tarballs instead of the workspace.
 
