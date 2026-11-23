@@ -145,7 +145,7 @@ jobs:
               and (.version | type == "string" and test("-preview-[0-9a-f]+$"))
               and ((.publishConfig // {}) | type == "object"
                 and (keys - ["access", "registry"] | length == 0)
-                and ((.registry // "https://registry.npmjs.org/") == "https://registry.npmjs.org/"))
+                and ((.registry // "https://registry.npmjs.org/") | IN("https://registry.npmjs.org", "https://registry.npmjs.org/")))
             ' > /dev/null; then
               echo "::error::${file} has an invalid name, version, or publishConfig."
               has_invalid_tarballs=true
