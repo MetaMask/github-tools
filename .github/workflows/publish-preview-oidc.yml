@@ -267,3 +267,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ inputs.pull-request }}
+
+  comment-on-failure:
+    name: Comment on failure
+    needs:
+      - build
+      - publish-preview
+    if: ${{ failure() && inputs.pull-request }}
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post failure comment
+        run: gh pr comment "${PR_NUMBER}" --body "Failed to publish preview builds. [See the workflow run for details](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT})."
+        env:
+          GH_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pull-request }}
