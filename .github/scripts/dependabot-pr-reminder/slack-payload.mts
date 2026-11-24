@@ -3,11 +3,10 @@ import {
   chunkSections,
   escapeSlack,
   section,
-  subteamMention,
   truncateText,
 } from '../shared/slack-blocks.mts';
 import type { SlackBlock } from '../shared/slack-blocks.mts';
-import { getSlackSubteamId, normalizeTeamSlug } from '../shared/topology.mts';
+import { getSlackHandle, normalizeTeamSlug } from '../shared/topology.mts';
 import type { Topology } from '../shared/topology.mts';
 import type { PullRequest, Reminder } from './types.mts';
 
@@ -60,21 +59,23 @@ export function buildSlackPayload(
     return undefined;
   }
 
-  const tag = (team: string): { text: string; subteamId?: string } => {
-    const subteamId = getSlackSubteamId(topology, team);
-    return subteamId
-      ? { text: subteamMention(subteamId), subteamId }
+  // A handle like `@core-platform-team` in message text becomes a mention. A
+  // team without one is shown as a plain name.
+  const tag = (team: string): { text: string; handle?: string } => {
+    const handle = getSlackHandle(topology, team);
+    return handle
+      ? { text: handle, handle }
       : { text: escapeSlack(normalizeTeamSlug(team)) };
   };
 
   const headline = `*[${escapeSlack(options.repository)}] Open Dependabot pull requests*`;
   // Each section remembers its team mention, so only teams whose section is
   // actually sent get pinged.
-  const entries: { block: SlackBlock; subteamId?: string | undefined }[] = [
+  const entries: { block: SlackBlock; handle?: string | undefined }[] = [
     { block: section(headline) },
   ];
   const addSections = (
-    header: { text: string; subteamId?: string },
+    header: { text: string; handle?: string },
     pullRequests: PullRequest[],
     label?: string,
   ): void => {
@@ -83,7 +84,7 @@ export function buildSlackPayload(
       fullHeader,
       formatPullRequestLines(pullRequests),
     )) {
-      entries.push({ block: section(text), subteamId: header.subteamId });
+      entries.push({ block: section(text), handle: header.handle });
     }
   };
   for (const [team, pullRequests] of teamEntries) {
@@ -107,9 +108,7 @@ export function buildSlackPayload(
   const shownEntries =
     omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
   const mentions = new Set(
-    shownEntries.flatMap(({ subteamId }) =>
-      subteamId ? [subteamMention(subteamId)] : [],
-    ),
+    shownEntries.flatMap(({ handle }) => (handle ? [handle] : [])),
   );
 
   return { text: [headline, ...mentions].join(' '), blocks };

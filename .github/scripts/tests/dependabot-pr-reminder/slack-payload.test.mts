@@ -25,15 +25,15 @@ describe('buildSlackPayload', () => {
       {
         'core-platform': {
           githubHandle: 'MetaMask/core-platform',
-          slackHandle: { team: 'S123' },
+          slackHandle: { team: '@core-platform-team' },
         },
       },
       options,
     );
     assert.ok(payload);
-    expect(allText(payload)).toMatch(/<!subteam\^S123>/u);
+    expect(allText(payload)).toMatch(/@core-platform-team/u);
     expect(allText(payload)).toMatch(/#7/u);
-    expect(payload.text).toMatch(/<!subteam\^S123>/u);
+    expect(payload.text).toMatch(/@core-platform-team/u);
     expect(allText(payload)).not.toMatch(/:dependabot:/u);
   });
 
@@ -45,13 +45,13 @@ describe('buildSlackPayload', () => {
       {
         key: {
           githubHandle: '@MetaMask/Core-Platform',
-          slackHandle: { team: 'S9' },
+          slackHandle: { team: '@nine-team' },
         },
       },
       options,
     );
     assert.ok(payload);
-    expect(allText(payload)).toMatch(/<!subteam\^S9>/u);
+    expect(allText(payload)).toMatch(/@nine-team/u);
   });
 
   it('falls back to the plain team name when topology has no match', () => {
@@ -60,7 +60,7 @@ describe('buildSlackPayload', () => {
     const payload = buildSlackPayload(reminder, {}, options);
     assert.ok(payload);
     expect(allText(payload)).toMatch(/core-platform/u);
-    expect(allText(payload)).not.toMatch(/subteam\^/u);
+    expect(allText(payload)).not.toMatch(/@core-platform-team/u);
   });
 
   it('escapes &, <, > in PR titles', () => {
@@ -81,14 +81,14 @@ describe('buildSlackPayload', () => {
       {
         platform: {
           githubHandle: 'MetaMask/platform',
-          slackHandle: { team: 'SF' },
+          slackHandle: { team: '@platform-team' },
         },
       },
       options,
     );
     assert.ok(payload);
     const text = allText(payload);
-    expect(text).toMatch(/<!subteam\^SF>/u);
+    expect(text).toMatch(/@platform-team/u);
     expect(text).toMatch(/[Ff]ailing CI/u);
     expect(text).toMatch(/[Rr]eady to merge/u);
     expect(text).toMatch(/[Nn]eeds owner/u);
@@ -155,11 +155,11 @@ describe('buildSlackPayload limits and lookup', () => {
       },
       {
         bad: null,
-        good: { githubHandle: 'MetaMask/a', slackHandle: { team: 'S1' } },
+        good: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
       },
       options,
     );
-    expect(payload?.text).toMatch(/<!subteam\^S1>/u);
+    expect(payload?.text).toMatch(/@a-team/u);
   });
 });
 
@@ -198,13 +198,13 @@ describe('buildSlackPayload mentions and titles', () => {
       byTeam[`team-${index}`] = [pr({ number: index + 1 })];
       topology[`t${index}`] = {
         githubHandle: `MetaMask/team-${index}`,
-        slackHandle: { team: `S${index}` },
+        slackHandle: { team: `@g${index}` },
       };
     }
     const payload = buildSlackPayload({ byTeam, fallback }, topology, options);
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(50);
-    expect(payload.text).toContain('<!subteam^S0>');
-    expect(payload.text).not.toContain('<!subteam^S79>');
+    expect(payload.text).toContain('@g0');
+    expect(payload.text).not.toContain('@g79');
   });
 });
