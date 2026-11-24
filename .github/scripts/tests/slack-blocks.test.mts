@@ -5,7 +5,6 @@ import {
   chunkSections,
   escapeSlack,
   section,
-  subteamMention,
   truncateText,
 } from '../shared/slack-blocks.mts';
 
@@ -22,12 +21,6 @@ describe('truncateText', () => {
 
   it('shortens long text to the limit with an ellipsis', () => {
     expect(truncateText('abcdef', 4)).toBe('abc…');
-  });
-});
-
-describe('subteamMention', () => {
-  it('builds a user group mention', () => {
-    expect(subteamMention('S1')).toBe('<!subteam^S1>');
   });
 });
 

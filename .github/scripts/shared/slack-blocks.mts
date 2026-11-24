@@ -49,16 +49,6 @@ export function section(text: string): SlackBlock {
 }
 
 /**
- * Builds a Slack user group mention.
- *
- * @param subteamId - The Slack user group ID.
- * @returns The mention markup.
- */
-export function subteamMention(subteamId: string): string {
-  return `<!subteam^${subteamId}>`;
-}
-
-/**
  * Splits a header and lines into section texts that fit Slack's limit. The
  * header is repeated on every section. A single line longer than the budget is
  * hard cut as a last resort, so callers should shorten their own lines first.

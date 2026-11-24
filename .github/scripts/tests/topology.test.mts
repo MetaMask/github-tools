@@ -5,7 +5,7 @@ import {
   fetchTopology,
   findTeamBySlug,
   findTeamsByMember,
-  getSlackSubteamId,
+  getSlackHandle,
   normalizeTeamSlug,
 } from '../shared/topology.mts';
 import type { Topology } from '../shared/topology.mts';
@@ -15,7 +15,7 @@ const topology: Topology = {
   core: {
     githubHandle: 'MetaMask/core-platform',
     githubLabel: { name: 'team-core-platform' },
-    slackHandle: { team: 'S1' },
+    slackHandle: { team: '@core-platform-team' },
     members: ['alice'],
     pm: 'pat',
     em: 'eve',
@@ -77,14 +77,45 @@ describe('findTeamBySlug', () => {
   });
 });
 
-describe('getSlackSubteamId', () => {
-  it('returns the Slack user group ID', () => {
-    expect(getSlackSubteamId(topology, 'core-platform')).toBe('S1');
+describe('getSlackHandle', () => {
+  it('returns the Slack user group handle', () => {
+    expect(getSlackHandle(topology, 'core-platform')).toBe(
+      '@core-platform-team',
+    );
   });
 
-  it('returns undefined for a team without one or an unknown team', () => {
-    expect(getSlackSubteamId(topology, 'ui')).toBeUndefined();
-    expect(getSlackSubteamId(topology, 'nope')).toBeUndefined();
+  it('adds a missing @', () => {
+    expect(
+      getSlackHandle(
+        { a: { githubHandle: 'MetaMask/a', slackHandle: { team: 'a-team' } } },
+        'a',
+      ),
+    ).toBe('@a-team');
+  });
+
+  it('returns undefined for a missing or empty handle or an unknown team', () => {
+    expect(getSlackHandle(topology, 'ui')).toBeUndefined();
+    expect(
+      getSlackHandle(
+        { a: { githubHandle: 'MetaMask/a', slackHandle: { team: '' } } },
+        'a',
+      ),
+    ).toBeUndefined();
+    expect(getSlackHandle(topology, 'nope')).toBeUndefined();
+  });
+
+  it('rejects values that are not a plain handle', () => {
+    expect(
+      getSlackHandle(
+        {
+          a: {
+            githubHandle: 'MetaMask/a',
+            slackHandle: { team: '<!channel>' },
+          },
+        },
+        'a',
+      ),
+    ).toBeUndefined();
   });
 });
 

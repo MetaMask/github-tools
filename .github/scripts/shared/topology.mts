@@ -86,19 +86,29 @@ export function findTeamBySlug(
   );
 }
 
+/** A Slack user group handle, e.g. `@core-platform-team`. */
+const SLACK_HANDLE_PATTERN = /^@[a-z0-9._-]+$/iu;
+
 /**
- * Gets the Slack user group ID for a team.
+ * Gets the Slack user group handle for a team. Slack turns the handle into a
+ * mention when it appears in message text.
  *
  * @param topology - The parsed topology.
  * @param slug - The team slug.
- * @returns The Slack subteam ID, or undefined when the team has none.
+ * @returns The handle with a leading `@`, or undefined when the team has none
+ * or the value is not a plain handle. The check keeps markup such as
+ * `<!channel>` out of messages.
  */
-export function getSlackSubteamId(
+export function getSlackHandle(
   topology: Topology,
   slug: string,
 ): string | undefined {
-  const id = findTeamBySlug(topology, slug)?.slackHandle?.team;
-  return id === undefined || id === '' ? undefined : id;
+  const value = findTeamBySlug(topology, slug)?.slackHandle?.team?.trim();
+  if (!value) {
+    return undefined;
+  }
+  const handle = value.startsWith('@') ? value : `@${value}`;
+  return SLACK_HANDLE_PATTERN.test(handle) ? handle : undefined;
 }
 
 /**
