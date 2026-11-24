@@ -235,12 +235,13 @@ describe('buildSlackPayload grouping', () => {
     expect(payload.text).toContain('@a-team @b-team');
   });
 
-  it('keeps teams with different PRs in separate sections', () => {
+  it('lists each PR once, under all of its teams', () => {
     const payload = buildSlackPayload(
       {
         byTeam: {
           a: [pr({ number: 1 }), pr({ number: 2 })],
           b: [pr({ number: 2 })],
+          c: [pr({ number: 2 })],
         },
         fallback,
       },
@@ -249,8 +250,30 @@ describe('buildSlackPayload grouping', () => {
     );
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(3);
-    expect(sectionText(payload.blocks[1]).startsWith('@a-team\n')).toBe(true);
-    expect(sectionText(payload.blocks[2]).startsWith('@b-team\n')).toBe(true);
+    expect(sectionText(payload.blocks[1]).split('\n')[0]).toBe('@a-team');
+    expect(sectionText(payload.blocks[1])).toMatch(/#1 /u);
+    expect(sectionText(payload.blocks[2]).split('\n')[0]).toBe(
+      '@a-team @b-team c',
+    );
+    expect(sectionText(payload.blocks[2])).toMatch(/#2 /u);
+    expect(JSON.stringify(payload.blocks).match(/#2 /gu)).toHaveLength(1);
+  });
+
+  it('puts PRs with the same teams together', () => {
+    const payload = buildSlackPayload(
+      {
+        byTeam: {
+          a: [pr({ number: 1 }), pr({ number: 2 })],
+          b: [pr({ number: 2 }), pr({ number: 1 })],
+        },
+        fallback,
+      },
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(2);
+    expect(sectionText(payload.blocks[1]).split('\n')).toHaveLength(3);
   });
 
   it('shows a team without a handle as plain text next to tagged teams', () => {

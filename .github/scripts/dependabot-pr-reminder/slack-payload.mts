@@ -34,30 +34,45 @@ function formatPullRequestLines(
 }
 
 /**
- * Merges teams that have the same pull requests, so a PR requested from
- * several teams is listed once with all of them tagged. Groups keep the order
- * in which their first team appears.
+ * Groups pull requests by the teams they were requested from, so each PR is
+ * listed once, under all of its teams. PRs with the same set of teams share a
+ * group. Groups and teams keep the order in which they first appear.
  *
- * @param teamEntries - Each team with its pull requests.
+ * @param byTeam - Each team with its pull requests.
  * @returns The groups of teams and the pull requests they share.
  */
-function groupTeamsByPullRequests(
-  teamEntries: [string, PullRequest[]][],
+function groupPullRequestsByTeams(
+  byTeam: Reminder['byTeam'],
 ): { teams: string[]; pullRequests: PullRequest[] }[] {
+  const teamsByPullRequest = new Map<
+    number,
+    { pullRequest: PullRequest; teams: string[] }
+  >();
+  for (const [team, pullRequests] of Object.entries(byTeam)) {
+    for (const pullRequest of pullRequests) {
+      const entry = teamsByPullRequest.get(pullRequest.number);
+      if (entry) {
+        entry.teams.push(team);
+      } else {
+        teamsByPullRequest.set(pullRequest.number, {
+          pullRequest,
+          teams: [team],
+        });
+      }
+    }
+  }
+
   const groups = new Map<
     string,
     { teams: string[]; pullRequests: PullRequest[] }
   >();
-  for (const [team, pullRequests] of teamEntries) {
-    const key = pullRequests
-      .map(({ number }) => number)
-      .sort((left, right) => left - right)
-      .join(',');
+  for (const { pullRequest, teams } of teamsByPullRequest.values()) {
+    const key = [...teams].sort().join(',');
     const group = groups.get(key);
     if (group) {
-      group.teams.push(team);
+      group.pullRequests.push(pullRequest);
     } else {
-      groups.set(key, { teams: [team], pullRequests });
+      groups.set(key, { teams, pullRequests: [pullRequest] });
     }
   }
   return [...groups.values()];
@@ -88,7 +103,7 @@ export function buildSlackPayload(
   const teamEntries = Object.entries(reminder.byTeam).filter(
     ([, pullRequests]) => pullRequests.length > 0,
   );
-  const teamGroups = groupTeamsByPullRequests(teamEntries);
+  const teamGroups = groupPullRequestsByTeams(reminder.byTeam);
   const fallbackSections = [
     {
       label: 'Shared by many teams',
