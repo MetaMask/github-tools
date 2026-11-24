@@ -4,13 +4,12 @@ export type PullRequest = {
   url: string;
   requestedTeams: string[];
   hasApproval: boolean;
-  ciFailing: boolean;
+  ciState: 'passing' | 'failing' | 'pending' | 'unknown';
 };
 
 export type Reminder = {
   byTeam: Record<string, PullRequest[]>;
   fallback: {
-    failingCi: PullRequest[];
     readyToMerge: PullRequest[];
     needsOwner: PullRequest[];
   };

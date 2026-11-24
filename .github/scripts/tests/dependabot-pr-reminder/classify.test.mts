@@ -11,11 +11,17 @@ describe('classifyPullRequests', () => {
     expect(result.byTeam.b).toStrictEqual([pullRequest]);
   });
 
-  it('lists failing CI PRs under fallback only', () => {
-    const pullRequest = pr({ ciFailing: true, requestedTeams: ['a'] });
+  it('keeps a failing CI PR under its team, since the team fixes it', () => {
+    const pullRequest = pr({ ciState: 'failing', requestedTeams: ['a'] });
     const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
-    expect(result.fallback.failingCi).toStrictEqual([pullRequest]);
-    expect(result.byTeam).toStrictEqual({});
+    expect(result.byTeam.a).toStrictEqual([pullRequest]);
+    expect(result.fallback.needsOwner).toStrictEqual([]);
+  });
+
+  it('lists a failing CI PR with no team as needs owner', () => {
+    const pullRequest = pr({ ciState: 'failing' });
+    const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
+    expect(result.fallback.needsOwner).toStrictEqual([pullRequest]);
   });
 
   it('lists approved PRs with no teams left as ready to merge', () => {

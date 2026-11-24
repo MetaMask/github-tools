@@ -63,6 +63,26 @@ export function buildSearchQuery(repository: string): string {
 }
 
 /**
+ * Maps a commit status rollup to a CI state.
+ *
+ * @param rollupState - The GraphQL rollup state, or null when there are no
+ * checks.
+ * @returns The CI state.
+ */
+function toCiState(rollupState: string | null): PullRequest['ciState'] {
+  if (rollupState === 'SUCCESS') {
+    return 'passing';
+  }
+  if (rollupState === 'FAILURE' || rollupState === 'ERROR') {
+    return 'failing';
+  }
+  if (rollupState === 'PENDING' || rollupState === 'EXPECTED') {
+    return 'pending';
+  }
+  return 'unknown';
+}
+
+/**
  * Maps a search node to a PullRequest.
  *
  * @param node - The search node.
@@ -106,7 +126,7 @@ export function toPullRequest(
     hasApproval:
       reviewStates.includes('APPROVED') &&
       !reviewStates.includes('CHANGES_REQUESTED'),
-    ciFailing: rollupState === 'FAILURE' || rollupState === 'ERROR',
+    ciState: toCiState(rollupState),
   };
 }
 

@@ -4,9 +4,9 @@ import type { PullRequest, Reminder } from './types.mts';
 /**
  * Sorts pull requests into per-team groups and fallback buckets.
  *
- * Failing CI goes to the fallback bucket first, then PRs with remaining
- * requested teams are grouped by team, then approved PRs are ready to merge,
- * and anything else needs an owner.
+ * PRs with remaining requested teams are grouped by team, whatever their CI
+ * state, since the owning team is the one that fixes it. PRs with no team left
+ * are ready to merge when approved, and otherwise need an owner.
  *
  * @param pullRequests - The open Dependabot pull requests.
  * @param options - Classification options.
@@ -21,15 +21,10 @@ export function classifyPullRequests(
   const ownerTeams = options.ownerTeams?.map(normalizeTeamSlug);
   const reminder: Reminder = {
     byTeam: {},
-    fallback: { failingCi: [], readyToMerge: [], needsOwner: [] },
+    fallback: { readyToMerge: [], needsOwner: [] },
   };
 
   for (const pullRequest of pullRequests) {
-    if (pullRequest.ciFailing) {
-      reminder.fallback.failingCi.push(pullRequest);
-      continue;
-    }
-
     const teams = pullRequest.requestedTeams
       .map(normalizeTeamSlug)
       .filter((team) => !ownerTeams || ownerTeams.includes(team));

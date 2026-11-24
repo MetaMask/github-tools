@@ -75,7 +75,7 @@ describe('toPullRequest', () => {
       url: 'https://github.com/MetaMask/example/pull/7',
       requestedTeams: [],
       hasApproval: false,
-      ciFailing: false,
+      ciState: 'unknown',
     });
   });
 
@@ -109,18 +109,19 @@ describe('toPullRequest', () => {
     expect(result([])).toBe(false);
   });
 
-  it('sets ciFailing only for FAILURE and ERROR', () => {
+  it('maps the status rollup to a CI state', () => {
     const rollup = (
       statusCheckRollup: { state: string } | null,
-    ): boolean | undefined =>
+    ): string | undefined =>
       toPullRequest(
         node({ commits: { nodes: [{ commit: { statusCheckRollup } }] } }),
-      )?.ciFailing;
-    expect(rollup({ state: 'FAILURE' })).toBe(true);
-    expect(rollup({ state: 'ERROR' })).toBe(true);
-    expect(rollup({ state: 'PENDING' })).toBe(false);
-    expect(rollup({ state: 'SUCCESS' })).toBe(false);
-    expect(rollup(null)).toBe(false);
+      )?.ciState;
+    expect(rollup({ state: 'SUCCESS' })).toBe('passing');
+    expect(rollup({ state: 'FAILURE' })).toBe('failing');
+    expect(rollup({ state: 'ERROR' })).toBe('failing');
+    expect(rollup({ state: 'PENDING' })).toBe('pending');
+    expect(rollup({ state: 'EXPECTED' })).toBe('pending');
+    expect(rollup(null)).toBe('unknown');
   });
 });
 
