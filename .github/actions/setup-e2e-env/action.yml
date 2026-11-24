@@ -12,7 +12,7 @@ inputs:
   yarn-version:
     description: Yarn version to use with Corepack
     required: false
-    default: '3.8.7'
+    default: '4.10.3'
   setup-simulator:
     description: 'Whether to setup simulator/emulator'
     required: false
