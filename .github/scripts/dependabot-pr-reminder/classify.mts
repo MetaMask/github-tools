@@ -9,8 +9,7 @@ export const DEFAULT_SHARED_TEAM_THRESHOLD = 5;
  *
  * PRs with remaining requested teams are grouped by team. When more than
  * `sharedTeamThreshold` teams remain, no single team owns the PR, so it goes to
- * the fallback team instead. PRs with no team left are ready to merge when
- * approved, and otherwise need an owner.
+ * the fallback team instead. PRs with no team left go to the fallback team too.
  *
  * @param pullRequests - The open Dependabot pull requests.
  * @param options - Classification options.
@@ -33,7 +32,7 @@ export function classifyPullRequests(
     options.sharedTeamThreshold ?? DEFAULT_SHARED_TEAM_THRESHOLD;
   const reminder: Reminder = {
     byTeam: {},
-    fallback: { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] },
+    fallback: { sharedByManyTeams: [], noTeam: [] },
   };
 
   for (const pullRequest of pullRequests) {
@@ -49,10 +48,8 @@ export function classifyPullRequests(
       for (const team of uniqueTeams) {
         (reminder.byTeam[team] ??= []).push(pullRequest);
       }
-    } else if (pullRequest.hasApproval) {
-      reminder.fallback.readyToMerge.push(pullRequest);
     } else {
-      reminder.fallback.needsOwner.push(pullRequest);
+      reminder.fallback.noTeam.push(pullRequest);
     }
   }
 

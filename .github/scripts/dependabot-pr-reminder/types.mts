@@ -3,14 +3,12 @@ export type PullRequest = {
   title: string;
   url: string;
   requestedTeams: string[];
-  hasApproval: boolean;
 };
 
 export type Reminder = {
   byTeam: Record<string, PullRequest[]>;
   fallback: {
     sharedByManyTeams: PullRequest[];
-    readyToMerge: PullRequest[];
-    needsOwner: PullRequest[];
+    noTeam: PullRequest[];
   };
 };

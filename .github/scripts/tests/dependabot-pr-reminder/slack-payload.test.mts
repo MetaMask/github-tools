@@ -8,7 +8,7 @@ describe('buildSlackPayload', () => {
   const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
   const emptyReminder = (): Reminder => ({
     byTeam: {},
-    fallback: { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] },
+    fallback: { sharedByManyTeams: [], noTeam: [] },
   });
   const allText = (payload: { text: string; blocks: unknown[] }): string =>
     `${payload.text}\n${JSON.stringify(payload.blocks)}`;
@@ -73,8 +73,7 @@ describe('buildSlackPayload', () => {
 
   it('renders fallback sections under the fallback team', () => {
     const reminder = emptyReminder();
-    reminder.fallback.readyToMerge = [pr({ number: 2 })];
-    reminder.fallback.needsOwner = [pr({ number: 3 })];
+    reminder.fallback.noTeam = [pr({ number: 3 })];
     const payload = buildSlackPayload(
       reminder,
       {
@@ -88,9 +87,6 @@ describe('buildSlackPayload', () => {
     assert.ok(payload);
     const text = allText(payload);
     expect(text).toMatch(/@platform-team/u);
-    expect(text).toMatch(/[Rr]eady to merge/u);
-    expect(text).toMatch(/[Nn]eeds owner/u);
-    expect(text).toMatch(/#2/u);
     expect(text).toMatch(/#3/u);
   });
 });
@@ -106,7 +102,7 @@ describe('buildSlackPayload chunking', () => {
     );
     const reminder: Reminder = {
       byTeam: { wallet: pullRequests },
-      fallback: { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] },
+      fallback: { sharedByManyTeams: [], noTeam: [] },
     };
     const payload = buildSlackPayload(
       reminder,
@@ -137,7 +133,7 @@ describe('buildSlackPayload limits and lookup', () => {
     const payload = buildSlackPayload(
       {
         byTeam,
-        fallback: { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] },
+        fallback: { sharedByManyTeams: [], noTeam: [] },
       },
       {},
       options,
@@ -151,7 +147,7 @@ describe('buildSlackPayload limits and lookup', () => {
     const payload = buildSlackPayload(
       {
         byTeam: { a: [pr()] },
-        fallback: { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] },
+        fallback: { sharedByManyTeams: [], noTeam: [] },
       },
       {
         bad: null,
@@ -165,7 +161,7 @@ describe('buildSlackPayload limits and lookup', () => {
 
 describe('buildSlackPayload mentions and titles', () => {
   const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
-  const fallback = { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] };
+  const fallback = { sharedByManyTeams: [], noTeam: [] };
 
   it('does not turn @ text in titles into mentions', () => {
     const payload = buildSlackPayload(
@@ -211,7 +207,7 @@ describe('buildSlackPayload mentions and titles', () => {
 
 describe('buildSlackPayload grouping', () => {
   const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
-  const fallback = { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] };
+  const fallback = { sharedByManyTeams: [], noTeam: [] };
   const topology = {
     a: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
     b: { githubHandle: 'MetaMask/b', slackHandle: { team: '@b-team' } },
@@ -290,7 +286,7 @@ describe('buildSlackPayload grouping', () => {
 });
 
 describe('buildSlackPayload note', () => {
-  const fallback = { sharedByManyTeams: [], readyToMerge: [], needsOwner: [] };
+  const fallback = { sharedByManyTeams: [], noTeam: [] };
 
   it('adds the note as a section right under the headline', () => {
     const payload = buildSlackPayload(
@@ -360,8 +356,7 @@ describe('buildSlackPayload shared by many teams', () => {
     sharedByManyTeams: [
       pr({ number: 9, requestedTeams: ['a', 'b', 'c', 'd'] }),
     ],
-    readyToMerge: [],
-    needsOwner: [],
+    noTeam: [],
   };
   const topology = {
     platform: {
@@ -382,14 +377,13 @@ describe('buildSlackPayload shared by many teams', () => {
     expect(payload.text).toContain('@platform-team');
   });
 
-  it('puts the shared section before ready to merge and needs owner', () => {
+  it('puts the shared section before the PRs with no team', () => {
     const payload = buildSlackPayload(
       {
         byTeam: {},
         fallback: {
           ...fallback,
-          readyToMerge: [pr({ number: 2 })],
-          needsOwner: [pr({ number: 3 })],
+          noTeam: [pr({ number: 3 })],
         },
       },
       topology,
@@ -401,8 +395,7 @@ describe('buildSlackPayload shared by many teams', () => {
       .map((block) => sectionText(block).split('\n')[0]);
     expect(headers).toStrictEqual([
       '@platform-team *Shared by many teams*',
-      '@platform-team *Ready to merge*',
-      '@platform-team *Needs owner*',
+      '@platform-team',
     ]);
   });
 });

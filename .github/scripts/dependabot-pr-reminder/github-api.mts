@@ -13,7 +13,6 @@ export type GraphQlPullRequestNode = {
       requestedReviewer: { __typename: string; slug?: string } | null;
     }[];
   };
-  latestOpinionatedReviews: { nodes: { state: string }[] };
 };
 
 /** A page of search results. Nodes that are not pull requests come back empty. */
@@ -42,7 +41,6 @@ query($searchQuery: String!, $endCursor: String) {
         reviewRequests(first: 20) {
           nodes { requestedReviewer { __typename ... on Team { slug } } }
         }
-        latestOpinionatedReviews(first: 20) { nodes { state } }
       }
     }
   }
@@ -83,10 +81,6 @@ export function toPullRequest(
     return undefined;
   }
 
-  const reviewStates = node.latestOpinionatedReviews.nodes.map(
-    ({ state }) => state,
-  );
-
   return {
     number: node.number,
     title: node.title,
@@ -97,9 +91,6 @@ export function toPullRequest(
           ? [requestedReviewer.slug]
           : [],
     ),
-    hasApproval:
-      reviewStates.includes('APPROVED') &&
-      !reviewStates.includes('CHANGES_REQUESTED'),
   };
 }
 

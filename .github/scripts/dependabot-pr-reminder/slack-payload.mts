@@ -111,13 +111,8 @@ export function buildSlackPayload(
       showTeamCount: true,
     },
     {
-      label: 'Ready to merge',
-      pullRequests: reminder.fallback.readyToMerge,
-      showTeamCount: false,
-    },
-    {
-      label: 'Needs owner',
-      pullRequests: reminder.fallback.needsOwner,
+      label: undefined,
+      pullRequests: reminder.fallback.noTeam,
       showTeamCount: false,
     },
   ].filter(({ pullRequests }) => pullRequests.length > 0);
@@ -157,7 +152,7 @@ export function buildSlackPayload(
     {
       label,
       showTeamCount = false,
-    }: { label?: string; showTeamCount?: boolean } = {},
+    }: { label?: string | undefined; showTeamCount?: boolean } = {},
   ): void => {
     const tags = teams.map(tag);
     const header = tags.map(({ text }) => text).join(' ');

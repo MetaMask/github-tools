@@ -27,7 +27,6 @@ function node(
     isDraft: false,
     author: { __typename: 'Bot', login: 'dependabot' },
     reviewRequests: { nodes: [] },
-    latestOpinionatedReviews: { nodes: [] },
     ...overrides,
   };
 }
@@ -73,7 +72,6 @@ describe('toPullRequest', () => {
       title: 'Bump foo',
       url: 'https://github.com/MetaMask/example/pull/7',
       requestedTeams: [],
-      hasApproval: false,
     });
   });
 
@@ -90,21 +88,6 @@ describe('toPullRequest', () => {
       }),
     );
     expect(pullRequest?.requestedTeams).toStrictEqual(['wallet']);
-  });
-
-  it('sets hasApproval when approved and nothing requests changes', () => {
-    const result = (states: string[]): boolean | undefined =>
-      toPullRequest(
-        node({
-          latestOpinionatedReviews: {
-            nodes: states.map((state) => ({ state })),
-          },
-        }),
-      )?.hasApproval;
-    expect(result(['APPROVED'])).toBe(true);
-    expect(result(['APPROVED', 'CHANGES_REQUESTED'])).toBe(false);
-    expect(result(['CHANGES_REQUESTED'])).toBe(false);
-    expect(result([])).toBe(false);
   });
 });
 
