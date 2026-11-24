@@ -266,17 +266,17 @@ describe('buildSlackPayload grouping', () => {
   });
 });
 
-describe('buildSlackPayload closing note', () => {
+describe('buildSlackPayload note', () => {
   const fallback = { failingCi: [], readyToMerge: [], needsOwner: [] };
 
-  it('adds the note as a last section block', () => {
+  it('adds the note as a section right under the headline', () => {
     const payload = buildSlackPayload(
       { byTeam: { a: [pr()] }, fallback },
       {},
       { fallbackTeam: 'f', repository: 'MetaMask/example', note: 'Own it.' },
     );
     assert.ok(payload);
-    expect(payload.blocks.at(-1)).toStrictEqual({
+    expect(payload.blocks[1]).toStrictEqual({
       type: 'section',
       text: { type: 'mrkdwn', text: 'Own it.' },
     });
@@ -311,8 +311,8 @@ describe('buildSlackPayload closing note', () => {
     );
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(50);
-    expect(sectionText(payload.blocks.at(-1))).toBe('Own it.');
-    expect(sectionText(payload.blocks.at(-2))).toMatch(/…and \d+ more/u);
+    expect(sectionText(payload.blocks[1])).toBe('Own it.');
+    expect(sectionText(payload.blocks.at(-1))).toMatch(/…and \d+ more/u);
   });
 
   it('cuts a very long note to fit Slack', () => {
@@ -326,7 +326,7 @@ describe('buildSlackPayload closing note', () => {
       },
     );
     assert.ok(payload);
-    const serialized = JSON.stringify(payload.blocks.at(-1));
+    const serialized = JSON.stringify(payload.blocks[1]);
     expect(serialized).toContain('…');
     expect(serialized.length).toBeLessThan(2900);
   });

@@ -1,5 +1,4 @@
 import {
-  MAX_BLOCKS,
   MAX_SECTION_LENGTH,
   capBlocks,
   chunkSections,
@@ -66,7 +65,7 @@ function groupTeamsByPullRequests(
  * @param options - Payload options.
  * @param options.fallbackTeam - The team tagged on the fallback sections.
  * @param options.repository - The repository name shown in the header.
- * @param options.note - Text shown in a closing note, as Slack mrkdwn. Left out
+ * @param options.note - Text shown right under the headline, as Slack mrkdwn. Left out
  * when empty.
  * @returns The payload, or undefined when there is nothing to post.
  */
@@ -106,8 +105,18 @@ export function buildSlackPayload(
   const headline = `*[${escapeSlack(options.repository)}] Open Dependabot pull requests*`;
   // Each section remembers its team mention, so only teams whose section is
   // actually sent get pinged.
+  // The note goes right under the headline. The block cap only cuts from the
+  // end, so it is always shown.
   const entries: { block: SlackBlock; handles: string[] }[] = [
     { block: section(headline), handles: [] },
+    ...(options.note
+      ? [
+          {
+            block: section(truncateText(options.note, MAX_SECTION_LENGTH)),
+            handles: [],
+          },
+        ]
+      : []),
   ];
   const addSections = (
     teams: string[],
@@ -142,19 +151,13 @@ export function buildSlackPayload(
             .length,
         0,
       )} more pull request(s) not shown`,
-    // Keep a slot free for the closing note, so the cap can't cut it off.
-    options.note ? MAX_BLOCKS - 1 : MAX_BLOCKS,
   );
   const shownEntries =
     omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
   const mentions = new Set(shownEntries.flatMap(({ handles }) => handles));
 
-  const noteBlock = options.note
-    ? [section(truncateText(options.note, MAX_SECTION_LENGTH))]
-    : [];
-
   return {
     text: [headline, ...mentions].join(' '),
-    blocks: [...blocks, ...noteBlock],
+    blocks,
   };
 }
