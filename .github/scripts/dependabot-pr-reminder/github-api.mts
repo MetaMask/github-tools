@@ -14,9 +14,6 @@ export type GraphQlPullRequestNode = {
     }[];
   };
   latestOpinionatedReviews: { nodes: { state: string }[] };
-  commits: {
-    nodes: { commit: { statusCheckRollup: { state: string } | null } }[];
-  };
 };
 
 /** A page of search results. Nodes that are not pull requests come back empty. */
@@ -46,7 +43,6 @@ query($searchQuery: String!, $endCursor: String) {
           nodes { requestedReviewer { __typename ... on Team { slug } } }
         }
         latestOpinionatedReviews(first: 20) { nodes { state } }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
       }
     }
   }
@@ -60,26 +56,6 @@ query($searchQuery: String!, $endCursor: String) {
  */
 export function buildSearchQuery(repository: string): string {
   return `repo:${repository} is:pr is:open draft:false author:app/dependabot`;
-}
-
-/**
- * Maps a commit status rollup to a CI state.
- *
- * @param rollupState - The GraphQL rollup state, or null when there are no
- * checks.
- * @returns The CI state.
- */
-function toCiState(rollupState: string | null): PullRequest['ciState'] {
-  if (rollupState === 'SUCCESS') {
-    return 'passing';
-  }
-  if (rollupState === 'FAILURE' || rollupState === 'ERROR') {
-    return 'failing';
-  }
-  if (rollupState === 'PENDING' || rollupState === 'EXPECTED') {
-    return 'pending';
-  }
-  return 'unknown';
 }
 
 /**
@@ -107,8 +83,6 @@ export function toPullRequest(
     return undefined;
   }
 
-  const rollupState =
-    node.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null;
   const reviewStates = node.latestOpinionatedReviews.nodes.map(
     ({ state }) => state,
   );
@@ -126,7 +100,6 @@ export function toPullRequest(
     hasApproval:
       reviewStates.includes('APPROVED') &&
       !reviewStates.includes('CHANGES_REQUESTED'),
-    ciState: toCiState(rollupState),
   };
 }
 

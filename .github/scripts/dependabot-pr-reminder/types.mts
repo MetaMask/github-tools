@@ -4,7 +4,6 @@ export type PullRequest = {
   url: string;
   requestedTeams: string[];
   hasApproval: boolean;
-  ciState: 'passing' | 'failing' | 'pending' | 'unknown';
 };
 
 export type Reminder = {

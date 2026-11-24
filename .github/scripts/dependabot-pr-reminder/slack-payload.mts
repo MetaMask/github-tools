@@ -14,14 +14,6 @@ import type { PullRequest, Reminder } from './types.mts';
 /** Long titles are cut before escaping so a cut can't split a link or entity. */
 const MAX_TITLE_LENGTH = 200;
 
-/** Shown in front of each PR to tell its CI state at a glance. */
-const CI_ICONS: Record<PullRequest['ciState'], string> = {
-  passing: ':large_green_circle:',
-  failing: ':red_circle:',
-  pending: ':large_yellow_circle:',
-  unknown: ':white_circle:',
-};
-
 /**
  * Formats pull requests as bulleted Slack links, one line each.
  *
@@ -30,8 +22,8 @@ const CI_ICONS: Record<PullRequest['ciState'], string> = {
  */
 function formatPullRequestLines(pullRequests: PullRequest[]): string[] {
   return pullRequests.map(
-    ({ url, number, title, ciState }) =>
-      `• ${CI_ICONS[ciState]} <${url}|#${number} ${escapeSlack(truncateText(title, MAX_TITLE_LENGTH))}>`,
+    ({ url, number, title }) =>
+      `• <${url}|#${number} ${escapeSlack(truncateText(title, MAX_TITLE_LENGTH))}>`,
   );
 }
 

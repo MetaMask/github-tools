@@ -28,7 +28,6 @@ function node(
     author: { __typename: 'Bot', login: 'dependabot' },
     reviewRequests: { nodes: [] },
     latestOpinionatedReviews: { nodes: [] },
-    commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
     ...overrides,
   };
 }
@@ -75,7 +74,6 @@ describe('toPullRequest', () => {
       url: 'https://github.com/MetaMask/example/pull/7',
       requestedTeams: [],
       hasApproval: false,
-      ciState: 'unknown',
     });
   });
 
@@ -107,21 +105,6 @@ describe('toPullRequest', () => {
     expect(result(['APPROVED', 'CHANGES_REQUESTED'])).toBe(false);
     expect(result(['CHANGES_REQUESTED'])).toBe(false);
     expect(result([])).toBe(false);
-  });
-
-  it('maps the status rollup to a CI state', () => {
-    const rollup = (
-      statusCheckRollup: { state: string } | null,
-    ): string | undefined =>
-      toPullRequest(
-        node({ commits: { nodes: [{ commit: { statusCheckRollup } }] } }),
-      )?.ciState;
-    expect(rollup({ state: 'SUCCESS' })).toBe('passing');
-    expect(rollup({ state: 'FAILURE' })).toBe('failing');
-    expect(rollup({ state: 'ERROR' })).toBe('failing');
-    expect(rollup({ state: 'PENDING' })).toBe('pending');
-    expect(rollup({ state: 'EXPECTED' })).toBe('pending');
-    expect(rollup(null)).toBe('unknown');
   });
 });
 

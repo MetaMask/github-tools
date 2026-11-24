@@ -14,7 +14,6 @@ export function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     url: 'https://github.com/MetaMask/example/pull/1',
     requestedTeams: [],
     hasApproval: false,
-    ciState: 'unknown',
     ...overrides,
   };
 }
