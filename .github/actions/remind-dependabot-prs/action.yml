@@ -25,9 +25,9 @@ inputs:
     required: false
     default: '5'
   reminder-note:
-    description: 'Note shown under the headline of the message, as Slack mrkdwn. Empty for none.'
+    description: 'Note shown under the headline, as Slack mrkdwn. `default` uses the built in instructions, empty for none. `{repository}` is replaced by the repository name.'
     required: false
-    default: 'Tagged teams own these PRs: read the changelog, test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
+    default: 'default'
 
 outputs:
   has-prs:

@@ -44,8 +44,8 @@ on:
       reminder-note:
         required: false
         type: string
-        default: 'Tagged teams own these PRs: read the changelog, test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
-        description: 'Note shown under the headline of the message, as Slack mrkdwn. Empty for none'
+        default: 'default'
+        description: 'Note shown under the headline, as Slack mrkdwn. `default` uses the built in instructions, empty for none. `{repository}` is replaced by the repository name'
       environment:
         required: false
         type: string

@@ -15,7 +15,7 @@ import type { PullRequest, Reminder } from './types.mts';
 const MAX_TITLE_LENGTH = 200;
 
 /** Shown in front of each PR to tell its CI state at a glance. */
-const CI_ICONS: Record<PullRequest['ciState'], string> = {
+export const CI_ICONS: Record<PullRequest['ciState'], string> = {
   passing: ':white_check_mark:',
   failing: ':warning:',
   pending: ':hourglass_flowing_sand:',
