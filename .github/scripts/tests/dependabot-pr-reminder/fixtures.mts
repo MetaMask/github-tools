@@ -1,5 +1,5 @@
-import type { ReminderBlock } from '../../dependabot-pr-reminder/slack-payload.mts';
 import type { PullRequest } from '../../dependabot-pr-reminder/types.mts';
+import type { SlackBlock } from '../../shared/slack-blocks.mts';
 
 /**
  * Builds a pull request for tests.
@@ -23,8 +23,8 @@ export function pr(overrides: Partial<PullRequest> = {}): PullRequest {
  * Reads the text of a section block.
  *
  * @param block - The block, if any.
- * @returns The text, or an empty string for other kinds of block.
+ * @returns The text, or an empty string when there is no block.
  */
-export function sectionText(block: ReminderBlock | undefined): string {
-  return block && 'text' in block ? block.text.text : '';
+export function sectionText(block: SlackBlock | undefined): string {
+  return block?.text.text ?? '';
 }

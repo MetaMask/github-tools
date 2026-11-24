@@ -12,15 +12,6 @@ import { getSlackHandle, normalizeTeamSlug } from '../shared/topology.mts';
 import type { Topology } from '../shared/topology.mts';
 import type { PullRequest, Reminder } from './types.mts';
 
-/** A small grey Slack block, used for the closing note. */
-export type ContextBlock = {
-  type: 'context';
-  elements: { type: 'mrkdwn'; text: string }[];
-};
-
-/** Any block in the payload. */
-export type ReminderBlock = SlackBlock | ContextBlock;
-
 /** Long titles are cut before escaping so a cut can't split a link or entity. */
 const MAX_TITLE_LENGTH = 200;
 
@@ -86,7 +77,7 @@ export function buildSlackPayload(
 ):
   | {
       text: string;
-      blocks: ReminderBlock[];
+      blocks: SlackBlock[];
     }
   | undefined {
   const teamEntries = Object.entries(reminder.byTeam).filter(
@@ -158,18 +149,8 @@ export function buildSlackPayload(
     omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
   const mentions = new Set(shownEntries.flatMap(({ handles }) => handles));
 
-  const noteBlock: ContextBlock[] = options.note
-    ? [
-        {
-          type: 'context',
-          elements: [
-            {
-              type: 'mrkdwn',
-              text: truncateText(options.note, MAX_SECTION_LENGTH),
-            },
-          ],
-        },
-      ]
+  const noteBlock = options.note
+    ? [section(truncateText(options.note, MAX_SECTION_LENGTH))]
     : [];
 
   return {

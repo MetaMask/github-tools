@@ -269,7 +269,7 @@ describe('buildSlackPayload grouping', () => {
 describe('buildSlackPayload closing note', () => {
   const fallback = { failingCi: [], readyToMerge: [], needsOwner: [] };
 
-  it('adds the note as a last context block', () => {
+  it('adds the note as a last section block', () => {
     const payload = buildSlackPayload(
       { byTeam: { a: [pr()] }, fallback },
       {},
@@ -277,8 +277,8 @@ describe('buildSlackPayload closing note', () => {
     );
     assert.ok(payload);
     expect(payload.blocks.at(-1)).toStrictEqual({
-      type: 'context',
-      elements: [{ type: 'mrkdwn', text: 'Own it.' }],
+      type: 'section',
+      text: { type: 'mrkdwn', text: 'Own it.' },
     });
   });
 
@@ -311,7 +311,7 @@ describe('buildSlackPayload closing note', () => {
     );
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(50);
-    expect(payload.blocks.at(-1)?.type).toBe('context');
+    expect(sectionText(payload.blocks.at(-1))).toBe('Own it.');
     expect(sectionText(payload.blocks.at(-2))).toMatch(/…and \d+ more/u);
   });
 
