@@ -44,7 +44,7 @@ on:
       reminder-note:
         required: false
         type: string
-        default: 'Tagged teams own these PRs: test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
+        default: 'Tagged teams own these PRs: read the changelog, test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
         description: 'Note shown under the headline of the message, as Slack mrkdwn. Empty for none'
       environment:
         required: false
