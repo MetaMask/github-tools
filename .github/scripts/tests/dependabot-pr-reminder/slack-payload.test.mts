@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from 'vitest';
 
 import { buildSlackPayload } from '../../dependabot-pr-reminder/slack-payload.mts';
 import type { Reminder } from '../../dependabot-pr-reminder/types.mts';
-import { pr } from './fixtures.mts';
+import { pr, sectionText } from './fixtures.mts';
 
 describe('buildSlackPayload', () => {
   const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
@@ -117,7 +117,7 @@ describe('buildSlackPayload chunking', () => {
       { fallbackTeam: 'f', repository: 'MetaMask/example' },
     );
     assert.ok(payload);
-    const texts = payload.blocks.map((block) => block.text.text);
+    const texts = payload.blocks.map(sectionText);
     expect(texts.length).toBeGreaterThan(3);
     for (const text of texts) {
       assert.ok(text.length <= 3000, `section has ${text.length} characters`);
@@ -144,7 +144,7 @@ describe('buildSlackPayload limits and lookup', () => {
     );
     assert.ok(payload);
     expect(payload.blocks.length).toBeLessThanOrEqual(50);
-    expect(payload.blocks.at(-1)?.text.text).toMatch(/…and \d+ more/u);
+    expect(sectionText(payload.blocks.at(-1))).toMatch(/…and \d+ more/u);
   });
 
   it('does not throw on null topology entries', () => {
@@ -184,8 +184,8 @@ describe('buildSlackPayload mentions and titles', () => {
       options,
     );
     assert.ok(payload);
-    expect(payload.blocks[1]?.text.text).toMatch(/x…>$/u);
-    expect(payload.blocks[1]?.text.text).not.toContain('&amp;');
+    expect(sectionText(payload.blocks[1])).toMatch(/x…>$/u);
+    expect(sectionText(payload.blocks[1])).not.toContain('&amp;');
   });
 
   it('only pings teams whose section is shown', () => {
@@ -230,8 +230,8 @@ describe('buildSlackPayload grouping', () => {
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(2);
     const [, sharedBlock] = payload.blocks;
-    expect(sharedBlock?.text.text.split('\n')[0]).toBe('@a-team @b-team');
-    expect(sharedBlock?.text.text.match(/#1 /gu)).toHaveLength(1);
+    expect(sectionText(sharedBlock).split('\n')[0]).toBe('@a-team @b-team');
+    expect(sectionText(sharedBlock).match(/#1 /gu)).toHaveLength(1);
     expect(payload.text).toContain('@a-team @b-team');
   });
 
@@ -249,8 +249,8 @@ describe('buildSlackPayload grouping', () => {
     );
     assert.ok(payload);
     expect(payload.blocks).toHaveLength(3);
-    expect(payload.blocks[1]?.text.text.startsWith('@a-team\n')).toBe(true);
-    expect(payload.blocks[2]?.text.text.startsWith('@b-team\n')).toBe(true);
+    expect(sectionText(payload.blocks[1]).startsWith('@a-team\n')).toBe(true);
+    expect(sectionText(payload.blocks[2]).startsWith('@b-team\n')).toBe(true);
   });
 
   it('shows a team without a handle as plain text next to tagged teams', () => {
@@ -260,8 +260,74 @@ describe('buildSlackPayload grouping', () => {
       options,
     );
     assert.ok(payload);
-    expect(payload.blocks[1]?.text.text.split('\n')[0]).toBe('@a-team plain');
+    expect(sectionText(payload.blocks[1]).split('\n')[0]).toBe('@a-team plain');
     expect(payload.text).toContain('@a-team');
     expect(payload.text).not.toContain('plain');
+  });
+});
+
+describe('buildSlackPayload closing note', () => {
+  const fallback = { failingCi: [], readyToMerge: [], needsOwner: [] };
+
+  it('adds the note as a last context block', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr()] }, fallback },
+      {},
+      { fallbackTeam: 'f', repository: 'MetaMask/example', note: 'Own it.' },
+    );
+    assert.ok(payload);
+    expect(payload.blocks.at(-1)).toStrictEqual({
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: 'Own it.' }],
+    });
+  });
+
+  it('leaves the note out when there is none', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr()] }, fallback },
+      {},
+      { fallbackTeam: 'f', repository: 'MetaMask/example' },
+    );
+    assert.ok(payload);
+    expect(payload.blocks.map(({ type }) => type)).toStrictEqual([
+      'section',
+      'section',
+    ]);
+  });
+
+  it('keeps the note when the block cap is hit', () => {
+    const byTeam: Reminder['byTeam'] = {};
+    for (let index = 0; index < 80; index++) {
+      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
+    }
+    const payload = buildSlackPayload(
+      { byTeam, fallback },
+      {},
+      {
+        fallbackTeam: 'f',
+        repository: 'MetaMask/example',
+        note: 'Own it.',
+      },
+    );
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(50);
+    expect(payload.blocks.at(-1)?.type).toBe('context');
+    expect(sectionText(payload.blocks.at(-2))).toMatch(/…and \d+ more/u);
+  });
+
+  it('cuts a very long note to fit Slack', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr()] }, fallback },
+      {},
+      {
+        fallbackTeam: 'f',
+        repository: 'MetaMask/example',
+        note: 'x'.repeat(5000),
+      },
+    );
+    assert.ok(payload);
+    const serialized = JSON.stringify(payload.blocks.at(-1));
+    expect(serialized).toContain('…');
+    expect(serialized.length).toBeLessThan(2900);
   });
 });

@@ -1,3 +1,4 @@
+import type { ReminderBlock } from '../../dependabot-pr-reminder/slack-payload.mts';
 import type { PullRequest } from '../../dependabot-pr-reminder/types.mts';
 
 /**
@@ -16,4 +17,14 @@ export function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     ciFailing: false,
     ...overrides,
   };
+}
+
+/**
+ * Reads the text of a section block.
+ *
+ * @param block - The block, if any.
+ * @returns The text, or an empty string for other kinds of block.
+ */
+export function sectionText(block: ReminderBlock | undefined): string {
+  return block && 'text' in block ? block.text.text : '';
 }

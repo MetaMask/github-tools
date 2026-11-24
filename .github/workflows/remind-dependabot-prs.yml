@@ -36,6 +36,11 @@ on:
         type: string
         default: 'main'
         description: 'Git ref of MetaMask-planning to read topology.json from'
+      reminder-note:
+        required: false
+        type: string
+        default: 'Tagged teams own these PRs: test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
+        description: 'Note shown at the end of the message, as Slack mrkdwn. Empty for none'
       environment:
         required: false
         type: string
@@ -76,6 +81,7 @@ jobs:
           owner-teams: ${{ inputs.owner-teams }}
           fallback-team: ${{ inputs.fallback-team }}
           topology-ref: ${{ inputs.topology-ref }}
+          reminder-note: ${{ inputs.reminder-note }}
 
       - name: Send Slack notification
         if: steps.remind.outputs.has-prs == 'true'

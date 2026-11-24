@@ -63,9 +63,11 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     );
   }
 
+  const note = environment.REMINDER_NOTE?.trim();
   const payload = buildSlackPayload(reminder, topology, {
     fallbackTeam,
     repository,
+    ...(note ? { note } : {}),
   });
   if (!payload) {
     console.log('No open Dependabot pull requests to report.');

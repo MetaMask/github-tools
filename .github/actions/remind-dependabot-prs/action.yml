@@ -20,6 +20,10 @@ inputs:
     description: 'Git ref of MetaMask-planning to read topology.json from.'
     required: false
     default: 'main'
+  reminder-note:
+    description: 'Note shown at the end of the message, as Slack mrkdwn. Empty for none.'
+    required: false
+    default: 'Tagged teams own these PRs: test the update, approve it and merge it. If a PR is listed under the wrong team, say so in a reply.'
 
 outputs:
   has-prs:
@@ -48,6 +52,7 @@ runs:
         OWNER_TEAMS: ${{ inputs.owner-teams }}
         FALLBACK_TEAM: ${{ inputs.fallback-team }}
         TOPOLOGY_REF: ${{ inputs.topology-ref }}
+        REMINDER_NOTE: ${{ inputs.reminder-note }}
       run: |
         set -euo pipefail
         node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder/cli.mts"

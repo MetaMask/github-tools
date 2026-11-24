@@ -1,4 +1,6 @@
 import {
+  MAX_BLOCKS,
+  MAX_SECTION_LENGTH,
   capBlocks,
   chunkSections,
   escapeSlack,
@@ -9,6 +11,15 @@ import type { SlackBlock } from '../shared/slack-blocks.mts';
 import { getSlackHandle, normalizeTeamSlug } from '../shared/topology.mts';
 import type { Topology } from '../shared/topology.mts';
 import type { PullRequest, Reminder } from './types.mts';
+
+/** A small grey Slack block, used for the closing note. */
+export type ContextBlock = {
+  type: 'context';
+  elements: { type: 'mrkdwn'; text: string }[];
+};
+
+/** Any block in the payload. */
+export type ReminderBlock = SlackBlock | ContextBlock;
 
 /** Long titles are cut before escaping so a cut can't split a link or entity. */
 const MAX_TITLE_LENGTH = 200;
@@ -64,16 +75,18 @@ function groupTeamsByPullRequests(
  * @param options - Payload options.
  * @param options.fallbackTeam - The team tagged on the fallback sections.
  * @param options.repository - The repository name shown in the header.
+ * @param options.note - Text shown in a closing note, as Slack mrkdwn. Left out
+ * when empty.
  * @returns The payload, or undefined when there is nothing to post.
  */
 export function buildSlackPayload(
   reminder: Reminder,
   topology: Topology,
-  options: { fallbackTeam: string; repository: string },
+  options: { fallbackTeam: string; repository: string; note?: string },
 ):
   | {
       text: string;
-      blocks: SlackBlock[];
+      blocks: ReminderBlock[];
     }
   | undefined {
   const teamEntries = Object.entries(reminder.byTeam).filter(
@@ -138,10 +151,29 @@ export function buildSlackPayload(
             .length,
         0,
       )} more pull request(s) not shown`,
+    // Keep a slot free for the closing note, so the cap can't cut it off.
+    options.note ? MAX_BLOCKS - 1 : MAX_BLOCKS,
   );
   const shownEntries =
     omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
   const mentions = new Set(shownEntries.flatMap(({ handles }) => handles));
 
-  return { text: [headline, ...mentions].join(' '), blocks };
+  const noteBlock: ContextBlock[] = options.note
+    ? [
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: truncateText(options.note, MAX_SECTION_LENGTH),
+            },
+          ],
+        },
+      ]
+    : [];
+
+  return {
+    text: [headline, ...mentions].join(' '),
+    blocks: [...blocks, ...noteBlock],
+  };
 }
