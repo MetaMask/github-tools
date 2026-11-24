@@ -27,6 +27,7 @@ function node(
     isDraft: false,
     author: { __typename: 'Bot', login: 'dependabot' },
     reviewRequests: { nodes: [] },
+    commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
     ...overrides,
   };
 }
@@ -72,6 +73,7 @@ describe('toPullRequest', () => {
       title: 'Bump foo',
       url: 'https://github.com/MetaMask/example/pull/7',
       requestedTeams: [],
+      ciState: 'unknown',
     });
   });
 
@@ -88,6 +90,21 @@ describe('toPullRequest', () => {
       }),
     );
     expect(pullRequest?.requestedTeams).toStrictEqual(['wallet']);
+  });
+
+  it('maps the status rollup to a CI state', () => {
+    const rollup = (
+      statusCheckRollup: { state: string } | null,
+    ): string | undefined =>
+      toPullRequest(
+        node({ commits: { nodes: [{ commit: { statusCheckRollup } }] } }),
+      )?.ciState;
+    expect(rollup({ state: 'SUCCESS' })).toBe('passing');
+    expect(rollup({ state: 'FAILURE' })).toBe('failing');
+    expect(rollup({ state: 'ERROR' })).toBe('failing');
+    expect(rollup({ state: 'PENDING' })).toBe('pending');
+    expect(rollup({ state: 'EXPECTED' })).toBe('pending');
+    expect(rollup(null)).toBe('unknown');
   });
 });
 

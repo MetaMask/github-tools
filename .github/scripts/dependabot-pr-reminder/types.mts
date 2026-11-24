@@ -3,6 +3,7 @@ export type PullRequest = {
   title: string;
   url: string;
   requestedTeams: string[];
+  ciState: 'passing' | 'failing' | 'pending' | 'unknown';
 };
 
 export type Reminder = {

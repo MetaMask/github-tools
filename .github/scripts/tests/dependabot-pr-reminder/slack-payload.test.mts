@@ -399,3 +399,42 @@ describe('buildSlackPayload shared by many teams', () => {
     ]);
   });
 });
+
+describe('buildSlackPayload CI icons', () => {
+  const fallback = { sharedByManyTeams: [], noTeam: [] };
+
+  it('puts an icon for the CI state in front of each PR', () => {
+    const payload = buildSlackPayload(
+      {
+        byTeam: {
+          a: [
+            pr({ number: 1, ciState: 'passing' }),
+            pr({ number: 2, ciState: 'failing' }),
+            pr({ number: 3, ciState: 'pending' }),
+            pr({ number: 4, ciState: 'unknown' }),
+          ],
+        },
+        fallback,
+      },
+      {},
+      { fallbackTeam: 'f', repository: 'MetaMask/example' },
+    );
+    assert.ok(payload);
+    const lines = sectionText(payload.blocks[1]).split('\n');
+    expect(lines[1]).toMatch(/^• :large_green_circle: .*#1 /u);
+    expect(lines[2]).toMatch(/^• :red_circle: .*#2 /u);
+    expect(lines[3]).toMatch(/^• :large_yellow_circle: .*#3 /u);
+    expect(lines[4]).toMatch(/^• :white_circle: .*#4 /u);
+  });
+
+  it('keeps a failing PR under its own team', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr({ ciState: 'failing' })] }, fallback },
+      {},
+      { fallbackTeam: 'f', repository: 'MetaMask/example' },
+    );
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(2);
+    expect(sectionText(payload.blocks[1]).startsWith('a\n')).toBe(true);
+  });
+});

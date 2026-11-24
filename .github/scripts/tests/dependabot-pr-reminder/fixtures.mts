@@ -13,6 +13,7 @@ export function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     title: 'Bump foo from 1.0.0 to 1.0.1',
     url: 'https://github.com/MetaMask/example/pull/1',
     requestedTeams: [],
+    ciState: 'unknown',
     ...overrides,
   };
 }
