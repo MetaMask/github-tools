@@ -27,6 +27,36 @@ function formatPullRequestLines(pullRequests: PullRequest[]): string[] {
 }
 
 /**
+ * Merges teams that have the same pull requests, so a PR requested from
+ * several teams is listed once with all of them tagged. Groups keep the order
+ * in which their first team appears.
+ *
+ * @param teamEntries - Each team with its pull requests.
+ * @returns The groups of teams and the pull requests they share.
+ */
+function groupTeamsByPullRequests(
+  teamEntries: [string, PullRequest[]][],
+): { teams: string[]; pullRequests: PullRequest[] }[] {
+  const groups = new Map<
+    string,
+    { teams: string[]; pullRequests: PullRequest[] }
+  >();
+  for (const [team, pullRequests] of teamEntries) {
+    const key = pullRequests
+      .map(({ number }) => number)
+      .sort((left, right) => left - right)
+      .join(',');
+    const group = groups.get(key);
+    if (group) {
+      group.teams.push(team);
+    } else {
+      groups.set(key, { teams: [team], pullRequests });
+    }
+  }
+  return [...groups.values()];
+}
+
+/**
  * Builds the Slack incoming webhook payload for a reminder.
  *
  * @param reminder - The classified reminder.
@@ -49,6 +79,7 @@ export function buildSlackPayload(
   const teamEntries = Object.entries(reminder.byTeam).filter(
     ([, pullRequests]) => pullRequests.length > 0,
   );
+  const teamGroups = groupTeamsByPullRequests(teamEntries);
   const fallbackSections = [
     { label: 'Failing CI', pullRequests: reminder.fallback.failingCi },
     { label: 'Ready to merge', pullRequests: reminder.fallback.readyToMerge },
@@ -71,27 +102,30 @@ export function buildSlackPayload(
   const headline = `*[${escapeSlack(options.repository)}] Open Dependabot pull requests*`;
   // Each section remembers its team mention, so only teams whose section is
   // actually sent get pinged.
-  const entries: { block: SlackBlock; handle?: string | undefined }[] = [
-    { block: section(headline) },
+  const entries: { block: SlackBlock; handles: string[] }[] = [
+    { block: section(headline), handles: [] },
   ];
   const addSections = (
-    header: { text: string; handle?: string },
+    teams: string[],
     pullRequests: PullRequest[],
     label?: string,
   ): void => {
-    const fullHeader = label ? `${header.text} *${label}*` : header.text;
+    const tags = teams.map(tag);
+    const header = tags.map(({ text }) => text).join(' ');
+    const fullHeader = label ? `${header} *${label}*` : header;
+    const handles = tags.flatMap(({ handle }) => (handle ? [handle] : []));
     for (const text of chunkSections(
       fullHeader,
       formatPullRequestLines(pullRequests),
     )) {
-      entries.push({ block: section(text), handle: header.handle });
+      entries.push({ block: section(text), handles });
     }
   };
-  for (const [team, pullRequests] of teamEntries) {
-    addSections(tag(team), pullRequests);
+  for (const { teams, pullRequests } of teamGroups) {
+    addSections(teams, pullRequests);
   }
   for (const { label, pullRequests } of fallbackSections) {
-    addSections(tag(options.fallbackTeam), pullRequests, label);
+    addSections([options.fallbackTeam], pullRequests, label);
   }
 
   const { blocks, omitted } = capBlocks(
@@ -107,9 +141,7 @@ export function buildSlackPayload(
   );
   const shownEntries =
     omitted.length > 0 ? entries.slice(0, blocks.length - 1) : entries;
-  const mentions = new Set(
-    shownEntries.flatMap(({ handle }) => (handle ? [handle] : [])),
-  );
+  const mentions = new Set(shownEntries.flatMap(({ handles }) => handles));
 
   return { text: [headline, ...mentions].join(' '), blocks };
 }

@@ -208,3 +208,60 @@ describe('buildSlackPayload mentions and titles', () => {
     expect(payload.text).not.toContain('@g79');
   });
 });
+
+describe('buildSlackPayload grouping', () => {
+  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
+  const fallback = { failingCi: [], readyToMerge: [], needsOwner: [] };
+  const topology = {
+    a: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
+    b: { githubHandle: 'MetaMask/b', slackHandle: { team: '@b-team' } },
+  };
+
+  it('lists a shared set of PRs once under all of its teams', () => {
+    const shared = [pr({ number: 1 }), pr({ number: 2 })];
+    const payload = buildSlackPayload(
+      {
+        byTeam: { a: shared, b: [pr({ number: 2 }), pr({ number: 1 })] },
+        fallback,
+      },
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(2);
+    const [, sharedBlock] = payload.blocks;
+    expect(sharedBlock?.text.text.split('\n')[0]).toBe('@a-team @b-team');
+    expect(sharedBlock?.text.text.match(/#1 /gu)).toHaveLength(1);
+    expect(payload.text).toContain('@a-team @b-team');
+  });
+
+  it('keeps teams with different PRs in separate sections', () => {
+    const payload = buildSlackPayload(
+      {
+        byTeam: {
+          a: [pr({ number: 1 }), pr({ number: 2 })],
+          b: [pr({ number: 2 })],
+        },
+        fallback,
+      },
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.blocks).toHaveLength(3);
+    expect(payload.blocks[1]?.text.text.startsWith('@a-team\n')).toBe(true);
+    expect(payload.blocks[2]?.text.text.startsWith('@b-team\n')).toBe(true);
+  });
+
+  it('shows a team without a handle as plain text next to tagged teams', () => {
+    const payload = buildSlackPayload(
+      { byTeam: { a: [pr()], plain: [pr()] }, fallback },
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.blocks[1]?.text.text.split('\n')[0]).toBe('@a-team plain');
+    expect(payload.text).toContain('@a-team');
+    expect(payload.text).not.toContain('plain');
+  });
+});
