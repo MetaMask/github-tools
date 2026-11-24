@@ -421,9 +421,9 @@ describe('buildSlackPayload CI icons', () => {
     );
     assert.ok(payload);
     const lines = sectionText(payload.blocks[1]).split('\n');
-    expect(lines[1]).toMatch(/^• :large_green_circle: .*#1 /u);
-    expect(lines[2]).toMatch(/^• :red_circle: .*#2 /u);
-    expect(lines[3]).toMatch(/^• :large_yellow_circle: .*#3 /u);
+    expect(lines[1]).toMatch(/^• :white_check_mark: .*#1 /u);
+    expect(lines[2]).toMatch(/^• :warning: .*#2 /u);
+    expect(lines[3]).toMatch(/^• :hourglass_flowing_sand: .*#3 /u);
     expect(lines[4]).toMatch(/^• :white_circle: .*#4 /u);
   });
 

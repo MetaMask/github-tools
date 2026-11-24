@@ -16,9 +16,9 @@ const MAX_TITLE_LENGTH = 200;
 
 /** Shown in front of each PR to tell its CI state at a glance. */
 const CI_ICONS: Record<PullRequest['ciState'], string> = {
-  passing: ':large_green_circle:',
-  failing: ':red_circle:',
-  pending: ':large_yellow_circle:',
+  passing: ':white_check_mark:',
+  failing: ':warning:',
+  pending: ':hourglass_flowing_sand:',
   unknown: ':white_circle:',
 };
 
