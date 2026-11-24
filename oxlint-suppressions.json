@@ -9,11 +9,6 @@
       "count": 1
     }
   },
-  ".github/scripts/dependabot-pr-reminder/cli.mts": {
-    "node/no-process-env": {
-      "count": 1
-    }
-  },
   ".github/scripts/generate-rc-commits.mjs": {
     "import/no-named-as-default": {
       "count": 1

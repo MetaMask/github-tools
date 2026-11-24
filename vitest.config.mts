@@ -49,10 +49,10 @@ export default defineConfig({
       thresholds: {
         // Raises the thresholds in this file when coverage improves.
         autoUpdate: true,
-        branches: 42.87,
-        functions: 52.31,
-        lines: 42.28,
-        statements: 42.46,
+        branches: 43.45,
+        functions: 53.85,
+        lines: 42.89,
+        statements: 43.06,
       },
     },
   },
