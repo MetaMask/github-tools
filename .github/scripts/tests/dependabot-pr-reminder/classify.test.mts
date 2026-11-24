@@ -53,14 +53,14 @@ describe('classifyPullRequests', () => {
   });
 
   it('keeps a PR under its teams when it has exactly the threshold', () => {
-    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c'] });
+    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c', 'd', 'e'] });
     const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
-    expect(Object.keys(result.byTeam)).toStrictEqual(['a', 'b', 'c']);
+    expect(Object.keys(result.byTeam)).toStrictEqual(['a', 'b', 'c', 'd', 'e']);
     expect(result.fallback.sharedByManyTeams).toStrictEqual([]);
   });
 
   it('moves a PR with more teams than the threshold to the fallback', () => {
-    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c', 'd'] });
+    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c', 'd', 'e', 'f'] });
     const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
     expect(result.byTeam).toStrictEqual({});
     expect(result.fallback.sharedByManyTeams).toStrictEqual([pullRequest]);

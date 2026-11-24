@@ -2,7 +2,7 @@ import { normalizeTeamSlug } from '../shared/topology.mts';
 import type { PullRequest, Reminder } from './types.mts';
 
 /** A PR requested from more than this many teams goes to the fallback team. */
-export const DEFAULT_SHARED_TEAM_THRESHOLD = 3;
+export const DEFAULT_SHARED_TEAM_THRESHOLD = 5;
 
 /**
  * Sorts pull requests into per-team groups and fallback buckets.
@@ -17,7 +17,7 @@ export const DEFAULT_SHARED_TEAM_THRESHOLD = 3;
  * @param options.ownerTeams - If set, only these teams are kept as owners.
  * @param options.fallbackTeam - The team that handles the fallback buckets.
  * @param options.sharedTeamThreshold - The most teams a PR can have and still
- * be listed under each of them. Defaults to 3.
+ * be listed under each of them. Defaults to 5.
  * @returns The classified reminder.
  */
 export function classifyPullRequests(

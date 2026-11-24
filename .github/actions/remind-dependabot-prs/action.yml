@@ -23,7 +23,7 @@ inputs:
   shared-team-threshold:
     description: 'A PR requested from more than this many teams is listed under the fallback team.'
     required: false
-    default: '3'
+    default: '5'
   reminder-note:
     description: 'Note shown under the headline of the message, as Slack mrkdwn. Empty for none.'
     required: false

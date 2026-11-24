@@ -39,7 +39,7 @@ on:
       shared-team-threshold:
         required: false
         type: number
-        default: 3
+        default: 5
         description: 'A PR requested from more than this many teams is listed under the fallback team'
       reminder-note:
         required: false
