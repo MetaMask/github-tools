@@ -9,6 +9,7 @@ export type PullRequest = {
 export type Reminder = {
   byTeam: Record<string, PullRequest[]>;
   fallback: {
+    sharedByManyTeams: PullRequest[];
     readyToMerge: PullRequest[];
     needsOwner: PullRequest[];
   };

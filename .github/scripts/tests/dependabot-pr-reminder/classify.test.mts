@@ -51,4 +51,39 @@ describe('classifyPullRequests', () => {
     });
     expect(Object.keys(result.byTeam)).toStrictEqual(['core']);
   });
+
+  it('keeps a PR under its teams when it has exactly the threshold', () => {
+    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c'] });
+    const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
+    expect(Object.keys(result.byTeam)).toStrictEqual(['a', 'b', 'c']);
+    expect(result.fallback.sharedByManyTeams).toStrictEqual([]);
+  });
+
+  it('moves a PR with more teams than the threshold to the fallback', () => {
+    const pullRequest = pr({ requestedTeams: ['a', 'b', 'c', 'd'] });
+    const result = classifyPullRequests([pullRequest], { fallbackTeam: 'f' });
+    expect(result.byTeam).toStrictEqual({});
+    expect(result.fallback.sharedByManyTeams).toStrictEqual([pullRequest]);
+  });
+
+  it('uses a custom threshold', () => {
+    const pullRequest = pr({ requestedTeams: ['a', 'b'] });
+    const result = classifyPullRequests([pullRequest], {
+      fallbackTeam: 'f',
+      sharedTeamThreshold: 1,
+    });
+    expect(result.fallback.sharedByManyTeams).toStrictEqual([pullRequest]);
+  });
+
+  it('counts only the owner teams and ignores repeats', () => {
+    const pullRequest = pr({
+      requestedTeams: ['a', 'A', 'b', 'x', 'y', 'z'],
+    });
+    const result = classifyPullRequests([pullRequest], {
+      ownerTeams: ['a', 'b'],
+      fallbackTeam: 'f',
+    });
+    expect(Object.keys(result.byTeam)).toStrictEqual(['a', 'b']);
+    expect(result.fallback.sharedByManyTeams).toStrictEqual([]);
+  });
 });

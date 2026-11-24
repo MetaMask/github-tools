@@ -18,12 +18,18 @@ const MAX_TITLE_LENGTH = 200;
  * Formats pull requests as bulleted Slack links, one line each.
  *
  * @param pullRequests - The pull requests to list.
+ * @param showTeamCount - Whether to add how many teams were requested.
  * @returns The bulleted lines.
  */
-function formatPullRequestLines(pullRequests: PullRequest[]): string[] {
+function formatPullRequestLines(
+  pullRequests: PullRequest[],
+  showTeamCount: boolean,
+): string[] {
   return pullRequests.map(
-    ({ url, number, title }) =>
-      `• <${url}|#${number} ${escapeSlack(truncateText(title, MAX_TITLE_LENGTH))}>`,
+    ({ url, number, title, requestedTeams }) =>
+      `• <${url}|#${number} ${escapeSlack(truncateText(title, MAX_TITLE_LENGTH))}>${
+        showTeamCount ? ` (${requestedTeams.length} teams)` : ''
+      }`,
   );
 }
 
@@ -84,8 +90,21 @@ export function buildSlackPayload(
   );
   const teamGroups = groupTeamsByPullRequests(teamEntries);
   const fallbackSections = [
-    { label: 'Ready to merge', pullRequests: reminder.fallback.readyToMerge },
-    { label: 'Needs owner', pullRequests: reminder.fallback.needsOwner },
+    {
+      label: 'Shared by many teams',
+      pullRequests: reminder.fallback.sharedByManyTeams,
+      showTeamCount: true,
+    },
+    {
+      label: 'Ready to merge',
+      pullRequests: reminder.fallback.readyToMerge,
+      showTeamCount: false,
+    },
+    {
+      label: 'Needs owner',
+      pullRequests: reminder.fallback.needsOwner,
+      showTeamCount: false,
+    },
   ].filter(({ pullRequests }) => pullRequests.length > 0);
 
   if (teamEntries.length === 0 && fallbackSections.length === 0) {
@@ -120,7 +139,10 @@ export function buildSlackPayload(
   const addSections = (
     teams: string[],
     pullRequests: PullRequest[],
-    label?: string,
+    {
+      label,
+      showTeamCount = false,
+    }: { label?: string; showTeamCount?: boolean } = {},
   ): void => {
     const tags = teams.map(tag);
     const header = tags.map(({ text }) => text).join(' ');
@@ -128,7 +150,7 @@ export function buildSlackPayload(
     const handles = tags.flatMap(({ handle }) => (handle ? [handle] : []));
     for (const text of chunkSections(
       fullHeader,
-      formatPullRequestLines(pullRequests),
+      formatPullRequestLines(pullRequests, showTeamCount),
     )) {
       entries.push({ block: section(text), handles });
     }
@@ -136,8 +158,8 @@ export function buildSlackPayload(
   for (const { teams, pullRequests } of teamGroups) {
     addSections(teams, pullRequests);
   }
-  for (const { label, pullRequests } of fallbackSections) {
-    addSections([options.fallbackTeam], pullRequests, label);
+  for (const { label, pullRequests, showTeamCount } of fallbackSections) {
+    addSections([options.fallbackTeam], pullRequests, { label, showTeamCount });
   }
 
   const { blocks, omitted } = capBlocks(

@@ -36,6 +36,11 @@ on:
         type: string
         default: 'main'
         description: 'Git ref of MetaMask-planning to read topology.json from'
+      shared-team-threshold:
+        required: false
+        type: number
+        default: 3
+        description: 'A PR requested from more than this many teams is listed under the fallback team'
       reminder-note:
         required: false
         type: string
@@ -81,6 +86,7 @@ jobs:
           owner-teams: ${{ inputs.owner-teams }}
           fallback-team: ${{ inputs.fallback-team }}
           topology-ref: ${{ inputs.topology-ref }}
+          shared-team-threshold: ${{ inputs.shared-team-threshold }}
           reminder-note: ${{ inputs.reminder-note }}
 
       - name: Send Slack notification

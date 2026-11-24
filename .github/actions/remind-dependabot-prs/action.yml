@@ -20,6 +20,10 @@ inputs:
     description: 'Git ref of MetaMask-planning to read topology.json from.'
     required: false
     default: 'main'
+  shared-team-threshold:
+    description: 'A PR requested from more than this many teams is listed under the fallback team.'
+    required: false
+    default: '3'
   reminder-note:
     description: 'Note shown under the headline of the message, as Slack mrkdwn. Empty for none.'
     required: false
@@ -52,6 +56,7 @@ runs:
         OWNER_TEAMS: ${{ inputs.owner-teams }}
         FALLBACK_TEAM: ${{ inputs.fallback-team }}
         TOPOLOGY_REF: ${{ inputs.topology-ref }}
+        SHARED_TEAM_THRESHOLD: ${{ inputs.shared-team-threshold }}
         REMINDER_NOTE: ${{ inputs.reminder-note }}
       run: |
         set -euo pipefail

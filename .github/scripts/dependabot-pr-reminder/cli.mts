@@ -7,7 +7,7 @@ import type { Topology } from '../shared/topology.mts';
 import { classifyPullRequests } from './classify.mts';
 import { fetchDependabotPullRequests } from './github-api.mts';
 import { buildSlackPayload } from './slack-payload.mts';
-import { parseOwnerTeams } from './teams.mts';
+import { parseOwnerTeams, parseSharedTeamThreshold } from './teams.mts';
 
 /**
  * Fetches open Dependabot pull requests and writes the Slack payload.
@@ -42,8 +42,12 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   }
 
   const ownerTeams = parseOwnerTeams(environment.OWNER_TEAMS);
+  const sharedTeamThreshold = parseSharedTeamThreshold(
+    environment.SHARED_TEAM_THRESHOLD,
+  );
   const reminder = classifyPullRequests(pullRequests, {
     ...(ownerTeams ? { ownerTeams } : {}),
+    ...(sharedTeamThreshold === undefined ? {} : { sharedTeamThreshold }),
     fallbackTeam,
   });
 
