@@ -21,6 +21,11 @@ name: Remind Dependabot PRs
 on:
   workflow_call:
     inputs:
+      repository:
+        required: false
+        type: string
+        default: ''
+        description: 'Repository to report on, as owner/name. Empty uses the calling repository'
       owner-teams:
         required: false
         type: string
@@ -87,6 +92,7 @@ jobs:
         uses: MetaMask/github-tools/.github/actions/remind-dependabot-prs@v1
         with:
           github-token: ${{ github.token }}
+          repository: ${{ inputs.repository }}
           planning-token: ${{ steps.planning-token.outputs.token }}
           owner-teams: ${{ inputs.owner-teams }}
           fallback-team: ${{ inputs.fallback-team }}

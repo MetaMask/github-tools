@@ -26,12 +26,16 @@ describe('cli entry point', () => {
    * Runs the script with no settings, so it stops at once with a message.
    *
    * @param scriptPath - The path to run it through.
+   * @param settings - Environment settings to give it.
    * @returns What it printed on stderr.
    */
-  async function runWithoutSettings(scriptPath: string): Promise<string> {
+  async function runWithoutSettings(
+    scriptPath: string,
+    settings: Record<string, string> = {},
+  ): Promise<string> {
     try {
       await execFileAsync(process.execPath, [scriptPath], {
-        env: { PATH: process.env.PATH ?? '' },
+        env: { PATH: process.env.PATH ?? '', ...settings },
       });
     } catch (error) {
       return (error as { stderr?: string }).stderr ?? '';
@@ -58,4 +62,17 @@ describe('cli entry point', () => {
       'are required',
     );
   });
+
+  it.each(['MetaMask/core is:issue', 'MetaMask', 'a/b/c', 'a/b c'])(
+    'rejects the repository %j before searching',
+    async (repository) => {
+      const output = await runWithoutSettings(SCRIPT, {
+        GITHUB_REPOSITORY: repository,
+        FALLBACK_TEAM: 'core-platform',
+        PLANNING_TOKEN: 'token',
+        GITHUB_OUTPUT: join(tmpdir(), 'reminder-cli-output.txt'),
+      });
+      expect(output).toContain('owner/name');
+    },
+  );
 });

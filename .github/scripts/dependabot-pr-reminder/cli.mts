@@ -26,7 +26,8 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
       'GITHUB_REPOSITORY, FALLBACK_TEAM, PLANNING_TOKEN and GITHUB_OUTPUT are required',
     );
   }
-  if (repository.split('/').filter(Boolean).length !== 2) {
+  // The name goes into a search query, so only allow plain owner/name values.
+  if (!/^[\w.-]+\/[\w.-]+$/u.test(repository)) {
     throw new Error('GITHUB_REPOSITORY must be in owner/name form');
   }
   const ref = environment.TOPOLOGY_REF?.trim()

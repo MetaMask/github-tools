@@ -3,8 +3,12 @@ description: 'Builds a Slack payload listing open Dependabot PRs grouped by owni
 
 inputs:
   github-token:
-    description: 'Token used to read pull request data from the invoking repository.'
+    description: 'Token used to read pull request data from the repository.'
     required: true
+  repository:
+    description: 'Repository to report on, as owner/name. Empty uses the invoking repository.'
+    required: false
+    default: ''
   planning-token:
     description: 'Token with read access to MetaMask/MetaMask-planning (for topology.json).'
     required: true
@@ -54,7 +58,7 @@ runs:
       id: reminder
       shell: bash
       env:
-        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_REPOSITORY: ${{ inputs.repository || github.repository }}
         GH_TOKEN: ${{ inputs.github-token }}
         PLANNING_TOKEN: ${{ inputs.planning-token }}
         OWNER_TEAMS: ${{ inputs.owner-teams }}
