@@ -66,3 +66,9 @@ runs:
       run: |
         set -euo pipefail
         node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder/cli.mts"
+
+        # Fail loudly if the script did not run, instead of quietly posting nothing.
+        if ! grep -q '^has-prs=' "$GITHUB_OUTPUT"; then
+          echo "::error::The Dependabot reminder script did not produce an output"
+          exit 1
+        fi

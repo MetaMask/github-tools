@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,7 +94,12 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
   console.log(`Wrote Slack payload with ${payload.blocks.length} sections.`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Compare real paths, since a symlinked directory makes the two differ and the
+// script would otherwise silently do nothing.
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   main(process.env).catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
