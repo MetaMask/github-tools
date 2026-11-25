@@ -44,7 +44,7 @@ outputs:
 runs:
   using: composite
   steps:
-    # The script is a .mts file, which requires Node 22+ to run directly.
+    # The script is a .mts file, which requires Node 22.18+ to run directly.
     - name: Set up Node
       uses: actions/setup-node@v6
       with:
