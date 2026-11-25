@@ -24,8 +24,12 @@ inputs:
     description: 'A PR requested from more than this many teams is listed under the fallback team.'
     required: false
     default: '5'
+  guide-url:
+    description: 'Link to a guide for handling these PRs, shown under the note. Empty for none.'
+    required: false
+    default: ''
   reminder-note:
-    description: 'Note shown under the headline, as Slack mrkdwn. `default` uses the built in instructions, empty for none. `{repository}` is replaced by the repository name.'
+    description: 'Note shown under the counts, as Slack mrkdwn. `default` uses the built in note, empty for none. `{repository}` is replaced by the repository name.'
     required: false
     default: 'default'
 
@@ -58,6 +62,7 @@ runs:
         TOPOLOGY_REF: ${{ inputs.topology-ref }}
         SHARED_TEAM_THRESHOLD: ${{ inputs.shared-team-threshold }}
         REMINDER_NOTE: ${{ inputs.reminder-note }}
+        GUIDE_URL: ${{ inputs.guide-url }}
       run: |
         set -euo pipefail
         node "$GITHUB_ACTION_PATH/../../scripts/dependabot-pr-reminder/cli.mts"

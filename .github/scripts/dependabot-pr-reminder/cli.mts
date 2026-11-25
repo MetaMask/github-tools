@@ -6,7 +6,7 @@ import { fetchTopology } from '../shared/topology.mts';
 import type { Topology } from '../shared/topology.mts';
 import { classifyPullRequests } from './classify.mts';
 import { fetchDependabotPullRequests } from './github-api.mts';
-import { resolveReminderNote } from './reminder-note.mts';
+import { parseGuideUrl, resolveReminderNote } from './reminder-note.mts';
 import { buildSlackPayload } from './slack-payload.mts';
 import { parseOwnerTeams, parseSharedTeamThreshold } from './teams.mts';
 
@@ -68,7 +68,11 @@ export async function main(environment: NodeJS.ProcessEnv): Promise<void> {
     );
   }
 
-  const note = resolveReminderNote(environment.REMINDER_NOTE, repository);
+  const note = resolveReminderNote(
+    environment.REMINDER_NOTE,
+    repository,
+    parseGuideUrl(environment.GUIDE_URL),
+  );
   const payload = buildSlackPayload(reminder, topology, {
     fallbackTeam,
     repository,

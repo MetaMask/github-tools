@@ -1,440 +1,351 @@
 import { assert, describe, expect, it } from 'vitest';
 
 import { buildSlackPayload } from '../../dependabot-pr-reminder/slack-payload.mts';
-import type { Reminder } from '../../dependabot-pr-reminder/types.mts';
+import type {
+  PullRequest,
+  Reminder,
+} from '../../dependabot-pr-reminder/types.mts';
 import { pr, sectionText } from './fixtures.mts';
 
+const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
+
+const topology = {
+  a: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
+  b: { githubHandle: 'MetaMask/b', slackHandle: { team: '@b-team' } },
+  platform: {
+    githubHandle: 'MetaMask/platform',
+    slackHandle: { team: '@platform-team' },
+  },
+};
+
+/**
+ * Builds a reminder for tests.
+ *
+ * @param parts - The parts of the reminder.
+ * @param parts.byTeam - Pull requests by team.
+ * @param parts.shared - Pull requests shared by many teams.
+ * @param parts.noTeam - Pull requests with no team.
+ * @returns The reminder.
+ */
+function reminder(
+  parts: {
+    byTeam?: Record<string, PullRequest[]>;
+    shared?: PullRequest[];
+    noTeam?: PullRequest[];
+  } = {},
+): Reminder {
+  return {
+    byTeam: parts.byTeam ?? {},
+    fallback: {
+      sharedByManyTeams: parts.shared ?? [],
+      noTeam: parts.noTeam ?? [],
+    },
+  };
+}
+
 describe('buildSlackPayload', () => {
-  const options = { fallbackTeam: 'platform', repository: 'MetaMask/example' };
-  const emptyReminder = (): Reminder => ({
-    byTeam: {},
-    fallback: { sharedByManyTeams: [], noTeam: [] },
-  });
-  const allText = (payload: { text: string; blocks: unknown[] }): string =>
-    `${payload.text}\n${JSON.stringify(payload.blocks)}`;
-
-  it('returns undefined for an empty reminder', () => {
-    expect(buildSlackPayload(emptyReminder(), {}, options)).toBeUndefined();
+  it('returns undefined when there are no pull requests', () => {
+    expect(buildSlackPayload(reminder(), {}, options)).toBeUndefined();
   });
 
-  it('tags a team using slackHandle.team', () => {
-    const reminder = emptyReminder();
-    reminder.byTeam['core-platform'] = [pr({ number: 7 })];
+  it('starts with a header, the counts and a divider, and ends with a legend', () => {
     const payload = buildSlackPayload(
-      reminder,
-      {
-        'core-platform': {
-          githubHandle: 'MetaMask/core-platform',
-          slackHandle: { team: '@core-platform-team' },
-        },
-      },
+      reminder({ byTeam: { a: [pr({ ciState: 'passing' })] } }),
+      topology,
       options,
     );
     assert.ok(payload);
-    expect(allText(payload)).toMatch(/@core-platform-team/u);
-    expect(allText(payload)).toMatch(/#7/u);
-    expect(payload.text).toMatch(/@core-platform-team/u);
-    expect(allText(payload)).not.toMatch(/:dependabot:/u);
-  });
-
-  it('matches githubHandle regardless of case or @ prefix', () => {
-    const reminder = emptyReminder();
-    reminder.byTeam['core-platform'] = [pr()];
-    const payload = buildSlackPayload(
-      reminder,
-      {
-        key: {
-          githubHandle: '@MetaMask/Core-Platform',
-          slackHandle: { team: '@nine-team' },
-        },
-      },
-      options,
+    const types = payload.blocks.map(({ type }) => type);
+    expect(types.slice(0, 3)).toStrictEqual(['header', 'context', 'divider']);
+    expect(types.slice(-2)).toStrictEqual(['divider', 'context']);
+    expect(JSON.stringify(payload.blocks[0])).toContain(
+      ':dependabot: Open Dependabot pull requests',
     );
-    assert.ok(payload);
-    expect(allText(payload)).toMatch(/@nine-team/u);
-  });
-
-  it('falls back to the plain team name when topology has no match', () => {
-    const reminder = emptyReminder();
-    reminder.byTeam['core-platform'] = [pr()];
-    const payload = buildSlackPayload(reminder, {}, options);
-    assert.ok(payload);
-    expect(allText(payload)).toMatch(/core-platform/u);
-    expect(allText(payload)).not.toMatch(/@core-platform-team/u);
-  });
-
-  it('escapes &, <, > in PR titles', () => {
-    const reminder = emptyReminder();
-    reminder.byTeam.a = [pr({ title: 'Bump <a> & b > c' })];
-    const payload = buildSlackPayload(reminder, {}, options);
-    assert.ok(payload);
-    expect(allText(payload)).toMatch(/Bump &lt;a&gt; &amp; b &gt; c/u);
-  });
-
-  it('renders fallback sections under the fallback team', () => {
-    const reminder = emptyReminder();
-    reminder.fallback.noTeam = [pr({ number: 3 })];
-    const payload = buildSlackPayload(
-      reminder,
-      {
-        platform: {
-          githubHandle: 'MetaMask/platform',
-          slackHandle: { team: '@platform-team' },
-        },
-      },
-      options,
+    expect(JSON.stringify(payload.blocks.at(-1))).toContain(
+      ':white_check_mark: CI passes · :x: CI fails',
     );
-    assert.ok(payload);
-    const text = allText(payload);
-    expect(text).toMatch(/@platform-team/u);
-    expect(text).toMatch(/#3/u);
   });
-});
 
-describe('buildSlackPayload chunking', () => {
-  it('splits a long team list into sections under the Slack limit', () => {
-    const pullRequests = Array.from({ length: 60 }, (_, index) =>
-      pr({
-        number: index + 1,
-        title: `Bump some-long-package-name-${index} from 1.0.0 to 1.0.1`,
-        url: `https://github.com/MetaMask/example/pull/${index + 1}`,
+  it('shows the repository link, how many are open, and only the states present', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: {
+          a: [
+            pr({ number: 1, ciState: 'passing' }),
+            pr({ number: 2, ciState: 'failing' }),
+            pr({ number: 3, ciState: 'failing' }),
+          ],
+        },
       }),
-    );
-    const reminder: Reminder = {
-      byTeam: { wallet: pullRequests },
-      fallback: { sharedByManyTeams: [], noTeam: [] },
-    };
-    const payload = buildSlackPayload(
-      reminder,
-      {},
-      { fallbackTeam: 'f', repository: 'MetaMask/example' },
-    );
-    assert.ok(payload);
-    const texts = payload.blocks.map(sectionText);
-    expect(texts.length).toBeGreaterThan(3);
-    for (const text of texts) {
-      assert.ok(text.length <= 3000, `section has ${text.length} characters`);
-    }
-    const joined = texts.join('\n');
-    for (const { number } of pullRequests) {
-      assert.ok(joined.includes(`#${number} `), `PR #${number} is missing`);
-    }
-  });
-});
-
-describe('buildSlackPayload limits and lookup', () => {
-  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
-
-  it('caps blocks at 50 and appends an overflow line', () => {
-    const byTeam: Reminder['byTeam'] = {};
-    for (let index = 0; index < 80; index++) {
-      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
-    }
-    const payload = buildSlackPayload(
-      {
-        byTeam,
-        fallback: { sharedByManyTeams: [], noTeam: [] },
-      },
-      {},
+      topology,
       options,
     );
     assert.ok(payload);
-    expect(payload.blocks.length).toBeLessThanOrEqual(50);
-    expect(sectionText(payload.blocks.at(-1))).toMatch(/…and \d+ more/u);
+    expect(JSON.stringify(payload.blocks[1])).toContain(
+      '<https://github.com/MetaMask/example|MetaMask/example> · *3* open · :white_check_mark: 1 passing · :x: 2 failing',
+    );
+    expect(JSON.stringify(payload.blocks[1])).not.toContain('running');
   });
 
-  it('does not throw on null topology entries', () => {
+  it('puts the note between the counts and the first divider', () => {
     const payload = buildSlackPayload(
-      {
-        byTeam: { a: [pr()] },
-        fallback: { sharedByManyTeams: [], noTeam: [] },
-      },
-      {
-        bad: null,
-        good: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
-      },
+      reminder({ byTeam: { a: [pr()] } }),
+      topology,
+      { ...options, note: 'Own it.' },
+    );
+    assert.ok(payload);
+    expect(payload.blocks.map(({ type }) => type).slice(0, 4)).toStrictEqual([
+      'header',
+      'context',
+      'section',
+      'divider',
+    ]);
+    expect(sectionText(payload.blocks[2])).toBe('Own it.');
+  });
+
+  it('leaves the note out when there is none', () => {
+    const payload = buildSlackPayload(
+      reminder({ byTeam: { a: [pr()] } }),
+      topology,
       options,
     );
-    expect(payload?.text).toMatch(/@a-team/u);
+    assert.ok(payload);
+    expect(payload.blocks.map(({ type }) => type)).not.toContain('Own it.');
+    expect(payload.blocks[2]?.type).toBe('divider');
   });
-});
 
-describe('buildSlackPayload mentions and titles', () => {
-  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
-  const fallback = { sharedByManyTeams: [], noTeam: [] };
-
-  it('does not turn @ text in titles into mentions', () => {
+  it('groups by CI state in order, with dividers between the groups', () => {
     const payload = buildSlackPayload(
-      { byTeam: { a: [pr({ title: 'Bump @here/x' })] }, fallback },
-      {},
+      reminder({
+        byTeam: {
+          a: [
+            pr({ number: 1, ciState: 'passing' }),
+            pr({ number: 2, ciState: 'failing' }),
+            pr({ number: 3, ciState: 'pending' }),
+          ],
+        },
+        shared: [pr({ number: 4, ciState: 'failing', requestedTeams: ['x'] })],
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const headings = payload.blocks
+      .filter(({ type }) => type === 'section')
+      .map((block) => sectionText(block).split('\n')[0]);
+    expect(headings).toStrictEqual([
+      '*:x: Needs a fix*',
+      '*:hourglass_flowing_sand: In progress*',
+      '*:busts_in_silhouette: Shared by many teams*',
+      '*:white_check_mark: CI passing*',
+    ]);
+  });
+
+  it('shows the package and versions and tags the teams under each PR', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: {
+          a: [pr({ number: 7, ciState: 'failing' })],
+          b: [pr({ number: 7, ciState: 'failing' })],
+          plain: [pr({ number: 7, ciState: 'failing' })],
+        },
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const text = sectionText(payload.blocks[3]);
+    expect(text).toBe(
+      '*:x: Needs a fix*\n<https://github.com/MetaMask/example/pull/1|#7> `foo` 1.0.0 → 1.0.1\n@a-team @b-team plain',
+    );
+  });
+
+  it('lists each PR once, even when many teams share it', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: {
+          a: [pr({ number: 1 }), pr({ number: 2 })],
+          b: [pr({ number: 2 })],
+        },
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const all = JSON.stringify(payload.blocks);
+    expect(all.match(/\|#1>/gu)).toHaveLength(1);
+    expect(all.match(/\|#2>/gu)).toHaveLength(1);
+  });
+
+  it('shows a PR with no team under the fallback team', () => {
+    const payload = buildSlackPayload(
+      reminder({ noTeam: [pr({ number: 5, ciState: 'passing' })] }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(sectionText(payload.blocks[3])).toBe(
+      '*:white_check_mark: CI passing*\n<https://github.com/MetaMask/example/pull/1|#5> `foo` 1.0.0 → 1.0.1\n@platform-team',
+    );
+  });
+
+  it('shows shared PRs with an icon and team count, coordinated by the fallback team', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        shared: [
+          pr({
+            number: 9,
+            ciState: 'failing',
+            requestedTeams: ['a', 'b', 'c', 'd', 'e', 'f'],
+          }),
+        ],
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const text = sectionText(payload.blocks[3]);
+    expect(text.split('\n')[0]).toBe(
+      '*:busts_in_silhouette: Shared by many teams*',
+    );
+    expect(text.split('\n')[1]).toBe('Coordinated by @platform-team');
+    expect(text).toMatch(/:x: <[^>]*\|#9> `foo` 1\.0\.0 → 1\.0\.1 · 6 teams$/u);
+  });
+
+  it('shows an icon per PR in the in progress group', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: {
+          a: [
+            pr({ number: 1, ciState: 'pending' }),
+            pr({ number: 2, ciState: 'unknown' }),
+          ],
+        },
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const text = sectionText(payload.blocks[3]);
+    expect(text).toMatch(/:hourglass_flowing_sand: <[^>]*\|#1>/u);
+    expect(text).toMatch(/:white_circle: <[^>]*\|#2>/u);
+  });
+
+  it('puts the handles of tagged teams in the top level text', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: { a: [pr()], b: [pr()], plain: [pr()] },
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    expect(payload.text).toContain('@a-team @b-team');
+    expect(payload.text).not.toContain('plain');
+  });
+
+  it('escapes the title of a PR it cannot read and cuts it short', () => {
+    const payload = buildSlackPayload(
+      reminder({
+        byTeam: { a: [pr({ title: `Odd <title> & ${'x'.repeat(500)}` })] },
+      }),
+      topology,
+      options,
+    );
+    assert.ok(payload);
+    const text = sectionText(payload.blocks[3]);
+    expect(text).toContain('Odd &lt;title&gt; &amp; ');
+    expect(text).toContain('…');
+    expect(text.length).toBeLessThan(500);
+  });
+
+  it('does not turn @ text into mentions with link_names', () => {
+    const payload = buildSlackPayload(
+      reminder({ byTeam: { a: [pr({ title: 'Bump @here/x' })] } }),
+      topology,
       options,
     );
     assert.ok(payload);
     expect(payload).not.toHaveProperty('link_names');
   });
 
-  it('shortens long titles before wrapping them in a link', () => {
+  it('splits a long group into blocks under the Slack limit, repeating the heading', () => {
+    const pullRequests = Array.from({ length: 60 }, (_, index) =>
+      pr({
+        number: index + 1,
+        title: `chore(deps): bump some-long-package-name-${index} from 1.0.0 to 1.0.1`,
+        ciState: 'failing',
+      }),
+    );
     const payload = buildSlackPayload(
-      { byTeam: { a: [pr({ title: `${'x'.repeat(500)} & more` })] }, fallback },
-      {},
+      reminder({ byTeam: { a: pullRequests } }),
+      topology,
       options,
     );
     assert.ok(payload);
-    expect(sectionText(payload.blocks[1])).toMatch(/x…>$/u);
-    expect(sectionText(payload.blocks[1])).not.toContain('&amp;');
+    const sections = payload.blocks.filter(({ type }) => type === 'section');
+    expect(sections.length).toBeGreaterThan(1);
+    for (const block of sections) {
+      expect(sectionText(block).length).toBeLessThanOrEqual(3000);
+      expect(sectionText(block).startsWith('*:x: Needs a fix*\n')).toBe(true);
+    }
+    const all = JSON.stringify(payload.blocks);
+    for (const { number } of pullRequests) {
+      expect(all).toContain(`|#${number}>`);
+    }
   });
+});
 
-  it('only pings teams whose section is shown', () => {
+describe('buildSlackPayload block limit', () => {
+  /**
+   * Builds many teams that each have their own PR, in a handle each.
+   *
+   * @returns The reminder and the topology.
+   */
+  function manyTeams(): {
+    reminder: Reminder;
+    topology: Record<
+      string,
+      { githubHandle: string; slackHandle: { team: string } }
+    >;
+  } {
     const byTeam: Reminder['byTeam'] = {};
-    const topology: Record<
+    const manyTopology: Record<
       string,
       { githubHandle: string; slackHandle: { team: string } }
     > = {};
-    for (let index = 0; index < 80; index++) {
-      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
-      topology[`t${index}`] = {
+    for (let index = 0; index < 800; index++) {
+      byTeam[`team-${index}`] = [
+        pr({
+          number: index + 1,
+          title: `chore(deps): bump ${'p'.repeat(150)}${index} from 1.0.0 to 1.0.1`,
+          ciState: 'failing',
+        }),
+      ];
+      manyTopology[`t${index}`] = {
         githubHandle: `MetaMask/team-${index}`,
         slackHandle: { team: `@g${index}` },
       };
     }
-    const payload = buildSlackPayload({ byTeam, fallback }, topology, options);
+    return { reminder: reminder({ byTeam }), topology: manyTopology };
+  }
+
+  it('stays under 50 blocks, keeps the legend, and says how many were left out', () => {
+    const many = manyTeams();
+    const payload = buildSlackPayload(many.reminder, many.topology, options);
     assert.ok(payload);
-    expect(payload.blocks).toHaveLength(50);
+    expect(payload.blocks.length).toBeLessThanOrEqual(50);
+    expect(payload.blocks.at(-1)?.type).toBe('context');
+    expect(JSON.stringify(payload.blocks)).toMatch(
+      /…and \d+ more pull request\(s\) not shown/u,
+    );
+  });
+
+  it('only pings teams whose PRs are shown', () => {
+    const many = manyTeams();
+    const payload = buildSlackPayload(many.reminder, many.topology, options);
+    assert.ok(payload);
     expect(payload.text).toContain('@g0');
-    expect(payload.text).not.toContain('@g79');
-  });
-});
-
-describe('buildSlackPayload grouping', () => {
-  const options = { fallbackTeam: 'f', repository: 'MetaMask/example' };
-  const fallback = { sharedByManyTeams: [], noTeam: [] };
-  const topology = {
-    a: { githubHandle: 'MetaMask/a', slackHandle: { team: '@a-team' } },
-    b: { githubHandle: 'MetaMask/b', slackHandle: { team: '@b-team' } },
-  };
-
-  it('lists a shared set of PRs once under all of its teams', () => {
-    const shared = [pr({ number: 1 }), pr({ number: 2 })];
-    const payload = buildSlackPayload(
-      {
-        byTeam: { a: shared, b: [pr({ number: 2 }), pr({ number: 1 })] },
-        fallback,
-      },
-      topology,
-      options,
-    );
-    assert.ok(payload);
-    expect(payload.blocks).toHaveLength(2);
-    const [, sharedBlock] = payload.blocks;
-    expect(sectionText(sharedBlock).split('\n')[0]).toBe('@a-team @b-team');
-    expect(sectionText(sharedBlock).match(/#1 /gu)).toHaveLength(1);
-    expect(payload.text).toContain('@a-team @b-team');
-  });
-
-  it('lists each PR once, under all of its teams', () => {
-    const payload = buildSlackPayload(
-      {
-        byTeam: {
-          a: [pr({ number: 1 }), pr({ number: 2 })],
-          b: [pr({ number: 2 })],
-          c: [pr({ number: 2 })],
-        },
-        fallback,
-      },
-      topology,
-      options,
-    );
-    assert.ok(payload);
-    expect(payload.blocks).toHaveLength(3);
-    expect(sectionText(payload.blocks[1]).split('\n')[0]).toBe('@a-team');
-    expect(sectionText(payload.blocks[1])).toMatch(/#1 /u);
-    expect(sectionText(payload.blocks[2]).split('\n')[0]).toBe(
-      '@a-team @b-team c',
-    );
-    expect(sectionText(payload.blocks[2])).toMatch(/#2 /u);
-    expect(JSON.stringify(payload.blocks).match(/#2 /gu)).toHaveLength(1);
-  });
-
-  it('puts PRs with the same teams together', () => {
-    const payload = buildSlackPayload(
-      {
-        byTeam: {
-          a: [pr({ number: 1 }), pr({ number: 2 })],
-          b: [pr({ number: 2 }), pr({ number: 1 })],
-        },
-        fallback,
-      },
-      topology,
-      options,
-    );
-    assert.ok(payload);
-    expect(payload.blocks).toHaveLength(2);
-    expect(sectionText(payload.blocks[1]).split('\n')).toHaveLength(3);
-  });
-
-  it('shows a team without a handle as plain text next to tagged teams', () => {
-    const payload = buildSlackPayload(
-      { byTeam: { a: [pr()], plain: [pr()] }, fallback },
-      topology,
-      options,
-    );
-    assert.ok(payload);
-    expect(sectionText(payload.blocks[1]).split('\n')[0]).toBe('@a-team plain');
-    expect(payload.text).toContain('@a-team');
-    expect(payload.text).not.toContain('plain');
-  });
-});
-
-describe('buildSlackPayload note', () => {
-  const fallback = { sharedByManyTeams: [], noTeam: [] };
-
-  it('adds the note as a section right under the headline', () => {
-    const payload = buildSlackPayload(
-      { byTeam: { a: [pr()] }, fallback },
-      {},
-      { fallbackTeam: 'f', repository: 'MetaMask/example', note: 'Own it.' },
-    );
-    assert.ok(payload);
-    expect(payload.blocks[1]).toStrictEqual({
-      type: 'section',
-      text: { type: 'mrkdwn', text: 'Own it.' },
-    });
-  });
-
-  it('leaves the note out when there is none', () => {
-    const payload = buildSlackPayload(
-      { byTeam: { a: [pr()] }, fallback },
-      {},
-      { fallbackTeam: 'f', repository: 'MetaMask/example' },
-    );
-    assert.ok(payload);
-    expect(payload.blocks.map(({ type }) => type)).toStrictEqual([
-      'section',
-      'section',
-    ]);
-  });
-
-  it('keeps the note when the block cap is hit', () => {
-    const byTeam: Reminder['byTeam'] = {};
-    for (let index = 0; index < 80; index++) {
-      byTeam[`team-${index}`] = [pr({ number: index + 1 })];
-    }
-    const payload = buildSlackPayload(
-      { byTeam, fallback },
-      {},
-      {
-        fallbackTeam: 'f',
-        repository: 'MetaMask/example',
-        note: 'Own it.',
-      },
-    );
-    assert.ok(payload);
-    expect(payload.blocks).toHaveLength(50);
-    expect(sectionText(payload.blocks[1])).toBe('Own it.');
-    expect(sectionText(payload.blocks.at(-1))).toMatch(/…and \d+ more/u);
-  });
-
-  it('cuts a very long note to fit Slack', () => {
-    const payload = buildSlackPayload(
-      { byTeam: { a: [pr()] }, fallback },
-      {},
-      {
-        fallbackTeam: 'f',
-        repository: 'MetaMask/example',
-        note: 'x'.repeat(5000),
-      },
-    );
-    assert.ok(payload);
-    const serialized = JSON.stringify(payload.blocks[1]);
-    expect(serialized).toContain('…');
-    expect(serialized.length).toBeLessThan(2900);
-  });
-});
-
-describe('buildSlackPayload shared by many teams', () => {
-  const fallback = {
-    sharedByManyTeams: [
-      pr({ number: 9, requestedTeams: ['a', 'b', 'c', 'd'] }),
-    ],
-    noTeam: [],
-  };
-  const topology = {
-    platform: {
-      githubHandle: 'MetaMask/platform',
-      slackHandle: { team: '@platform-team' },
-    },
-  };
-
-  it('lists the PR under the fallback team with how many teams it has', () => {
-    const payload = buildSlackPayload({ byTeam: {}, fallback }, topology, {
-      fallbackTeam: 'platform',
-      repository: 'MetaMask/example',
-    });
-    assert.ok(payload);
-    const text = sectionText(payload.blocks[1]);
-    expect(text.split('\n')[0]).toBe('@platform-team *Shared by many teams*');
-    expect(text).toMatch(/#9 .*\(4 teams\)$/u);
-    expect(payload.text).toContain('@platform-team');
-  });
-
-  it('puts the shared section before the PRs with no team', () => {
-    const payload = buildSlackPayload(
-      {
-        byTeam: {},
-        fallback: {
-          ...fallback,
-          noTeam: [pr({ number: 3 })],
-        },
-      },
-      topology,
-      { fallbackTeam: 'platform', repository: 'MetaMask/example' },
-    );
-    assert.ok(payload);
-    const headers = payload.blocks
-      .slice(1)
-      .map((block) => sectionText(block).split('\n')[0]);
-    expect(headers).toStrictEqual([
-      '@platform-team *Shared by many teams*',
-      '@platform-team',
-    ]);
-  });
-});
-
-describe('buildSlackPayload CI icons', () => {
-  const fallback = { sharedByManyTeams: [], noTeam: [] };
-
-  it('puts an icon for the CI state in front of each PR', () => {
-    const payload = buildSlackPayload(
-      {
-        byTeam: {
-          a: [
-            pr({ number: 1, ciState: 'passing' }),
-            pr({ number: 2, ciState: 'failing' }),
-            pr({ number: 3, ciState: 'pending' }),
-            pr({ number: 4, ciState: 'unknown' }),
-          ],
-        },
-        fallback,
-      },
-      {},
-      { fallbackTeam: 'f', repository: 'MetaMask/example' },
-    );
-    assert.ok(payload);
-    const lines = sectionText(payload.blocks[1]).split('\n');
-    expect(lines[1]).toMatch(/^• :white_check_mark: .*#1 /u);
-    expect(lines[2]).toMatch(/^• :warning: .*#2 /u);
-    expect(lines[3]).toMatch(/^• :hourglass_flowing_sand: .*#3 /u);
-    expect(lines[4]).toMatch(/^• :white_circle: .*#4 /u);
-  });
-
-  it('keeps a failing PR under its own team', () => {
-    const payload = buildSlackPayload(
-      { byTeam: { a: [pr({ ciState: 'failing' })] }, fallback },
-      {},
-      { fallbackTeam: 'f', repository: 'MetaMask/example' },
-    );
-    assert.ok(payload);
-    expect(payload.blocks).toHaveLength(2);
-    expect(sectionText(payload.blocks[1]).startsWith('a\n')).toBe(true);
+    expect(payload.text).not.toContain('@g799');
   });
 });

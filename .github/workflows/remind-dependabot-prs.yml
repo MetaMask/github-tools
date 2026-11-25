@@ -41,11 +41,16 @@ on:
         type: number
         default: 5
         description: 'A PR requested from more than this many teams is listed under the fallback team'
+      guide-url:
+        required: false
+        type: string
+        default: ''
+        description: 'Link to a guide for handling these PRs, shown under the note. Empty for none'
       reminder-note:
         required: false
         type: string
         default: 'default'
-        description: 'Note shown under the headline, as Slack mrkdwn. `default` uses the built in instructions, empty for none. `{repository}` is replaced by the repository name'
+        description: 'Note shown under the counts, as Slack mrkdwn. `default` uses the built in note, empty for none. `{repository}` is replaced by the repository name'
       environment:
         required: false
         type: string
@@ -88,6 +93,7 @@ jobs:
           topology-ref: ${{ inputs.topology-ref }}
           shared-team-threshold: ${{ inputs.shared-team-threshold }}
           reminder-note: ${{ inputs.reminder-note }}
+          guide-url: ${{ inputs.guide-url }}
 
       - name: Send Slack notification
         if: steps.remind.outputs.has-prs == 'true'

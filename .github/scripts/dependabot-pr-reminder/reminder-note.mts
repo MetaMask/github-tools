@@ -1,29 +1,29 @@
 import { escapeSlack } from '../shared/slack-blocks.mts';
-import { CI_ICONS } from './slack-payload.mts';
 
 /** The value of `reminder-note` that selects the built in note. */
 export const DEFAULT_NOTE_KEYWORD = 'default';
 
+const DEFAULT_NOTE =
+  ':wave: *Is your team tagged?* Check the changelogs, fix CI if it fails, and get approval from every tagged team before merging. Pushing to a PR yourself is fine, but Dependabot stops updating it after that.';
+
+const GUIDE_URL_PATTERN = /^https:\/\/[^\s<>|]+$/u;
+
 /**
- * Builds the built in note, which tells teams what to do with the PRs. The icon
- * legend is built from the icons the message really uses.
+ * Checks and returns the guide URL from the `guide-url` setting.
  *
- * @param repository - The repository the PRs are in, such as `MetaMask/core`.
- * @returns The note, as Slack mrkdwn.
+ * @param value - The setting.
+ * @returns The URL, or undefined when empty.
+ * @throws If the value is not an https URL that is safe to put in a Slack link.
  */
-function buildDefaultNote(repository: string): string {
-  return [
-    '*What to do if your team is tagged on a PR below*',
-    `Some packages in ${escapeSlack(repository)} have outdated dependencies, and Dependabot opened PRs to bump them.`,
-    '',
-    '1. Read the changelogs of the dependencies being bumped.',
-    `2. Check the icon: ${CI_ICONS.passing} CI passes, ${CI_ICONS.failing} CI fails, ${CI_ICONS.pending} CI is still running, ${CI_ICONS.unknown} no checks.`,
-    '3. If CI fails, work out why and fix it. You can push directly to the PR, but Dependabot stops updating it once you do.',
-    "4. Have a teammate review and approve it. If the PR touches other teams' packages, work with them to get their changes and approvals too.",
-    '5. Merge once CI passes and every required team has approved.',
-    '',
-    'PRs under "Shared by many teams" are coordinated by the team tagged on that section.',
-  ].join('\n');
+export function parseGuideUrl(value: string | undefined): string | undefined {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (!GUIDE_URL_PATTERN.test(trimmed)) {
+    throw new Error('GUIDE_URL must be an https URL');
+  }
+  return trimmed;
 }
 
 /**
@@ -33,17 +33,21 @@ function buildDefaultNote(repository: string): string {
  * gives no note, and any other text is used as it is, with `{repository}`
  * replaced by the repository name.
  * @param repository - The repository the PRs are in.
+ * @param guideUrl - A link to a guide, added under the note when there is one.
  * @returns The note, or undefined when there should be none.
  */
 export function resolveReminderNote(
   value: string | undefined,
   repository: string,
+  guideUrl?: string,
 ): string | undefined {
-  if (value === undefined || value.trim() === DEFAULT_NOTE_KEYWORD) {
-    return buildDefaultNote(repository);
+  const trimmed = value?.trim();
+  const note =
+    trimmed === undefined || trimmed === DEFAULT_NOTE_KEYWORD
+      ? DEFAULT_NOTE
+      : trimmed.replaceAll('{repository}', escapeSlack(repository));
+  if (!note) {
+    return undefined;
   }
-  const note = value.trim();
-  return note
-    ? note.replaceAll('{repository}', escapeSlack(repository))
-    : undefined;
+  return guideUrl ? `${note}\n<${guideUrl}|Read the full guide>` : note;
 }
