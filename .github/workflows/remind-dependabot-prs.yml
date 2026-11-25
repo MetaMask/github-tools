@@ -1,0 +1,110 @@
+name: Remind Dependabot PRs
+
+# Posts a Slack message listing open Dependabot PRs grouped by owning team.
+#
+# Caller requirements:
+#   - Name the calling workflow `remind-dependabot-prs.yml`.
+#   - Grant the job `contents`, `pull-requests`, `checks` and `statuses` read
+#     and `id-token: write`. A reusable workflow's permissions are capped by
+#     the caller's.
+#   - Have the environment named by `environment` (default `default-branch`).
+#     Protection rules or required reviewers on it will block scheduled runs.
+#   - Define the `TOKEN_EXCHANGE_URL` variable, with a token exchange policy
+#     allowing `contents: read` on MetaMask/MetaMask-planning.
+#   - Pass the `slack-webhook-url` secret.
+#
+# Note: the `@v1` references below only resolve after a github-tools release.
+# Pointing a caller at a branch ref is not enough for a pre-release smoke test:
+# this workflow also references `get-token@v1` and `remind-dependabot-prs@v1`
+# internally, so temporarily edit those inner `uses:` refs to the branch ref.
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        required: false
+        type: string
+        default: ''
+        description: 'Repository to report on, as owner/name. Empty uses the calling repository'
+      owner-teams:
+        required: false
+        type: string
+        default: ''
+        description: 'Comma-separated team slugs that own the calling repository'
+      fallback-team:
+        required: false
+        type: string
+        default: 'core-platform'
+        description: 'Team slug used for PRs that cannot be attributed to a team'
+      topology-ref:
+        required: false
+        type: string
+        default: 'main'
+        description: 'Git ref of MetaMask-planning to read topology.json from'
+      shared-team-threshold:
+        required: false
+        type: number
+        default: 5
+        description: 'A PR requested from more than this many teams is listed under the fallback team'
+      guide-url:
+        required: false
+        type: string
+        default: ''
+        description: 'Link to a guide for handling these PRs, shown under the note. Empty for none'
+      reminder-note:
+        required: false
+        type: string
+        default: 'default'
+        description: 'Note shown under the counts, as Slack mrkdwn. `default` uses the built in note, empty for none. `{repository}` is replaced by the repository name'
+      environment:
+        required: false
+        type: string
+        default: 'default-branch'
+        description: 'Environment the job runs in, used for the token exchange'
+    secrets:
+      slack-webhook-url:
+        required: true
+        description: 'Slack incoming webhook URL'
+
+jobs:
+  remind:
+    name: Remind Dependabot PRs
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      id-token: write
+    steps:
+      - name: Get planning token
+        id: planning-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: MetaMask/MetaMask-planning
+          permissions: |
+            contents: read
+
+      - name: Build reminder
+        id: remind
+        uses: MetaMask/github-tools/.github/actions/remind-dependabot-prs@v1
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ inputs.repository }}
+          planning-token: ${{ steps.planning-token.outputs.token }}
+          owner-teams: ${{ inputs.owner-teams }}
+          fallback-team: ${{ inputs.fallback-team }}
+          topology-ref: ${{ inputs.topology-ref }}
+          shared-team-threshold: ${{ inputs.shared-team-threshold }}
+          reminder-note: ${{ inputs.reminder-note }}
+          guide-url: ${{ inputs.guide-url }}
+
+      - name: Send Slack notification
+        if: steps.remind.outputs.has-prs == 'true'
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.slack-webhook-url }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ steps.remind.outputs.payload-path }}
