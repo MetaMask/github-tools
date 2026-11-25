@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -44,13 +44,9 @@ describe('cli entry point', () => {
   });
 
   it('runs when started through a path with .. segments', async () => {
-    const dotted = join(
-      SCRIPT,
-      '..',
-      '..',
-      'dependabot-pr-reminder',
-      'cli.mts',
-    );
+    // Built as a string, since `path.join` would remove the `..` segments.
+    const dotted = `${dirname(SCRIPT)}/../dependabot-pr-reminder/cli.mts`;
+    expect(dotted).toContain('/../');
     expect(await runWithoutSettings(dotted)).toContain('are required');
   });
 
